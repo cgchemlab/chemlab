@@ -1,0 +1,93 @@
+[ defaults ]
+1 1
+
+[ atomtypes ]
+;name  at.num   mass      charge  ptype      c6           c12
+  MA    1  59.044800     0.000     A        0            0
+  ML    2  41.072999     0.000     A        0            0
+  MB    3  93.105398     0.000     A        0            0
+  PA    4  59.044800     0.000     A        0            0
+  PL    5  41.072999     0.000     A        0            0
+  PB    6  93.105398     0.000     A        0            0
+  RA    7  42.037400     0.000     A        0            0
+  RB    8  92.097398     0.000     A        0            0
+
+[ atomstate ]
+MA 1
+MB 1
+PA 1
+PB 1
+
+[ bondtypes ]
+; i j func
+MA ML 8 0 1.0 ;b0
+ML MB 8 1 1.0 ;b1
+RA PL 8 2 1.0 ;b2
+PA PL 8 3 1.0 ;b3
+PL PB 8 4 1.0 ;b4
+PL RB 8 5 1.0 ;b5
+RA RB 8 6 1.0 ;b6
+
+[ angletypes ]
+; i j k func
+ MA ML MB 8 0 1.0 ;a0
+ MB ML MB 8 1 1.0 ;a1
+ RA PL PB 8 2 1.0 ;a2
+ RA PL RB 8 3 1.0 ;a3
+ PA PL RB 8 4 1.0 ;a4
+ PA PL PB 8 5 1.0 ;a5 equal to PA-PL-RB
+ PB PL RB 8 6 1.0 ;a6
+ RB PL RB 8 7 1.0 ;a7
+ PB PL PB 8 8 1.0 ;a8
+ PL RA RB 8 9 1.0 ;a9
+ PL RB RA 8 10 1.0 ;a10
+
+[ dihedraltypes ]
+ML MA MB MB 8 0 1.0 ;d0
+PL RA PB RB 8 1 1.0 ;d1
+PL PA RB RB 8 2 1.0 ;d2
+PL PA PB RB 8 3 1.0 ;d3 equal to PL-PA-RB-RB
+PL RA RB RB 8 4 1.0 ;d4
+PL RA PB PB 8 5 1.0 ;d5
+
+[ nonbond_params ]
+; i    j func = 8, reads from table: table_{i}_{j}.xvg
+ MA   MA      8
+ MA   ML      8
+ MA   MB      8
+ ML   ML      8
+ MB   ML      8
+ MB   MB      8
+ PA   PA      8
+ PA   PL      8
+ PA   PB      8
+ PA   RA      8
+ PA   RB      8
+ PL   PL      8
+ PB   PL      8
+ PL   RA      8
+ PL   RB      8
+ PB   PB      8
+ PB   RA      8
+ PB   RB      8
+ RA   RA      8
+ RA   RB      8
+ RB   RB      8
+; list of mixed tables
+; i j func=9 nr tab_prefix atom_type ntotal min_cr max_cr default
+; l j func=10 table1 table2 atom_type ntotal
+ MA   PA   10  table_PA_PA.xvg   table_MA_MA.xvg   RA 1000
+ MA   PL   10  table_PL_PL.xvg   table_MA_MA.xvg   RA 1000
+ MA   PB   10  table_PB_PB.xvg   table_MA_MA.xvg   RA 1000
+ MA   RA   10  table_RA_RA.xvg   table_MA_MA.xvg   RA 1000
+ MA   RB   10  table_RB_RB.xvg   table_MA_MA.xvg   RA 1000
+ MB   PA   10  table_PA_PA.xvg   table_MB_MB.xvg   RA 1000
+ MB   PL   10  table_PL_PL.xvg   table_MB_MB.xvg   RA 1000
+ MB   PB   10  table_PB_PB.xvg   table_MB_MB.xvg   RA 1000
+ MB   RA   10  table_RA_RA.xvg   table_MB_MB.xvg   RA 1000
+ MB   RB   10  table_RB_RB.xvg   table_MB_MB.xvg   RA 1000
+ ML   PL   10  table_PL_PL.xvg   table_ML_ML.xvg   RA 1000
+ ML   PB   10  table_PB_PB.xvg   table_ML_ML.xvg   RA 1000
+ ML   RB   10  table_RB_RB.xvg   table_ML_ML.xvg   RA 1000
+ ML   PA     10 table_PA_PA.xvg table_ML_ML.xvg RA 1000
+ ML   RA     10 table_RA_RA.xvg table_MA_MA.xvg RA 1000
