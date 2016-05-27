@@ -112,6 +112,7 @@ def process_group(cfg):
                  'potential_options': dict(
                      [s.split('=') for s in cfg['potential_options'].split(',')]),
                  'reaction_list': [],
+                 'connectivity_map': cfg.get('connectivity_map'),
                  'extensions': {}
                  }
     if 'extensions' in cfg:
@@ -175,6 +176,8 @@ class SetupReactions:
             return None
         if chem_reaction['reverse']:
             r_class = espressopp.integrator.DissociationReaction
+        elif chem_reaction.get('connectivity_map'):
+            r_class = espressopp.integrator.RestrictReaction
         else:
             r_class = espressopp.integrator.Reaction
         rt1 = rl['type_1']['name']
@@ -203,6 +206,17 @@ class SetupReactions:
             r.diss_rate = float(chem_reaction['diss_rate'])
         if 'active' in chem_reaction:
             r.active = chem_reaction['active']
+
+        if chem_reaction('connectivity_map'):
+            print('Reading connectivity map {}, reaction will be restricted'.format(
+                chem_reaction['connectivity_map']))
+            connectivity_map = open(chem_reaction['connectivity_map'])
+            b = 0
+            for l in connectivity_map.readlines():
+                b1, b2 = map(int, l.strip().split())
+                r.define_connection(b1, b2)
+                b += 1
+            print('Restricted to {} connections'.format(b))
 
         # Change type if necessary.
         if (rl['type_1']['name'] != rl['type_1']['new_type'] or
@@ -305,6 +319,9 @@ class SetupReactions:
             interaction = eval('espressopp.interaction.FixedPairList{}'.format(
                 reaction_group['potential']))(self.system, fpl, potential)
             self.system.addInteraction(interaction, 'fpl_{}'.format(group_name))
+
+            # Pass connectivity map from group level to reaction level
+            chem_reaction['connectivity_map'] = reaction_group['connectivity_map']
 
             # Setting the post process extensions.
             extensions = self._prepare_group_postprocess(reaction_group['extensions'])
