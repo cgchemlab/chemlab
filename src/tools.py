@@ -176,5 +176,7 @@ def _args():
                         help='Store chemical state')
     parser.add_argument('--store_lambda', default=False, type=ast.literal_eval,
                         help='Store lambda parameter')
+    parser.add_argument('--maximum_conversion', default=None, help='')
+    parser.add_argument('--input_connectivity', default=None, help='The desired connectivity map')
 
     return parser
