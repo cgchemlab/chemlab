@@ -41,47 +41,7 @@ mass_factor = 1.6605402
 
 h5md_group = 'atoms'
 
-__doc__ = 'Run GROMACS-like simulation'
-
-
-def sort_trajectory(trj, ids):
-    """Performs sorting on HDF5 file. It is required because by default, H5MD file
-    can be in unsorted state and only /particles/{}/id/value inform about particle. id.
-
-    Args:
-        trj: The input HDF5 Dataset to sort.
-        ids: The input ids Dataset with particle ids for every time step.
-
-    Returns:
-        Sorted numpy array.
-    """
-    print('Sorting trajectory')
-    idd = [
-        x[1] for x in sorted([(p_id, col_id) for col_id, p_id in enumerate(ids)],
-                             key=lambda y: (True, y[0]) if y[0] == -1 else (False, y[0]))
-    ]
-    return trj[idd]
-
-
-def sort_file(h5):
-    """Sort data file."""
-    atom_groups = [ag for ag in h5['/particles'] if 'id' in h5['/particles/{}/'.format(ag)]]
-    T = len(h5['/particles/{}/id/value'.format(atom_groups[0])])
-    # Iterate over time frames.
-    for t in xrange(T):
-        sys.stdout.write('Progress: {:.2f} %\r'.format(100.0*float(t)/T))
-        sys.stdout.flush()
-        for ag in atom_groups:
-            ids = h5['/particles/{}/id/value'.format(ag)]
-            idd = [
-                x[1] for x in sorted(
-                    [(p_id, col_id) for col_id, p_id in enumerate(ids[t])],
-                    key=lambda y: (True, y[0]) if y[0] == -1 else (False, y[0]))
-                ]
-            for k in h5['/particles/{}/'.format(ag)].keys():
-                if 'value' in h5['/particles/{}/{}'.format(ag, k)].keys():
-                    path = '/particles/{}/{}/value'.format(ag, k)
-                    h5[path][t] = h5[path][t][idd]
+__doc__ = 'Run GROMACS-like simulation with chemical reactions'
 
 
 def main():  #NOQA

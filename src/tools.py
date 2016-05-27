@@ -56,43 +56,6 @@ class MyArgParser(argparse.ArgumentParser):
                     of.write('{}={}\n'.format(k, v))
 
 
-def dump_topol(file_name, topol, system, particle_ids, bonds, angles, dihedrals, pairs):
-    # Get current atom set.
-    for atid in particle_ids:
-        p = system.storage.getParticle(atid)
-        atom_type_params = topol.gt.atomtypes[topol.atomtype_atomsym[p.type]]
-        topo_atom = espressopp.tools.chemlab.files_io.TopoAtom()
-        topo_atom.atom_id = atid
-        topo_atom.atom_type = atom_type_params['name']
-        topo_atom.chain_name = topol.gt.molecules.keys()[0]
-        topo_atom.name = 'T{}'.format(p.type)
-        topo_atom.mass = atom_type_params['mass']
-        topo_atom.charge = atom_type_params['charge']
-        topo_atom.chain_idx = p.res_id
-        topol.topol.atoms[atid] = topo_atom
-
-    for fpl in bonds:
-        for bp in fpl.getBonds():
-            for b12 in bp:
-                topol.topol.new_data['bonds'][b12] = []
-
-    for ftl in angles:
-        for bt in ftl.getTriples():
-            for b123 in bt:
-                topol.topol.angles[b123] = []
-
-    for fql in dihedrals:
-        for bq in fql.getQuadruples():
-            for b1234 in bq:
-                topol.topol.dihedrals[b1234] = []
-
-    for fpr in pairs:
-        for bl in fpr.getBonds():
-            for b12 in bl:
-                topol.topol.pairs[b12] = []
-
-    topol.topol.write(file_name)
-
 def save_forcefield(h5, gt):
     """Saves force-field to H5MD file under the /parameters/forcefield group."""
     if 'force_field' not in h5['/parameters']:
