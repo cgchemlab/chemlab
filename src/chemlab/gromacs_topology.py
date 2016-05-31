@@ -521,6 +521,8 @@ def set_bonded_interactions(system, gt, name='bonds'):
     bondparams_func = collections.defaultdict(list)
     for pt, p in gt.bondparams.items():
         bondparams_func[p['func']].append((pt, p))
+        if p['func'] not in dynamics_bonds_by_func:
+            dynamics_bonds_by_func[p['func']] = []
 
     for func, b_list in dynamics_bonds_by_func.items():
         fpl = espressopp.FixedPairList(system.storage)
@@ -532,8 +534,6 @@ def set_bonded_interactions(system, gt, name='bonds'):
                 type1=t[0], type2=t[1],
                 potential=potential_class(**convert_params(func, params['params']))
             )
-            #print('Set dynamic bond potential "bond_{}" type: {}-{} with params: {}'.format(
-            #    bond_count, t[0], t[1], params))
         system.addInteraction(interaction, 'bond_{}'.format(bond_count))
         bond_count += 1
         dynamics_fpls[func] = fpl
@@ -595,14 +595,14 @@ def setAngleInteractions(system, gt, name='angles'):
             static_ftls.append(ftl)
             interaction = interaction_class(system, ftl, potential_class(**convert_params(func, params[1:])))
             system.addInteraction(interaction, '{}_{}'.format(name, angle_count))
-            #print('Set static angle potential "{}_{}" ({}) func_type={} params={}'.format(
-            #    name, angle_count, len(b_list), func, params[1:]))
             angle_count += 1
 
     dynamics_ftls = collections.defaultdict(dict)
     angleparams_func = collections.defaultdict(list)
     for pt, p in gt.angleparams.items():
         angleparams_func[p['func']].append((pt, p))
+        if p['func'] not in dynamics_angles_by_func:
+            dynamics_angles_by_func[p['func']] = []
 
     for func, b_list in dynamics_angles_by_func.items():
         ftl = espressopp.FixedTripleList(system.storage)
@@ -614,8 +614,6 @@ def setAngleInteractions(system, gt, name='angles'):
                 type1=t[0], type2=t[1], type3=t[2],
                 potential=potential_class(**convert_params(func, params['params']))
             )
-            #print('Set dynamic angle potential "angle_{}" type: {}-{}-{} with params: {}'.format(
-            #    angle_count, t[0], t[1], t[2], params))
         system.addInteraction(interaction, 'angle_{}'.format(angle_count))
         angle_count += 1
         dynamics_ftls[func] = ftl
@@ -687,6 +685,8 @@ def setDihedralInteractions(system, gt, name='dihedrals'):
     dihedralparams_func = collections.defaultdict(list)
     for pt, p in gt.dihedralparams.items():
         dihedralparams_func[p['func']].append((pt, p))
+        if p['func'] not in dynamics_dihedrals_by_func:
+            dynamics_dihedrals_by_func[p['func']] = []
 
     for func, b_list in dynamics_dihedrals_by_func.items():
         fql = espressopp.FixedQuadrupleList(system.storage)

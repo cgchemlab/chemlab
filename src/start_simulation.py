@@ -33,7 +33,6 @@ import chemlab
 import tools
 
 import os
-import sys
 
 # GROMACS units, kJ/mol K
 kb = 0.0083144621
@@ -177,6 +176,8 @@ def main():  #NOQA
             barostat = espressopp.integrator.BerendsenBarostat(system, pressure_comp)
             barostat.tau = args.barostat_tau
             barostat.pressure = pressure
+        else:
+            raise Exception('Wrong barostat keyword: `{}`'.format(args.barostat))
         integrator.addExtension(barostat)
 
     print("Decomposing now ...")
@@ -186,6 +187,7 @@ def main():  #NOQA
     cr_observs = None
     if args.maximum_conversion:
         pass
+        #TODO(jakub): finish this part. Stop simulation whenever it's reach given conversion rate.
 
     print('Set topology manager')
     topology_manager = espressopp.integrator.TopologyManager(system)
@@ -221,14 +223,16 @@ def main():  #NOQA
     topology_manager.initialize_topology()
 
     for t, p in gt.angleparams.items():
-        ftl = dynamic_ftls[p['func']]
-        print('Register angles for type: {}'.format(t))
-        topology_manager.register_triplet(ftl, *t)
+        if p['func'] in dynamic_ftls:
+            ftl = dynamic_ftls[p['func']]
+            print('Register angles for type: {}'.format(t))
+            topology_manager.register_triplet(ftl, *t)
 
     for t, p in gt.dihedralparams.items():
-        fql = dynamic_fqls[p['func']]
-        print('Register dihedral for type: {}'.format(t))
-        topology_manager.register_quadruplet(fql, *t)
+        if p['func'] in dynamic_fqls:
+            fql = dynamic_fqls[p['func']]
+            print('Register dihedral for type: {}'.format(t))
+            topology_manager.register_quadruplet(fql, *t)
 
     integrator.addExtension(topology_manager)
 
@@ -317,8 +321,9 @@ def main():  #NOQA
     dump_topol.dump()
     dump_topol.update()
     if args.topol_collect > 0:
+        print('Collect topology: {}'.format(args.topol_collect))
         ext_dump = espressopp.integrator.ExtAnalyze(dump_topol, args.topol_collect)
-    integrator.addExtension(ext_dump)
+        integrator.addExtension(ext_dump)
 
     k_trj_collect = int(math.ceil(args.trj_collect/float(integrator_step)))
     k_trj_flush = 10 if 10 < k_trj_collect else k_trj_collect
@@ -336,13 +341,9 @@ def main():  #NOQA
 
     print('Running {} steps'.format(sim_step*integrator_step))
     print('Temperature: {} ({} K)'.format(args.temperature*kb, args.temperature))
-
     system_analysis.dump()
-    system_analysis.info()
 
-    traj_file.dump(0, 0)
     for k in range(sim_step):
-        integrator.run(integrator_step)
         system_analysis.info()
         if k % k_trj_collect == 0:
             traj_file.dump(k*integrator_step, k*integrator_step*args.dt)
@@ -352,6 +353,7 @@ def main():  #NOQA
         if k_enable_reactions == k:
             print('Enabling chemical reactions')
             integrator.addExtension(ar)
+        integrator.run(integrator_step)
 
     system_analysis.info()
     traj_file.dump(sim_step*integrator_step, sim_step*integrator_step*args.dt)

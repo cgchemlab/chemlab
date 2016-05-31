@@ -171,6 +171,9 @@ class SetupReactions:
         self.name2type = topol.atomsym_atomtype
 
     def setup_reaction(self, chem_reaction, fpl):
+        import logging
+        logging.getLogger('ReactionCutoffStatic').setLevel(logging.DEBUG)
+
         rl = chem_reaction['reactant_list']
         if not chem_reaction['active']:
             return None
@@ -200,8 +203,9 @@ class SetupReactions:
         if not chem_reaction['reverse']:
             r.intramolecular = bool(chem_reaction['intramolecular'])
             r.intraresidual = bool(chem_reaction['intraresidual'])
+
         if 'min_cutoff' in chem_reaction:
-            r.min_cutoff = float(chem_reaction['min_cutoff'])
+            r.get_reaction_cutoff().min_cutoff = float(chem_reaction['min_cutoff'])
         if 'diss_rate' in chem_reaction:
             r.diss_rate = float(chem_reaction['diss_rate'])
         if 'active' in chem_reaction:
