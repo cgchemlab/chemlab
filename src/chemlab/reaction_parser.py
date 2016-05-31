@@ -207,7 +207,7 @@ class SetupReactions:
         if 'active' in chem_reaction:
             r.active = chem_reaction['active']
 
-        if chem_reaction('connectivity_map'):
+        if chem_reaction.get('connectivity_map'):
             print('Reading connectivity map {}, reaction will be restricted'.format(
                 chem_reaction['connectivity_map']))
             connectivity_map = open(chem_reaction['connectivity_map'])
@@ -320,14 +320,13 @@ class SetupReactions:
                 reaction_group['potential']))(self.system, fpl, potential)
             self.system.addInteraction(interaction, 'fpl_{}'.format(group_name))
 
-            # Pass connectivity map from group level to reaction level
-            chem_reaction['connectivity_map'] = reaction_group['connectivity_map']
-
             # Setting the post process extensions.
             extensions = self._prepare_group_postprocess(reaction_group['extensions'])
 
             print('Setting chemical reactions in group')
             for chem_reaction in reaction_group['reaction_list']:
+                # Pass connectivity map from group level to reaction level
+                chem_reaction['connectivity_map'] = reaction_group['connectivity_map']
                 r = self.setup_reaction(chem_reaction, fpl)
                 if r is not None:
                     for pp in extensions:

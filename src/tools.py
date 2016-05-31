@@ -139,7 +139,13 @@ def _args():
                         help='Store chemical state')
     parser.add_argument('--store_lambda', default=False, type=ast.literal_eval,
                         help='Store lambda parameter')
-    parser.add_argument('--maximum_conversion', default=None, help='')
-    parser.add_argument('--input_connectivity', default=None, help='The desired connectivity map')
+    parser.add_argument('--store_force', default=False, type=ast.literal_eval,
+                        help='Store forces')
+    parser.add_argument('--maximum_conversion',
+                        default=None,
+                        help=('The comma separated list of conditions on which '
+                              'the simulation will stop. (format: atom type symbol:max number:total number)'))
+    parser.add_argument('--table_groups', default=None,
+                        help='The list of atom type names that should be simulated with tabulated potential.')
 
     return parser

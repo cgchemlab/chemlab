@@ -89,5 +89,5 @@ PL RA PB PB 8 5 1.0 ;d5
  ML   PL   10  table_PL_PL.xvg   table_ML_ML.xvg   RA 1000
  ML   PB   10  table_PB_PB.xvg   table_ML_ML.xvg   RA 1000
  ML   RB   10  table_RB_RB.xvg   table_ML_ML.xvg   RA 1000
- ML   PA     10 table_PA_PA.xvg table_ML_ML.xvg RA 1000
- ML   RA     10 table_RA_RA.xvg table_MA_MA.xvg RA 1000
+ ML   PA   10  table_PA_PA.xvg   table_ML_ML.xvg   RA 1000
+ ML   RA   10  table_RA_RA.xvg   table_MA_MA.xvg   RA 1000

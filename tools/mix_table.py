@@ -21,7 +21,7 @@ import argparse
 import datetime
 import numpy as np
 
-import gromacs_topology_new
+from chemlab import gromacs_topology
 
 parser = argparse.ArgumentParser('Mix table')
 parser.add_argument('--top', default='topol.top')
@@ -32,7 +32,7 @@ parser.add_argument('--mix_type', type=int, default=0, choices=[0, 1],
 
 args = parser.parse_args()
 
-topol = gromacs_topology_new.GromacsTopology(args.top)
+topol = gromacs_topology.GromacsTopology(args.top)
 topol.read()
 
 
@@ -104,7 +104,7 @@ def mix_geometric(tab1, tab2, coupling, constant):
     return out_tab
 
 for (t1, t2), params in topol.topol.nonbond_params.items():
-    if params['func'] == 9 or params['func'] == 10:
+    if params['func'] == 9:
         mono_tab = convertGromacsESPP(np.loadtxt('table_{}_{}.xvg'.format(t1, t1)))
         poly_tab = convertGromacsESPP(np.loadtxt('table_{}_{}.xvg'.format(t2, t2)))
         out_name = 'table_{}_{}.pot'.format(params['params'][1], params['params'][0])

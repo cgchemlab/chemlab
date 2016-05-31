@@ -182,15 +182,20 @@ def main():  #NOQA
     print("Decomposing now ...")
     system.storage.decompose()
 
+    # Conditional break of the reactions.
+    cr_observs = None
+    if args.maximum_conversion:
+        pass
+
+    print('Set topology manager')
+    topology_manager = espressopp.integrator.TopologyManager(system)
+
     # Set potentials.
     cr_observs = chemlab.gromacs_topology.setNonbondedInteractions(
-        system, gt, verletlist, lj_cutoff, cg_cutoff)
-    static_fpls = chemlab.gromacs_topology.setBondInteractions(system, gt)
-    static_ftls = chemlab.gromacs_topology.setAngleInteractions(system, gt)
-    static_fqls = chemlab.gromacs_topology.setDihedralInteractions(system, gt)
-
-    dynamic_ftls = chemlab.gromacs_topology.setAngleInteractions(system, gt, True, 'dynamic_angles')
-    dynamic_fqls = chemlab.gromacs_topology.setDihedralInteractions(system, gt, True, 'dynamic_dih')
+        system, gt, verletlist, lj_cutoff, cg_cutoff, tables=args.table_groups, cr_observs=cr_observs)
+    dynamic_fpls, static_fpls = chemlab.gromacs_topology.set_bonded_interactions(system, gt)
+    dynamic_ftls, static_ftls = chemlab.gromacs_topology.setAngleInteractions(system, gt)
+    dynamic_fqls, static_fqls = chemlab.gromacs_topology.setDihedralInteractions(system, gt)
 
     print('Set Dynamic Exclusion lists.')
     for static_fpl in static_fpls:
@@ -199,28 +204,32 @@ def main():  #NOQA
         dynamic_exclusion_list.observe_triple(static_ftl)
     for static_fql in static_fqls:
         dynamic_exclusion_list.observe_quadruple(static_fql)
-    for _, ftls in dynamic_ftls.items():
-        for dynamic_ftl in ftls:
-            dynamic_exclusion_list.observe_triple(dynamic_ftl)
-    for _, fqls in dynamic_fqls.items():
-        for dynamic_fql in fqls:
-            dynamic_exclusion_list.observe_quadruple(dynamic_fql)
 
-    print('Set topology manager')
-    topology_manager = espressopp.integrator.TopologyManager(system)
+    for _, fpl in dynamic_fpls.items():
+        dynamic_exclusion_list.observe_tuple(fpl)
+    for _, ftl in dynamic_ftls.items():
+        dynamic_exclusion_list.observe_triple(ftl)
+    for _, fql in dynamic_fqls.items():
+        dynamic_exclusion_list.observe_quadruple(fql)
+
+    print('Set dynamic topology')
     for static_fpl in static_fpls:
         topology_manager.observe_tuple(static_fpl)
+    for _, fpl in dynamic_fpls.items():
+        topology_manager.observe_tuple(fpl)
+
     topology_manager.initialize_topology()
+
     for t, p in gt.angleparams.items():
-        ftls = dynamic_ftls[p['func']]
+        ftl = dynamic_ftls[p['func']]
         print('Register angles for type: {}'.format(t))
-        for dynamic_ftl in ftls:
-            topology_manager.register_triplet(dynamic_ftl, *t)
+        topology_manager.register_triplet(ftl, *t)
+
     for t, p in gt.dihedralparams.items():
-        fqls = dynamic_fqls[p['func']]
+        fql = dynamic_fqls[p['func']]
         print('Register dihedral for type: {}'.format(t))
-        for dynamic_fql in fqls:
-            topology_manager.register_quadruplet(dynamic_fql, *t)
+        topology_manager.register_quadruplet(fql, *t)
+
     integrator.addExtension(topology_manager)
 
     # Set chemical reactions, parser in reaction_parser.py
@@ -238,7 +247,7 @@ def main():  #NOQA
             print('Save copy of reaction config to: {}'.format(output_reaction_config))
             shutil.copyfile(args.reactions, output_reaction_config)
             cr_interval = sc.ar_interval
-            integrator_step = cr_interval
+            integrator_step = min(cr_interval, integrator_step)
             sim_step = args.run / integrator_step
             args.topol_collect = cr_interval
     else:
@@ -249,7 +258,7 @@ def main():  #NOQA
     for f in fpls:
         topology_manager.observe_tuple(f)
         dynamic_exclusion_list.observe_tuple(f)
-# Define SystemMonitor that will store data from observables into a .csv file.
+    # Define SystemMonitor that will store data from observables into a .csv file.
     energy_file = '{}_energy_{}.csv'.format(args.output_prefix, rng_seed)
     print('Energy saved to: {}'.format(energy_file))
     system_analysis = espressopp.analysis.SystemMonitor(
@@ -289,6 +298,7 @@ def main():  #NOQA
         store_charge=False,
         store_state=args.store_state,
         store_lambda=args.store_lambda,
+        store_force=args.store_force,
         chunk_size=int(NPart/MPI.COMM_WORLD.size))
 
     print('Set topology writer')
@@ -296,8 +306,14 @@ def main():  #NOQA
     for i, f in enumerate(fpls):
         dump_topol.observe_tuple(f, 'chem_bonds_{}'.format(i))
 
-    for i, static_fpl in enumerate(static_fpls):
-        dump_topol.add_static_tuple(static_fpl, 'bonds_{}'.format(i))
+    bcount = 0
+    for static_fpl in static_fpls:
+        dump_topol.add_static_tuple(static_fpl, 'bonds_{}'.format(bcount))
+        bcount += 1
+    for dynamic_fpl in dynamic_fpls.values():
+        dump_topol.add_static_tuple(dynamic_fpl, 'bonds_{}'.format(bcount))
+        bcount += 1
+
     dump_topol.dump()
     dump_topol.update()
     if args.topol_collect > 0:
@@ -319,6 +335,7 @@ def main():  #NOQA
     total_velocity.reset()
 
     print('Running {} steps'.format(sim_step*integrator_step))
+    print('Temperature: {} ({} K)'.format(args.temperature*kb, args.temperature))
 
     system_analysis.dump()
     system_analysis.info()
