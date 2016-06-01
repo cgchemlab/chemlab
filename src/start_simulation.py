@@ -34,9 +34,7 @@ import tools
 
 import os
 
-# GROMACS units, kJ/mol K
-kb = 0.0083144621
-mass_factor = 1.6605402
+
 
 h5md_group = 'atoms'
 
@@ -47,6 +45,18 @@ def main():  #NOQA
     args = tools._args().parse_args()
 
     tools._args().save_to_file('{}params.out'.format(args.output_prefix), args)
+
+    # GROMACS units, kJ/mol K
+    kb = 0.0083144621
+    mass_factor = 1.6605402
+
+    if args.kb:
+        kb = args.kb
+
+    if args.mass_factor:
+        mass_factor = args.mass_factor
+
+    print('Using kB={} and mass-factor={}'.format(kb, mass_factor))
 
     if args.debug:
         for s in args.debug.split(','):
