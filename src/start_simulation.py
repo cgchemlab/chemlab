@@ -34,8 +34,6 @@ import tools
 
 import os
 
-
-
 h5md_group = 'atoms'
 
 __doc__ = 'Run GROMACS-like simulation with chemical reactions'
@@ -88,7 +86,7 @@ def main():  #NOQA
 
     # Seed for RNG
     rng_seed = args.rng_seed
-    if not args.rng_seed:
+    if not args.rng_seed or args.rng_seed == -1:
         rng_seed = random.randint(10, 1000000)
 
     print('Skin: {}'.format(skin))

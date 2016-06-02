@@ -19,6 +19,7 @@
 import espressopp
 import ConfigParser
 import re
+import warnings
 
 
 def parse_equation(input_string):
@@ -99,10 +100,12 @@ def process_reaction(reaction):
 
 def process_general(cfg):
     cfg = dict(cfg)
+    if cfg.get('bond_limit'):
+        warnings.warn('Bond limit not supported!')
+
     return {
         'interval': int(cfg['interval']),
         'nearest': bool(cfg.get('nearest', False)),
-        'bond_limit': int(cfg.get('bond_limit', -1))
     }
 
 
@@ -299,7 +302,6 @@ class SetupReactions:
             self.tm,
             self.ar_interval)
         ar.nearest_mode = self.cfg['general']['nearest']
-        ar.bond_limit = self.cfg['general']['bond_limit']
 
         fpls = []
 
