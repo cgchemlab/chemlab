@@ -78,7 +78,7 @@ def main():  #NOQA
     print('Setup simulation...')
 
     # Tune simulation parameter according to arguments
-    integrator_step = args.int_step
+    integrator_step = min([args.int_step, args.trj_collect])
     sim_step = args.run / integrator_step
 
     if args.skin:
@@ -207,6 +207,9 @@ def main():  #NOQA
     dynamic_ftls, static_ftls = chemlab.gromacs_topology.setAngleInteractions(system, gt)
     dynamic_fqls, static_fqls = chemlab.gromacs_topology.setDihedralInteractions(system, gt)
 
+    dynamic_fpairs, static_fpairs = chemlab.gromacs_topology.set_pair_interactions(system, gt, args)
+    chemlab.gromacs_topology.set_coulomb_interactions(system, gt, args)
+
     print('Set Dynamic Exclusion lists.')
     for static_fpl in static_fpls:
         dynamic_exclusion_list.observe_tuple(static_fpl)
@@ -265,7 +268,7 @@ def main():  #NOQA
     else:
         cr_interval = integrator_step
 
-    cr_interval = min(integrator_step, cr_interval)
+    cr_interval = min([integrator_step, cr_interval])
 
     for f in fpls:
         topology_manager.observe_tuple(f)
@@ -337,7 +340,7 @@ def main():  #NOQA
     k_trj_flush = 10 if 10 < k_trj_collect else k_trj_collect
     print('Store trajectory every {} steps'.format(args.trj_collect))
 
-    if args.start_ar > 0:
+    if args.start_ar >= 0:
         k_enable_reactions = int(math.ceil(args.start_ar/float(integrator_step)))
     else:
         k_enable_reactions = -1

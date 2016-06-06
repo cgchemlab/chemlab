@@ -62,7 +62,8 @@ def save_forcefield(h5, gt):
         g_ff = h5['/parameters'].create_group('force_field')
     g_ff = h5['/parameters/force_field']
     atomtypes = []
-    for at_sym, atd in gt.topol.atomtypes.items():
+    for at_sym in gt.used_atomtypes:
+        atd = gt.topol.atomtypes[at_sym]
         atomtypes.append([
             gt.atomsym_atomtype[at_sym], at_sym, atd['mass'],
             atd['charge'], atd['epsilon'], atd['sigma'],

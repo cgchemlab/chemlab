@@ -414,6 +414,8 @@ class GROMACSTopologyFile(TopologyFile):
             }
         self.current_charges = {}
         self.atomtypes = {}
+        self.atomnr2atom_name = collections.defaultdict(list)
+        self.atom_name2atomnr = {}
         self.atomstate = {}
         self.nonbond_params = {}
         self.bondtypes = {}
@@ -581,8 +583,10 @@ class GROMACSTopologyFile(TopologyFile):
         self.bonds_def[atom_tuple[1]].add(atom_tuple[0])
 
     def _parse_atomtypes(self, raw_data):
+        has_data = True
         if len(raw_data) == 7:
             atom_name = raw_data[0]
+            atom_nr = raw_data[1]
             atom_mass = float(raw_data[2])
             atom_q = float(raw_data[3])
             atom_type = raw_data[4]
@@ -590,22 +594,36 @@ class GROMACSTopologyFile(TopologyFile):
             epsilon = float(raw_data[6])
         elif len(raw_data) == 6:
             atom_name = raw_data[0]
+            atom_nr = raw_data[0]
             atom_mass = float(raw_data[1])
             atom_q = float(raw_data[2])
             atom_type = raw_data[3]
             sigma = float(raw_data[4])
             epsilon = float(raw_data[5])
+        elif len(raw_data) == 8 and raw_data[0].startswith('opls'):
+            atom_name = raw_data[0]
+            atom_nr = raw_data[1]
+            atom_mass = float(raw_data[3])
+            atom_q = float(raw_data[4])
+            atom_type = raw_data[5]
+            # Data directly in sigma, epsilon, no need to convert.
+            sigma = float(raw_data[6])
+            epsilon = float(raw_data[7])
         else:
-            raise RuntimeError("Wrong atomtypes format")
+            print('Skip atom type {}'.format(raw_data[0]))
+            has_data = False
 
-        self.atomtypes[atom_name] = {
-            'name': atom_name,
-            'mass': atom_mass,
-            'charge': atom_q,
-            'type': atom_type,
-            'sigma': sigma,
-            'epsilon': epsilon
-        }
+        if has_data:
+            self.atom_name2atomnr[atom_name] = atom_nr
+            self.atomnr2atom_name[atom_nr].append(atom_name)
+            self.atomtypes[atom_name] = {
+                'name': atom_name,
+                'mass': atom_mass,
+                'charge': atom_q,
+                'type': atom_type,
+                'sigma': sigma,
+                'epsilon': epsilon
+            }
 
     def _parse_nonbond_params(self, raw_data):
         i, j = raw_data[:2]
@@ -619,7 +637,8 @@ class GROMACSTopologyFile(TopologyFile):
     def _parse_atomstate(self, raw_data):
         atom_type = raw_data[0]
         atom_state = int(raw_data[1])
-        self.atomtypes[atom_type]['state'] = atom_state
+        if atom_type in self.atomtypes:
+            self.atomtypes[atom_type]['state'] = atom_state
 
     def _parse_bondtypes(self, raw_data):
         i, j = raw_data[:2]
@@ -801,9 +820,7 @@ class GROMACSTopologyFile(TopologyFile):
 
     def _write_defaults(self):
         if self.defaults:
-            return [
-                '{nbfunc} {combinationrule} {gen-pairs} {fudgeLJ} {fudgeQQ}'.format(**self.defaults)
-            ]
+            return ['{nbfunc} {combinationrule} {gen-pairs} {fudgeLJ} {fudgeQQ}'.format(**self.defaults)]
         return []
 
     def _write_moleculetype(self):
