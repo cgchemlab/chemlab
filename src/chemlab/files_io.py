@@ -483,7 +483,7 @@ class GROMACSTopologyFile(TopologyFile):
                     print('Parser for section {} not defined'.format(section_name))
                 visited_sections.add(previous_section)
             else:
-                if current_parser is not None and section_name not in visited_sections:
+                if current_parser is not None: # and section_name not in visited_sections:
                     raw_data = filter(None, line.split())
                     if raw_data:
                         current_parser(raw_data)  # pylint:disable=E1102

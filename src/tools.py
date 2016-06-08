@@ -150,5 +150,7 @@ def _args():
                               'the simulation will stop. (format: atom type symbol:max number:total number)'))
     parser.add_argument('--table_groups', default=None,
                         help='The list of atom type names that should be simulated with tabulated potential.')
+    parser.add_argument('--max_force', default=-1, type=float,
+                        help='Maximum force in the system.')
 
     return parser

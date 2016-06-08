@@ -233,6 +233,12 @@ def main():  #NOQA
 
     topology_manager.initialize_topology()
 
+    for t, p in gt.bondparams.items():
+        if p['func'] in dynamic_fpls:
+            fpl = dynamic_fpls[p['func']]
+            print('Register bonds for type: {}'.format(t))
+            topology_manager.register_tuple(fpl, *t)
+
     for t, p in gt.angleparams.items():
         if p['func'] in dynamic_ftls:
             ftl = dynamic_ftls[p['func']]
@@ -349,6 +355,10 @@ def main():  #NOQA
     print('Reset total velocity')
     total_velocity = espressopp.analysis.TotalVelocity(system)
     total_velocity.reset()
+
+    if args.max_force > -1:
+        cap_force = espressopp.integrator.CapForce(system, args.max_force)
+        integrator.addExtension(cap_force)
 
     print('Running {} steps'.format(sim_step*integrator_step))
     print('Temperature: {} ({} K)'.format(args.temperature*kb, args.temperature))

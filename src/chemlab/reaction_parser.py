@@ -23,6 +23,17 @@ import warnings
 
 
 def parse_equation(input_string):
+    """Parse chemical equation and returns properties extracted from the input string
+
+    The reaction is in the form some reactants -> some products
+    where the reactants are splited by '+' and the same with products.
+
+    Args:
+        input_string: The input string.
+
+    Returns:
+        The dictionary with the extracted data.
+    """
     re_reactant = re.compile(r'(?P<name>\w+)\((?P<min>\d+),\s*(?P<max>\d+)\)')
     re_product = re.compile(r'(?P<name>\w+)\((?P<delta>[0-9-]+)\)')
 
@@ -101,7 +112,7 @@ def process_reaction(reaction):
 def process_general(cfg):
     cfg = dict(cfg)
     if cfg.get('bond_limit'):
-        warnings.warn('Bond limit not supported!')
+        warnings.warn('Bond limit not supported anymore!')
 
     return {
         'interval': int(cfg['interval']),
@@ -254,9 +265,11 @@ class SetupReactions:
         return r
 
     def _prepare_group_postprocess(self, cfg):
+        """Prepare extensions for the reactions."""
         pps = []
 
         def _cfg_post_process_change_neighbour(cfg):
+            """Setup PostProcessChangeNeighbourProperties"""
             pp = espressopp.integrator.PostProcessChangeNeighboursProperty(self.tm)
             type_transfers = [
                 x.split('->') for x in cfg['type_transfers'].split(',')]
@@ -283,11 +296,31 @@ class SetupReactions:
                     )
             return pp
 
+        def _cfg_post_process_remove_neighbour_bonds(cfg):
+            pp = espressopp.integrator.PostProcessRemoveNeighbourBond(self.tm)
+            bond_types = [
+                x.split('->') for x in cfg['bonds_to_remove'].split(',')
+            ]
+            # bonds_to_remove=opls_220->opls_220:opls_154:1,opls_268->opls_268:opls_270:1
+            for anchor_type, pairs_to_remove in bond_types:
+                anchor_type_id = self.topol.used_atomsym_atomtype[anchor_type]
+                type_name1, type_name2, nb_level = pairs_to_remove.split(':')
+                print('Remove bond anchored to {} at distance {} between {}-{}'.format(
+                    anchor_type, nb_level, type_name1, type_name2
+                ))
+                nb_level = int(nb_level)
+                type_pid1 = self.topol.used_atomsym_atomtype[type_name1]
+                type_pid2 = self.topol.used_atomsym_atomtype[type_name2]
+                pp.add_bond_to_remove(anchor_type_id, nb_level, type_pid1, type_pid2)
+            return pp
+
+
         class_to_cfg = {
-            'ChangeNeighboursProperty': _cfg_post_process_change_neighbour
+            'ChangeNeighboursProperty': _cfg_post_process_change_neighbour,
+            'RemoveNeighboursBonds': _cfg_post_process_remove_neighbour_bonds
         }
         for pp_cfg in cfg.values():
-            cfg_setup = class_to_cfg.get(pp_cfg['class'])
+            cfg_setup = class_to_cfg[pp_cfg['class']]
             pps.append(cfg_setup(pp_cfg['options']))
 
         return pps

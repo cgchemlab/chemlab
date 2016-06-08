@@ -213,7 +213,7 @@ class GromacsTopology:
         for at_name, at_data in self.master_topol.atomtypes.items():
             self.used_atomtypes.add(at_name)
             self.used_atomnr.add(self.master_topol.atom_name2atomnr[at_name])
-            self.used_atomnr2atom_type[self.gt.atom_name2atomnr[at_name]].append(at_name)
+            self.used_atomnr2atom_type[self.master_topol.atom_name2atomnr[at_name]].append(at_name)
             if at_name not in self.atomsym_atomtype:
                 self.atomsym_atomtype[at_name] = atype_id
                 atype_id += 1
@@ -242,8 +242,6 @@ class GromacsTopology:
             n_mols, n_atoms, self.gt.dihedrals)
         self.pairs = self._replicate_lists(
             n_mols, n_atoms, self.gt.pairs)
-        if self.gt.defaults['gen-pairs'] == 'yes' and len(self.pairs) == 0:
-            raise RuntimeError('Gen-pairs == yes not supported, please define pairs explicitly')
 
     def _prepare_exclusionlists(self):
         self.exclusions = {tuple(sorted(x)) for x in self.bonds.keys()[:]}
@@ -421,14 +419,7 @@ def setNonbondedInteractions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, ta
             sig, eps = combination(sig_1, eps_1, sig_2, eps_2, combinationrule)
 
         # Standard interaction.
-        if sig > 0 and eps > 0:
-            print('Set LJ potential {}-{}, eps={}, sig={}'.format(type_1, type_2, eps, sig))
-            ljpot = espressopp.interaction.LennardJones(
-                epsilon=eps, sigma=sig, cutoff=lj_cutoff)
-            lj_interaction.setPotential(type1=t1, type2=t2, potential=ljpot)
-            has_lj_interaction = True
-            defined_types.add((t1, t2))
-        elif table_name is not None:
+        if table_name is not None:
             print('Set tab potential {}-{}: {}'.format(type_1, type_2, table_name))
             espp_tab_name = '{}.pot'.format(table_name.replace('.xvg', ''))
             if not os.path.exists(espp_tab_name):
@@ -439,6 +430,13 @@ def setNonbondedInteractions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, ta
                 type1=t1, type2=t2,
                 potential=espressopp.interaction.Tabulated(
                     itype=2, filename=espp_tab_name, cutoff=tab_cutoff))
+            defined_types.add((t1, t2))
+        elif eps > 0.0  and sig > 0.0:
+            print('Set LJ potential {}-{}, eps={}, sig={}'.format(type_1, type_2, eps, sig))
+            ljpot = espressopp.interaction.LennardJones(
+                epsilon=eps, sigma=sig, cutoff=lj_cutoff)
+            lj_interaction.setPotential(type1=t1, type2=t2, potential=ljpot)
+            has_lj_interaction = True
             defined_types.add((t1, t2))
 
     # Conversion dependent tabulated potentials.
