@@ -59,7 +59,7 @@ class MyArgParser(argparse.ArgumentParser):
 def save_forcefield(h5, gt):
     """Saves force-field to H5MD file under the /parameters/forcefield group."""
     if 'force_field' not in h5['/parameters']:
-        g_ff = h5['/parameters'].create_group('force_field')
+        h5['/parameters'].create_group('force_field')
     g_ff = h5['/parameters/force_field']
     atomtypes = []
     for at_sym in gt.used_atomtypes:

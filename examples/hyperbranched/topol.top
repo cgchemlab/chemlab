@@ -1,5 +1,16 @@
 #include "ffnb.itp"
 
+[ atomtypes ]
+;name  at.num   mass      charge  ptype      c6           c12
+  MA    59.044800     0.000     A        0            0
+  ML    41.072999     0.000     A        0            0
+  MB    93.105398     0.000     A        0            0
+  PA    59.044800     0.000     A        0            0
+  PL    41.072999     0.000     A        0            0
+  PB    93.105398     0.000     A        0            0
+  RA    42.037400     0.000     A        0            0
+  RB    92.097398     0.000     A        0            0
+
 [ moleculetype ]
 MOL 3
 

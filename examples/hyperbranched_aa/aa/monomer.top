@@ -6,7 +6,7 @@
 ; atom type
 
 [ atomtypes ]
-D D 100000000.0 0.0 A 0.0001 1.0
+D D 100000000.0 0.0 A 0.0 0.0
 
 [ atomstate ]
 opls_154 1
@@ -298,4 +298,4 @@ MKTOP
 
 [ molecules ]
 ; Compound        #mols
-MOL             2
+MOL             100

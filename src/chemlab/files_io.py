@@ -624,6 +624,9 @@ class GROMACSTopologyFile(TopologyFile):
                 'sigma': sigma,
                 'epsilon': epsilon
             }
+            if atom_name in self.atomstate:
+                self.atomtypes[atom_name]['state'] = self.atomstate[atom_name]
+
 
     def _parse_nonbond_params(self, raw_data):
         i, j = raw_data[:2]
@@ -639,6 +642,7 @@ class GROMACSTopologyFile(TopologyFile):
         atom_state = int(raw_data[1])
         if atom_type in self.atomtypes:
             self.atomtypes[atom_type]['state'] = atom_state
+        self.atomstate[atom_type] = atom_state
 
     def _parse_bondtypes(self, raw_data):
         i, j = raw_data[:2]

@@ -93,7 +93,7 @@ def main():  #NOQA
     print('RNG Seed: {}'.format(rng_seed))
     print('Boltzmann constant: {}'.format(kb))
 
-    part_prop, particle_list = chemlab.gromacs_topology.genParticleList(input_conf, gt)
+    part_prop, particle_list = chemlab.gromacs_topology.gen_particle_list(input_conf, gt)
     NPart = len(particle_list)
     print('Reads {} particles with properties {}'.format(NPart, part_prop))
 
@@ -204,8 +204,8 @@ def main():  #NOQA
     cr_observs = chemlab.gromacs_topology.setNonbondedInteractions(
         system, gt, verletlist, lj_cutoff, cg_cutoff, tables=args.table_groups, cr_observs=cr_observs)
     dynamic_fpls, static_fpls = chemlab.gromacs_topology.set_bonded_interactions(system, gt)
-    dynamic_ftls, static_ftls = chemlab.gromacs_topology.setAngleInteractions(system, gt)
-    dynamic_fqls, static_fqls = chemlab.gromacs_topology.setDihedralInteractions(system, gt)
+    dynamic_ftls, static_ftls = chemlab.gromacs_topology.set_angle_interactions(system, gt)
+    dynamic_fqls, static_fqls = chemlab.gromacs_topology.set_dihedral_interactions(system, gt)
 
     dynamic_fpairs, static_fpairs = chemlab.gromacs_topology.set_pair_interactions(system, gt, args)
     chemlab.gromacs_topology.set_coulomb_interactions(system, gt, args)
@@ -327,6 +327,9 @@ def main():  #NOQA
     for i, f in enumerate(fpls):
         dump_topol.observe_tuple(f, 'chem_bonds_{}'.format(i))
 
+    for i, f in dynamic_fpls.items():
+        dump_topol.observe_tuple(f, 'dynamic_bonds_{}'.format(i))
+
     bcount = 0
     for static_fpl in static_fpls:
         dump_topol.add_static_tuple(static_fpl, 'bonds_{}'.format(bcount))
@@ -335,8 +338,6 @@ def main():  #NOQA
         dump_topol.add_static_tuple(dynamic_fpl, 'bonds_{}'.format(bcount))
         bcount += 1
 
-    dump_topol.dump()
-    dump_topol.update()
     if args.topol_collect > 0:
         print('Collect topology: {}'.format(args.topol_collect))
         ext_dump = espressopp.integrator.ExtAnalyze(dump_topol, args.topol_collect)
@@ -348,9 +349,9 @@ def main():  #NOQA
 
     if args.start_ar >= 0:
         k_enable_reactions = int(math.ceil(args.start_ar/float(integrator_step)))
+        print('Enable chemical reactions at {} step'.format(args.start_ar))
     else:
         k_enable_reactions = -1
-    print('Enable chemical reactions at {} step'.format(args.start_ar))
 
     print('Reset total velocity')
     total_velocity = espressopp.analysis.TotalVelocity(system)
@@ -359,6 +360,11 @@ def main():  #NOQA
     if args.max_force > -1:
         cap_force = espressopp.integrator.CapForce(system, args.max_force)
         integrator.addExtension(cap_force)
+        print('Cap force to {}'.format(args.max_force))
+
+    print('Mapping Type name  type id')
+    for at_sym in gt.used_atomtypes:
+        print('        {:9}  {:8}'.format(at_sym, gt.atomsym_atomtype[at_sym]))
 
     print('Running {} steps'.format(sim_step*integrator_step))
     print('Temperature: {} ({} K)'.format(args.temperature*kb, args.temperature))

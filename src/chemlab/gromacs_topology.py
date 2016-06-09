@@ -572,7 +572,7 @@ def set_bonded_interactions(system, gt, name='bonds'):
     return dynamics_fpls, static_fpls
 
 
-def setAngleInteractions(system, gt, name='angles'):
+def set_angle_interactions(system, gt, name='angles'):
     """Set angle interactions."""
     def convert_params(func, raw_data):
         if func == 1:
@@ -653,7 +653,7 @@ def setAngleInteractions(system, gt, name='angles'):
     return dynamics_ftls, static_ftls
 
 
-def setDihedralInteractions(system, gt, name='dihedrals'):
+def set_dihedral_interactions(system, gt, name='dihedrals'):
     """Set dihedral interactions."""
     def convert_params(func, raw_data):
         if func == 1:
@@ -817,7 +817,7 @@ def set_pair_interactions(system, gt, args):
             interaction = espressopp.interaction.FixedPairListCoulombTruncated(
                 system, fpl,
                 potential=potQQ)
-            system.addInteraction(interaction, 'coulomb_14_{}'.format(qq_count))
+            #system.addInteraction(interaction, 'coulomb_14_{}'.format(qq_count))
             qq_count += 1
         interaction = espressopp.interaction.FixedPairListTypesCoulombTruncated(
             system, dfpl)
@@ -834,7 +834,7 @@ def set_coulomb_interactions(system, gt, args):
     return None
 
 
-def genParticleList(coordinate, topol):
+def gen_particle_list(coordinate, topol):
     """Generates particle list
     Args:
         coordinate: The input coordinate file.
