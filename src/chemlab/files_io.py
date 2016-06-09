@@ -586,7 +586,7 @@ class GROMACSTopologyFile(TopologyFile):
         has_data = True
         if len(raw_data) == 7:
             atom_name = raw_data[0]
-            atom_nr = raw_data[1]
+            atom_nr = raw_data[0]
             atom_mass = float(raw_data[2])
             atom_q = float(raw_data[3])
             atom_type = raw_data[4]
