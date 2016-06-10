@@ -83,7 +83,8 @@ def process_reaction(reaction):
         'rate': float(reaction['rate']),
         'cutoff': float(reaction['cutoff']),
         'intramolecular': eval(reaction.get('intramolecular', 'False')),
-        'intraresidual': eval(reaction.get('intraresidual', 'False'))
+        'intraresidual': eval(reaction.get('intraresidual', 'False')),
+        'virtual': eval(reaction.get('virtual', 'False'))
         }
 
     try:
@@ -176,6 +177,14 @@ def parse_config(input_file):
 
 
 class SetupReactions:
+    """Main class to setup the reactions
+
+    Args:
+        system: The espressopp.System object.
+        vl: The VerletList that is used to find the reacted pairs.
+        topology_manager: The espressopp.integrator.TopologyManager object.
+        config: The config file.
+    """
     def __init__(self, system, vl, topol, topol_manager, config):
         self.system = system
         self.vl = vl
@@ -184,10 +193,16 @@ class SetupReactions:
         self.cfg = config
         self.name2type = topol.atomsym_atomtype
 
-    def setup_reaction(self, chem_reaction, fpl):
-        import logging
-        logging.getLogger('ReactionCutoffStatic').setLevel(logging.DEBUG)
+    def _setup_reaction(self, chem_reaction, fpl):
+        """Setup single reaction.
 
+        Args:
+            chem_reaction: Dictionary with definition of the reactions
+            fpl: The FixedPairList.
+
+        Returns:
+            The espressopp.integrator.Reaction object.
+        """
         rl = chem_reaction['reactant_list']
         if not chem_reaction['active']:
             return None
@@ -217,6 +232,7 @@ class SetupReactions:
         if not chem_reaction['reverse']:
             r.intramolecular = bool(chem_reaction['intramolecular'])
             r.intraresidual = bool(chem_reaction['intraresidual'])
+            r.is_virtual = bool(chem_reaction['virtual'])
 
         if 'min_cutoff' in chem_reaction:
             r.get_reaction_cutoff().min_cutoff = float(chem_reaction['min_cutoff'])
@@ -268,6 +284,7 @@ class SetupReactions:
         """Prepare extensions for the reactions."""
         pps = []
 
+        # Belows are the sub-functions to create PostProcess objects.
         def _cfg_post_process_change_neighbour(cfg):
             """Setup PostProcessChangeNeighbourProperties"""
             pp = espressopp.integrator.PostProcessChangeNeighboursProperty(self.tm)
@@ -297,6 +314,7 @@ class SetupReactions:
             return pp
 
         def _cfg_post_process_remove_neighbour_bonds(cfg):
+            """Setup PostProcessRemoveNeighbourBonds"""
             pp = espressopp.integrator.PostProcessRemoveNeighbourBond(self.tm)
             bond_types = [
                 x.split('->') for x in cfg['bonds_to_remove'].split(',')
@@ -326,7 +344,13 @@ class SetupReactions:
         return pps
 
     def setup_reactions(self):
-        """Setup reactions."""
+        """Setup reactions.
+
+        Returns:
+            The espressopp.integrator.ChemicalReaction extension and the list
+            of fixed pair lists with new bonds.
+
+        """
         self.ar_interval = int(self.cfg['general']['interval'])
         ar = espressopp.integrator.ChemicalReaction(
             self.system,
@@ -366,7 +390,7 @@ class SetupReactions:
             for chem_reaction in reaction_group['reaction_list']:
                 # Pass connectivity map from group level to reaction level
                 chem_reaction['connectivity_map'] = reaction_group['connectivity_map']
-                r = self.setup_reaction(chem_reaction, fpl)
+                r = self._setup_reaction(chem_reaction, fpl)
                 if r is not None:
                     for pp in extensions:
                         r.add_postprocess(pp)

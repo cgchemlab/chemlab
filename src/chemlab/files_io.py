@@ -98,20 +98,19 @@ def prepare_path(file_path):
 class CoordinateFile(object):
     """Coordinate file object."""
 
-    content = None
-    box = None
-    data = None
-    scale_factor = 1.0
-    file = None
-    atoms = {}
-    fragments = collections.defaultdict(dict)
-
     def __init__(self, file_name):
         self.file_name = file_name
         self.title = None
         self.atoms_updated = False
         self.atoms = {}
         self.fragments = collections.defaultdict(dict)
+        self.content = None
+        self.box = None
+        self.data = None
+        self.scale_factor = 1.0
+        self.file = None
+        self.atoms = {}
+        self.chains = {}
 
     def init(self):
         self.__init__(self.file_name)
@@ -187,7 +186,6 @@ class TopologyFile(object):
 
 class GROFile(CoordinateFile):
     scale_factor = 1.0
-    chains = {}
 
     def read(self):
         """Reads the .gro file and return the atom list.
@@ -265,13 +263,30 @@ class GROFile(CoordinateFile):
                     at.position[2]
                     ))
 
-            output.append('%f %f %f' % tuple(self.box))
+            output.append('%f %f %f\n' % tuple(self.box))
             write_file_path = prepare_path(file_name if file_name else self.file_name)
             logger.info('Writing GRO file %s', write_file_path)
             output_file = open(write_file_path, 'w')
             output_file.writelines('\n'.join(output))
             output_file.close()
             self.atoms_updated = False
+
+    @classmethod
+    def load_data(cls, system, file_name, name_seq, chain_name_seq, particle_ids):
+        f = cls(file_name)
+        idx = 0
+        for pid in particle_ids:
+            p = system.storage.getParticle(pid)
+            f.atoms[pid] = Atom(
+                atom_id=pid,
+                name=name_seq[idx % len(name_seq)],
+                chain_name=chain_name_seq[idx % len(chain_name_seq)],
+                chain_idx=1 + idx / len(chain_name_seq),
+                position=p.pos
+            )
+            idx += 1
+        f.box = system.bc.boxL
+        return f
 
 
 class PDBFile(CoordinateFile):
@@ -624,6 +639,7 @@ class GROMACSTopologyFile(TopologyFile):
                 'sigma': sigma,
                 'epsilon': epsilon
             }
+            #print self.atomtypes[atom_name]
             if atom_name in self.atomstate:
                 self.atomtypes[atom_name]['state'] = self.atomstate[atom_name]
 

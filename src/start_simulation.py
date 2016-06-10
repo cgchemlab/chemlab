@@ -256,6 +256,7 @@ def main():  #NOQA
     # Set chemical reactions, parser in reaction_parser.py
     fpls = []
     cr_interval = 0
+    has_reaction = False
     if args.reactions:
         if os.path.exists(args.reactions):
             print('Set chemical reactions from: {}'.format(args.reactions))
@@ -271,6 +272,7 @@ def main():  #NOQA
             integrator_step = min(cr_interval, integrator_step)
             sim_step = args.run / integrator_step
             args.topol_collect = cr_interval
+            has_reaction = True
     else:
         cr_interval = integrator_step
 
@@ -347,7 +349,7 @@ def main():  #NOQA
     k_trj_flush = 10 if 10 < k_trj_collect else k_trj_collect
     print('Store trajectory every {} steps'.format(args.trj_collect))
 
-    if args.start_ar >= 0:
+    if args.start_ar >= 0 and has_reaction:
         k_enable_reactions = int(math.ceil(args.start_ar/float(integrator_step)))
         print('Enable chemical reactions at {} step'.format(args.start_ar))
     else:
@@ -364,7 +366,7 @@ def main():  #NOQA
 
     print('Mapping Type name  type id')
     for at_sym in gt.used_atomtypes:
-        print('        {:9}  {:8}'.format(at_sym, gt.atomsym_atomtype[at_sym]))
+        print('           {:9}    {:8}'.format(at_sym, gt.atomsym_atomtype[at_sym]))
 
     print('Running {} steps'.format(sim_step*integrator_step))
     print('Temperature: {} ({} K)'.format(args.temperature*kb, args.temperature))

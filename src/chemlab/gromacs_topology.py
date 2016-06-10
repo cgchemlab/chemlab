@@ -113,6 +113,7 @@ def convertc6c12(c6, c12, cr):
             eps = 0.25*c6*pow(sig, -6.0)
         else:
             eps = 0.0
+        print('Converted {}->{}; {}->{}'.format(c6, sig, c12, eps))
         return sig, eps
     else:
         return c6, c12
@@ -431,7 +432,7 @@ def setNonbondedInteractions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, ta
                 potential=espressopp.interaction.Tabulated(
                     itype=2, filename=espp_tab_name, cutoff=tab_cutoff))
             defined_types.add((t1, t2))
-        elif eps > 0.0  and sig > 0.0:
+        elif sig > 0.0:
             print('Set LJ potential {}-{}, eps={}, sig={}'.format(type_1, type_2, eps, sig))
             ljpot = espressopp.interaction.LennardJones(
                 epsilon=eps, sigma=sig, cutoff=lj_cutoff)
