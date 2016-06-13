@@ -3,7 +3,7 @@
 1               1               no             0.0     0.0
 
 [ atomtypes ]
-A    216.200396   0.000     A   0.0   0.0
+A  A   216.200396   0.000     A   0.0   0.0
 
 [ atomstate ]
 A 0
@@ -12,7 +12,7 @@ A 0
 A A 1 0.7 319657.6 ; cross_bond
 
 [ angletypes ]
-A A A 1 119.0 488.00
+;A A A 1 119.0 488.00
 
 [ nonbond_params ]
 ; A A 8

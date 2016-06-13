@@ -161,7 +161,7 @@ class GromacsTopology:
         self.used_atomnr = set()
         self.used_atomsym_atomtype = {}
 
-        self.used_atomnr2atom_type = collections.defaultdict(list)
+        self.used_atomnr2atom_type = collections.defaultdict(set)
 
         combinationrule = self.topol.defaults['combinationrule']
         atype_id = 0
@@ -182,7 +182,7 @@ class GromacsTopology:
             }
             self.used_atomtypes.add(at_data.atom_type)
             self.used_atomnr.add(self.gt.atom_name2atomnr[at_data.atom_type])
-            self.used_atomnr2atom_type[self.gt.atom_name2atomnr[at_data.atom_type]].append(at_data.atom_type)
+            self.used_atomnr2atom_type[self.gt.atom_name2atomnr[at_data.atom_type]].add(at_data.atom_type)
             self.used_atomsym_atomtype[at_data.atom_type] = self.atomsym_atomtype[at_data.atom_type]
 
             if at_data.charge:
@@ -214,12 +214,11 @@ class GromacsTopology:
         for at_name, at_data in self.master_topol.atomtypes.items():
             self.used_atomtypes.add(at_name)
             self.used_atomnr.add(self.master_topol.atom_name2atomnr[at_name])
-            self.used_atomnr2atom_type[self.master_topol.atom_name2atomnr[at_name]].append(at_name)
+            self.used_atomnr2atom_type[self.master_topol.atom_name2atomnr[at_name]].add(at_name)
             if at_name not in self.atomsym_atomtype:
                 self.atomsym_atomtype[at_name] = atype_id
                 atype_id += 1
             self.used_atomsym_atomtype[at_name] = self.atomsym_atomtype[at_name]
-
         self._prepare_bondedparams()
         self._prepare_bondedlists()
         self._prepare_exclusionlists()
@@ -278,6 +277,7 @@ class GromacsTopology:
                                     t2 = self.atomsym_atomtype[tj]
                                     t3 = self.atomsym_atomtype[tk]
                                     self.angleparams[(t1, t2, t3)] = params
+
         dcount = 0
         for i in self.gt.dihedraltypes:
             for j in self.gt.dihedraltypes[i]:
@@ -577,7 +577,7 @@ def set_angle_interactions(system, gt, name='angles'):
     """Set angle interactions."""
     def convert_params(func, raw_data):
         if func == 1:
-            return {'K': float(raw_data[1]), 'theta0': float(raw_data[0])*2*math.pi/360}
+            return {'K': float(raw_data[1])/2.0, 'theta0': float(raw_data[0])*2*math.pi/360}
         elif func == 8:
             espp_tab_name = 'table_a{}.pot'.format(int(raw_data[0]))
             tab_name = 'table_a{}.xvg'.format(int(raw_data[0]))

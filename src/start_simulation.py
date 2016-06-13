@@ -336,9 +336,6 @@ def main():  #NOQA
     for static_fpl in static_fpls:
         dump_topol.add_static_tuple(static_fpl, 'bonds_{}'.format(bcount))
         bcount += 1
-    for dynamic_fpl in dynamic_fpls.values():
-        dump_topol.add_static_tuple(dynamic_fpl, 'bonds_{}'.format(bcount))
-        bcount += 1
 
     if args.topol_collect > 0:
         print('Collect topology: {}'.format(args.topol_collect))
