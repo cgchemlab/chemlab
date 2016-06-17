@@ -98,7 +98,7 @@ def _args():
                         help='Name of output trajectory file')
     parser.add_argument('--thermostat',
                         default='lv',
-                        choices=('lv', 'vr'),
+                        choices=('lv', 'vr', 'iso'),
                         help='Thermostat to use, lv: Langevine, vr: Stochastic velocity rescale')
     parser.add_argument('--barostat', default='lv', choices=('lv', 'br'),
                         help='Barostat to use, lv: Langevine, br: Berendsen')

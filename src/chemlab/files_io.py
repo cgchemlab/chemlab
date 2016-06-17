@@ -271,8 +271,41 @@ class GROFile(CoordinateFile):
             output_file.close()
             self.atoms_updated = False
 
+    def update_position(self, system, unfolded=False):
+        """Updates position based on curent state
+
+        Args:
+            system: The espressopp.System object.
+            unfolded: If set to True then write in unfoded state.
+        """
+        if unfolded:
+            boxL = numpy.array(system.bc.boxL)
+            for pid in self.atoms:
+                p = system.storage.getParticle(pid)
+                old_pos = p.pos
+                old_pos[0] = old_pos[0] + p.imageBox[0]*boxL[0]
+                self.atoms[pid] = self.atoms[pid]._replace(
+                    position=[p.pos[x] + p.imageBox[x]*boxL[x] for x in range(3)]
+                )
+        else:
+            for pid in self.atoms:
+                p = system.storage.getParticle(pid)
+                self.atoms[pid] = self.atoms[pid]._replace(position=p.pos)
+
     @classmethod
     def load_data(cls, system, file_name, name_seq, chain_name_seq, particle_ids):
+        """Load position of particles and creates new GROFile object
+
+        Args:
+            system: The espressopp.System object.
+            file_name: The name of file.
+            name_seq: The sequence of atom names.
+            chain_name_seq: The sequence of chain names.
+            particle_ids: The list of particle ids to include in the file
+
+        Returns:
+            GROFile object.
+        """
         f = cls(file_name)
         idx = 0
         for pid in particle_ids:

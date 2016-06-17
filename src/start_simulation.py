@@ -163,6 +163,10 @@ def main():  #NOQA
         thermostat = espressopp.integrator.StochasticVelocityRescaling(system)
         thermostat.temperature = temperature
         thermostat.coupling = args.thermostat_gamma
+    elif args.thermostat == 'iso':
+        thermostat = espressopp.integrator.Isokinetic(system)
+        thermostat.temperature = temperature
+        thermostat.coupling = int(args.thermostat_gamma)
     else:
         raise Exception('Wrong thermostat keyword: `{}`'.format(args.thermostat))
     integrator.addExtension(thermostat)
@@ -193,9 +197,6 @@ def main():  #NOQA
 
     # Conditional break of the reactions.
     cr_observs = None
-    if args.maximum_conversion:
-        pass
-        #TODO(jakub): finish this part. Stop simulation whenever it's reach given conversion rate.
 
     print('Set topology manager')
     topology_manager = espressopp.integrator.TopologyManager(system)
@@ -277,6 +278,19 @@ def main():  #NOQA
         cr_interval = integrator_step
 
     cr_interval = min([integrator_step, cr_interval])
+
+    maximum_conversion = []
+    if args.maximum_conversion:
+        for o in args.maximum_conversion.split(','):
+            type_symbol, max_number, tot_number = o.split(':')
+            type_id_symbol = gt.used_atomsym_atomtype[type_symbol]
+            max_number = int(max_number)
+            tot_number = int(tot_number)
+            stop_value = float(max_number) / tot_number
+            if (type_id_symbol, tot_number) not in cr_observs:
+                cr_observs[(type_id_symbol, tot_number)] = espressopp.analysis.ChemicalConversion(
+                    system, type_id_symbol, tot_number)
+            maximum_conversion.append((cr_observs[(type_id_symbol, tot_number)], stop_value))
 
     for f in fpls:
         topology_manager.observe_tuple(f)
@@ -361,14 +375,15 @@ def main():  #NOQA
         integrator.addExtension(cap_force)
         print('Cap force to {}'.format(args.max_force))
 
-    print('Mapping Type name  type id')
+    print('Type name  type id')
     for at_sym in gt.used_atomtypes:
-        print('           {:9}    {:8}'.format(at_sym, gt.atomsym_atomtype[at_sym]))
+        print('{:9}    {:8}'.format(at_sym, gt.atomsym_atomtype[at_sym]))
 
     print('Running {} steps'.format(sim_step*integrator_step))
     print('Temperature: {} ({} K)'.format(args.temperature*kb, args.temperature))
     system_analysis.dump()
 
+    stop_simulation = False
     for k in range(sim_step):
         system_analysis.info()
         if k % k_trj_collect == 0:
@@ -379,6 +394,12 @@ def main():  #NOQA
         if k_enable_reactions == k:
             print('Enabling chemical reactions')
             integrator.addExtension(ar)
+        for obs, stop_value in maximum_conversion:
+            if obs.value >= stop_value:
+                print('Reached {} of conversion. Stop simulation'.format(obs.value))
+                stop_simulation = True
+        if stop_simulation:
+            break
         integrator.run(integrator_step)
 
     system_analysis.info()
@@ -408,13 +429,15 @@ def main():  #NOQA
     tools.save_forcefield(h5, gt)
     h5.close()
 
-    # Saves output file.
+    # Saves coordinate output file.
     output_gro_file = '{}_{}_confout.gro'.format(args.output_prefix, rng_seed)
-    dump_gro = espressopp.io.DumpGRO(
-        system, integrator, filename=output_gro_file,
-        unfolded=True, append=False)
-    dump_gro.dump()
+    input_conf.update_position(system)
+    input_conf.write(output_gro_file, force=True)
     print('Wrote end configuration to: {}'.format(output_gro_file))
+
+    # Saves output topology file.
+    # TODO(jakub): save new bonds in GROMACS like topology file.
+    # output_topol_file = 'output_{}_{}_toopol.top'.format(args.output_prefix, rng_seed)
 
     print('finished!')
     print('total time: {}'.format(time.time()-time0))
