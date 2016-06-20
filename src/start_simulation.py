@@ -234,11 +234,11 @@ def main():  #NOQA
 
     topology_manager.initialize_topology()
 
-    # for t, p in gt.bondparams.items():
-    #     if p['func'] in dynamic_fpls:
-    #         fpl = dynamic_fpls[p['func']]
-    #         print('Register bonds for type: {}'.format(t))
-    #         topology_manager.register_tuple(fpl, *t)
+    #for t, p in gt.bondparams.items():
+    #    if p['func'] in dynamic_fpls:
+    #        fpl = dynamic_fpls[p['func']]
+    #        print('Register bonds for type: {}'.format(t))
+    #        topology_manager.register_tuple(fpl, *t)
 
     for t, p in gt.angleparams.items():
         if p['func'] in dynamic_ftls:
