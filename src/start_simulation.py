@@ -395,8 +395,9 @@ def main():  #NOQA
             print('Enabling chemical reactions')
             integrator.addExtension(ar)
         for obs, stop_value in maximum_conversion:
-            if obs.compute() >= stop_value:
-                print('Reached {} of conversion. Stop simulation'.format(obs.value))
+            val = obs.compute()
+            if val >= stop_value:
+                print('Reached {} of conversion => Stop simulation'.format(val))
                 stop_simulation = True
         if stop_simulation:
             break
