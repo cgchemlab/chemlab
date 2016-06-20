@@ -647,7 +647,7 @@ def set_angle_interactions(system, gt, name='angles'):
                 type1=t[0], type2=t[1], type3=t[2],
                 potential=potential_class(**convert_params(func, params['params']))
             )
-        system.addInteraction(interaction, 'angle_{}'.format(angle_count))
+        system.addInteraction(interaction, '{}_{}'.format(name, angle_count))
         angle_count += 1
         dynamics_ftls[func] = ftl
     print('Set up angle interactions')

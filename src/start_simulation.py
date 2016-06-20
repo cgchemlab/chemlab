@@ -234,11 +234,11 @@ def main():  #NOQA
 
     topology_manager.initialize_topology()
 
-    for t, p in gt.bondparams.items():
-        if p['func'] in dynamic_fpls:
-            fpl = dynamic_fpls[p['func']]
-            print('Register bonds for type: {}'.format(t))
-            topology_manager.register_tuple(fpl, *t)
+    # for t, p in gt.bondparams.items():
+    #     if p['func'] in dynamic_fpls:
+    #         fpl = dynamic_fpls[p['func']]
+    #         print('Register bonds for type: {}'.format(t))
+    #         topology_manager.register_tuple(fpl, *t)
 
     for t, p in gt.angleparams.items():
         if p['func'] in dynamic_ftls:
@@ -395,7 +395,7 @@ def main():  #NOQA
             print('Enabling chemical reactions')
             integrator.addExtension(ar)
         for obs, stop_value in maximum_conversion:
-            if obs.value >= stop_value:
+            if obs.compute() >= stop_value:
                 print('Reached {} of conversion. Stop simulation'.format(obs.value))
                 stop_simulation = True
         if stop_simulation:
