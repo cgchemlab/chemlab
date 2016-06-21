@@ -18,6 +18,7 @@
 
 import espressopp
 import ConfigParser
+import random
 import re
 import warnings
 
@@ -96,6 +97,11 @@ def process_reaction(reaction):
 
     if 'min_cutoff' in reaction:
         data['min_cutoff'] = float(reaction['min_cutoff'])
+
+    # Support for smooth cut-off
+    if 'sigma' in reaction and 'eq_distance' in reaction:
+        data['sigma'] = float(reaction['sigma'])
+        data['eq_distance'] = float(reaction['eq_distance'])
 
     if 'diss_rate' in reaction:
         if not data['reverse']:
@@ -233,6 +239,10 @@ class SetupReactions:
             r.intramolecular = bool(chem_reaction['intramolecular'])
             r.intraresidual = bool(chem_reaction['intraresidual'])
             r.is_virtual = bool(chem_reaction['virtual'])
+
+            if chem_reaction['sigma']:
+                r.set_reaction_cutoff(espressopp.integrator.ReactionCutoffRandom(
+                    chem_reaction['eq_distance'], chem_reaction['sigma'], seed=random.randint(100,100000)))
 
         if 'min_cutoff' in chem_reaction:
             r.get_reaction_cutoff().min_cutoff = float(chem_reaction['min_cutoff'])
