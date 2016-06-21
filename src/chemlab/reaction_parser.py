@@ -82,7 +82,6 @@ def process_reaction(reaction):
     group = reaction['group']
     data = {
         'rate': float(reaction['rate']),
-        'cutoff': float(reaction['cutoff']),
         'intramolecular': eval(reaction.get('intramolecular', 'False')),
         'intraresidual': eval(reaction.get('intraresidual', 'False')),
         'virtual': eval(reaction.get('virtual', 'False'))
@@ -102,6 +101,10 @@ def process_reaction(reaction):
     if 'sigma' in reaction and 'eq_distance' in reaction:
         data['sigma'] = float(reaction['sigma'])
         data['eq_distance'] = float(reaction['eq_distance'])
+    elif 'cutoff' in reaction:
+        data['cutoff'] = float(reaction['cutoff'])
+    else:
+        raise RuntimeError('Please define cutoff of the reaction')
 
     if 'diss_rate' in reaction:
         if not data['reverse']:
@@ -231,7 +234,7 @@ class SetupReactions:
             max_state_2=int(rl['type_2']['max']),
             rate=float(chem_reaction['rate']),
             fpl=fpl,
-            cutoff=float(chem_reaction['cutoff'])
+            cutoff=float(chem_reaction.get('cutoff', 0.0))
         )
         print('Setup reaction: {}({})-{}({})'.format(
             rt1, self.name2type[rt1], rt2, self.name2type[rt2]))
