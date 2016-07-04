@@ -280,6 +280,7 @@ def main():  #NOQA
     cr_interval = min([integrator_step, cr_interval])
 
     maximum_conversion = []
+    eq_run = 0
     if args.maximum_conversion:
         for o in args.maximum_conversion.split(','):
             type_symbol, max_number, tot_number = o.split(':')
@@ -291,6 +292,7 @@ def main():  #NOQA
                 cr_observs[(type_id_symbol, tot_number)] = espressopp.analysis.ChemicalConversion(
                     system, type_id_symbol, tot_number)
             maximum_conversion.append((cr_observs[(type_id_symbol, tot_number)], stop_value))
+        eq_run = int(args.eq_steps / sim_step)
 
     for f in fpls:
         topology_manager.observe_tuple(f)
@@ -400,7 +402,10 @@ def main():  #NOQA
                 print('Reached {} of conversion => Stop simulation'.format(val))
                 stop_simulation = True
         if stop_simulation:
-            break
+            if eq_run == 0:
+                break
+            else:
+                eq_run -= 1
         integrator.run(integrator_step)
 
     system_analysis.info()

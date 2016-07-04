@@ -148,6 +148,7 @@ def _args():
                         default=None,
                         help=('The comma separated list of conditions on which '
                               'the simulation will stop. (format: atom type symbol:max number:total number)'))
+    parser.add_argument('--eq_steps', default=0, help=('Run simulation after conversion reached for n-steps'), type=int)
     parser.add_argument('--table_groups', default=None,
                         help='The list of atom type names that should be simulated with tabulated potential.')
     parser.add_argument('--max_force', default=-1, type=float,
