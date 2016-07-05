@@ -271,7 +271,9 @@ def main():  #NOQA
             shutil.copyfile(args.reactions, output_reaction_config)
             cr_interval = sc.ar_interval
             integrator_step = min(cr_interval, integrator_step)
+            print('Change integrator step to {}'.format(integrator_step))
             sim_step = args.run / integrator_step
+            print('Change topology collect interval to {}'.format(cr_interval))
             args.topol_collect = cr_interval
             has_reaction = True
     else:
@@ -321,7 +323,7 @@ def main():  #NOQA
             'count_{}'.format(fidx), espressopp.analysis.NFixedPairListEntries(system, f))
     ext_analysis = espressopp.integrator.ExtAnalyze(system_analysis, cr_interval)
     integrator.addExtension(ext_analysis)
-    print('Configured system analysis')
+    print('Configured system analysis, collect data every {} steps'.format(cr_interval))
 
     print('Configure H5MD trajectory writer')
     h5md_output_file = '{}_{}_traj.h5'.format(args.output_prefix, rng_seed)
@@ -335,9 +337,11 @@ def main():  #NOQA
         store_species=args.store_species,
         store_res_id=True,
         store_charge=False,
+        store_position=args.store_position,
         store_state=args.store_state,
         store_lambda=args.store_lambda,
         store_force=args.store_force,
+        store_velocity=args.store_velocity,
         chunk_size=int(NPart/MPI.COMM_WORLD.size))
 
     print('Set topology writer')
@@ -354,13 +358,16 @@ def main():  #NOQA
         bcount += 1
 
     if args.topol_collect > 0:
-        print('Collect topology: {}'.format(args.topol_collect))
+        print('Collect topology every {} steps'.format(args.topol_collect))
         ext_dump = espressopp.integrator.ExtAnalyze(dump_topol, args.topol_collect)
         integrator.addExtension(ext_dump)
 
-    k_trj_collect = int(math.ceil(args.trj_collect/float(integrator_step)))
-    k_trj_flush = 10 if 10 < k_trj_collect else k_trj_collect
-    print('Store trajectory every {} steps'.format(args.trj_collect))
+    trj_collect = min([args.trj_collect, cr_interval])
+    k_trj_collect = int(math.ceil(trj_collect/float(integrator_step)))
+    k_trj_flush = 25 if 25 < k_trj_collect else k_trj_collect
+    print('Collect trajectory every {} steps'.format(trj_collect))
+
+    print('Collect energy data everey {} steps'.format(cr_interval))
 
     if args.start_ar >= 0 and has_reaction:
         k_enable_reactions = int(math.ceil(args.start_ar/float(integrator_step)))
@@ -399,7 +406,7 @@ def main():  #NOQA
         for obs, stop_value in maximum_conversion:
             val = obs.compute()
             if val >= stop_value:
-                print('Reached {} of conversion => Stop simulation'.format(val))
+                print('Reached {} of the conversion => Stop simulation'.format(val))
                 stop_simulation = True
         if stop_simulation:
             if eq_run == 0:
@@ -428,7 +435,11 @@ def main():  #NOQA
         'barostat': args.barostat if args.pressure else 'no',
         'pressure': pressure,
         'total_steps': sim_step*integrator_step,
-        'total_time': sim_step*integrator_step*args.dt
+        'total_time': sim_step*integrator_step*args.dt,
+        'integrator_step': integrator_step,
+        'start_reaction': args.start_ar,
+        'topology_collect': args.topol_collect,
+        'trajectory_collect': trj_collect
     }
     for k, v in sim_params.items():
         g_params.attrs[k] = v
