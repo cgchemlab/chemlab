@@ -374,6 +374,7 @@ class SetupReactions:
         ar.nearest_mode = self.cfg['general']['nearest']
 
         fpls = []
+        reactions = []
 
         for group_name, reaction_group in self.cfg['reactions'].items():
             print('Setting reaction group {}'.format(group_name))
@@ -408,4 +409,6 @@ class SetupReactions:
                     for pp in extensions:
                         r.add_postprocess(pp)
                     ar.add_reaction(r)
-        return ar, fpls
+                    reactions.append(r)
+
+        return ar, fpls, reactions

@@ -157,5 +157,7 @@ def _args():
                         help='The list of atom type names that should be simulated with tabulated potential.')
     parser.add_argument('--max_force', default=-1, type=float,
                         help='Maximum force in the system.')
+    parser.add_argument('--rate_arrhenius', default=False, help='Change rate based on the Arrhenius equation.',
+                        type=ast.literal_eval)
 
     return parser

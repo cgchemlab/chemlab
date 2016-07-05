@@ -256,6 +256,7 @@ def main():  #NOQA
 
     # Set chemical reactions, parser in reaction_parser.py
     fpls = []
+    reactions = []
     cr_interval = 0
     has_reaction = False
     if args.reactions:
@@ -265,7 +266,7 @@ def main():  #NOQA
             sc = chemlab.reaction_parser.SetupReactions(
                 system, verletlist, gt, topology_manager, reaction_config)
 
-            ar, fpls = sc.setup_reactions()
+            ar, fpls, reactions = sc.setup_reactions()
             output_reaction_config = '{}_{}_{}'.format(args.output_prefix, rng_seed, args.reactions)
             print('Save copy of reaction config to: {}'.format(output_reaction_config))
             shutil.copyfile(args.reactions, output_reaction_config)
@@ -375,6 +376,11 @@ def main():  #NOQA
     else:
         k_enable_reactions = -1
 
+    if args.rate_arrhenius:
+        print(('Warning! Rate will change based on the arrhenius law. Keep in mind that it will'
+               ' change rate for every reactions defined in configuration file based on the'
+               ' global value of the total energy divided by the number of created bonds.'))
+
     print('Reset total velocity')
     total_velocity = espressopp.analysis.TotalVelocity(system)
     total_velocity.reset()
@@ -393,6 +399,14 @@ def main():  #NOQA
     system_analysis.dump()
 
     stop_simulation = False
+    reactions_enabled = False
+    energy0 = 0.0
+    bonds0 = 0.0
+
+    rate_file = None
+    if args.rate_arrhenius:
+        rate_file = open('{}_{}_new_rates.csv'.format(args.output_prefix, rng_seed), 'w')
+
     for k in range(sim_step):
         system_analysis.info()
         if k % k_trj_collect == 0:
@@ -403,17 +417,39 @@ def main():  #NOQA
         if k_enable_reactions == k:
             print('Enabling chemical reactions')
             integrator.addExtension(ar)
-        for obs, stop_value in maximum_conversion:
-            val = obs.compute()
-            if val >= stop_value:
-                print('Reached {} of the conversion => Stop simulation'.format(val))
-                stop_simulation = True
-        if stop_simulation:
-            if eq_run == 0:
-                break
-            else:
-                eq_run -= 1
+            reactions_enabled = True
+        if reactions_enabled:
+            for obs, stop_value in maximum_conversion:
+                val = obs.compute()
+                if val >= stop_value:
+                    print('Reaches {} of the conversion => Stop simulation'.format(val))
+                    stop_simulation = True
+            if stop_simulation:
+                if eq_run == 0:
+                    break
+                else:
+                    eq_run -= 1
+            # Support for arrhenius law.
+            if args.rate_arrhenius:
+                bonds0 = sum(f.totalSize() for f in fpls)  # TODO(jakub): this is terrible.
+                energy0 = system_analysis.potential_energy
+
         integrator.run(integrator_step)
+
+        if args.rate_arrhenius and reactions_enabled:
+            bonds1 = sum(f.totalSize() for f in fpls)  # TODO(jakub): this is terrible.
+            delta_bonds = bonds1 - bonds0
+            if delta_bonds > 0:
+                energy_delta = (system_analysis.potential_energy - energy0) / float(delta_bonds)
+                new_rate = math.exp(-energy_delta/temperature)
+                print('{}\tChange reaction rate, delta_E={}, new_k={}, delta_bonds={}'.format(k*integrator_step, energy_delta, new_rate, delta_bonds))
+                rate_file.write('{} {:e}\n'.format(k*integrator_step, new_rate))
+                for r in reactions:
+                    r.rate = new_rate
+
+    if args.rate_arrhenius:
+        print('Change in reaction rates written to {}'.format('{}_{}_new_rates.csv'))
+        rate_file.close()
 
     system_analysis.info()
     traj_file.dump(sim_step*integrator_step, sim_step*integrator_step*args.dt)
