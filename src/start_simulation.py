@@ -419,7 +419,7 @@ def main():  #NOQA
             integrator.addExtension(ar)
             reactions_enabled = True
             # Saves coordinate output file.
-            output_gro_file = '{}_{}_confout_step_{}.gro'.format(args.output_prefix, rng_seed, k*integrator_step)
+            output_gro_file = '{}_before_reaction_out.gro'.format(args.output_prefix)
             input_conf.update_position(system)
             input_conf.write(output_gro_file, force=True)
             print('Save configuratio before start of the reaction, filename: {}'.format(output_gro_file))
