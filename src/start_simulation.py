@@ -418,6 +418,11 @@ def main():  #NOQA
             print('Enabling chemical reactions')
             integrator.addExtension(ar)
             reactions_enabled = True
+            # Saves coordinate output file.
+            output_gro_file = '{}_{}_confout_step_{}.gro'.format(args.output_prefix, rng_seed, k*integrator_step)
+            input_conf.update_position(system)
+            input_conf.write(output_gro_file, force=True)
+            print('Save configuratio before start of the reaction, filename: {}'.format(output_gro_file))
         if reactions_enabled:
             for obs, stop_value in maximum_conversion:
                 val = obs.compute()
