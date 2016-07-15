@@ -422,7 +422,7 @@ def main():  #NOQA
             output_gro_file = '{}_before_reaction_out.gro'.format(args.output_prefix)
             input_conf.update_position(system)
             input_conf.write(output_gro_file, force=True)
-            print('Save configuratio before start of the reaction, filename: {}'.format(output_gro_file))
+            print('Save configuration before start of the reaction, filename: {}'.format(output_gro_file))
         if reactions_enabled:
             for obs, stop_value in maximum_conversion:
                 val = obs.compute()

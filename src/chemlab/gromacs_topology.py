@@ -794,39 +794,40 @@ def set_pair_interactions(system, gt, args):
             type_pairs.add(tuple(sorted([type_1, type_2])))
     atomsym_atomtype = gt.used_atomsym_atomtype
     atomparams = gt.gt.atomtypes
-    for type_1, type_2 in type_pairs:
-        t1 = atomsym_atomtype[type_1]
-        t2 = atomsym_atomtype[type_2]
-        sig_1, eps_1 = atomparams[type_1]['sigma'], atomparams[type_1]['epsilon']
-        sig_2, eps_2 = atomparams[type_2]['sigma'], atomparams[type_2]['epsilon']
-        sig, eps = combination(sig_1, eps_1, sig_2, eps_2, combinationrule)
-        interaction.setPotential(
-            type1=t1, type2=t2,
-            potential=espressopp.interaction.LennardJones(
-                sigma=sig, epsilon=fudgeLJ*eps, cutoff=args.lj_cutoff)
-        )
-    system.addInteraction(interaction, 'lj14_{}'.format(pair_count))
-
-    print('Set up 1-4 pair interactions')
-    # Set coulombic pair interaction
-    prefQQ = 138.935485 * fudgeQQ
-    qq_count = 0
-    if args.coulomb_cutoff > 0.0 and prefQQ > 0.0:
-        potQQ = espressopp.interaction.CoulombTruncated(
-            prefactor=prefQQ, cutoff=args.coulomb_cutoff)
-        for fpl in static_fpls:
-            interaction = espressopp.interaction.FixedPairListCoulombTruncated(
-                system, fpl,
-                potential=potQQ)
-            #system.addInteraction(interaction, 'coulomb_14_{}'.format(qq_count))
-            qq_count += 1
-        interaction = espressopp.interaction.FixedPairListTypesCoulombTruncated(
-            system, dfpl)
+    if type_pairs:
         for type_1, type_2 in type_pairs:
             t1 = atomsym_atomtype[type_1]
             t2 = atomsym_atomtype[type_2]
-            interaction.setPotential(type1=t1, type2=t2, potential=potQQ)
-        system.addInteraction(interaction, 'coulomb_14_{}'.format(qq_count))
+            sig_1, eps_1 = atomparams[type_1]['sigma'], atomparams[type_1]['epsilon']
+            sig_2, eps_2 = atomparams[type_2]['sigma'], atomparams[type_2]['epsilon']
+            sig, eps = combination(sig_1, eps_1, sig_2, eps_2, combinationrule)
+            interaction.setPotential(
+                type1=t1, type2=t2,
+                potential=espressopp.interaction.LennardJones(
+                    sigma=sig, epsilon=fudgeLJ*eps, cutoff=args.lj_cutoff)
+            )
+        system.addInteraction(interaction, 'lj14_{}'.format(pair_count))
+
+        print('Set up 1-4 pair interactions')
+        # Set coulombic pair interaction
+        prefQQ = 138.935485 * fudgeQQ
+        qq_count = 0
+        if args.coulomb_cutoff > 0.0 and prefQQ > 0.0:
+            potQQ = espressopp.interaction.CoulombTruncated(
+                prefactor=prefQQ, cutoff=args.coulomb_cutoff)
+            for fpl in static_fpls:
+                interaction = espressopp.interaction.FixedPairListCoulombTruncated(
+                    system, fpl,
+                    potential=potQQ)
+                #system.addInteraction(interaction, 'coulomb_14_{}'.format(qq_count))
+                qq_count += 1
+            interaction = espressopp.interaction.FixedPairListTypesCoulombTruncated(
+                system, dfpl)
+            for type_1, type_2 in type_pairs:
+                t1 = atomsym_atomtype[type_1]
+                t2 = atomsym_atomtype[type_2]
+                interaction.setPotential(type1=t1, type2=t2, potential=potQQ)
+            system.addInteraction(interaction, 'coulomb_14_{}'.format(qq_count))
 
     return dfpl, static_fpls
 
