@@ -24,6 +24,7 @@ try:
     import MPI
 except ImportError:
     from mpi4py import MPI
+import collections
 import time
 import logging
 import random
@@ -337,7 +338,7 @@ def main():  #NOQA
         email='xxx',
         store_species=args.store_species,
         store_res_id=True,
-        store_charge=False,
+        store_charge=args.store_charge,
         store_position=args.store_position,
         store_state=args.store_state,
         store_lambda=args.store_lambda,
@@ -419,7 +420,7 @@ def main():  #NOQA
             integrator.addExtension(ar)
             reactions_enabled = True
             # Saves coordinate output file.
-            output_gro_file = '{}_before_reaction_out.gro'.format(args.output_prefix)
+            output_gro_file = '{}_{}_before_reaction_confout.gro'.format(args.output_prefix, args.rng_seed)
             input_conf.update_position(system)
             input_conf.write(output_gro_file, force=True)
             print('Save configuration before start of the reaction, filename: {}'.format(output_gro_file))
@@ -453,7 +454,7 @@ def main():  #NOQA
                     r.rate = new_rate
 
     if args.rate_arrhenius:
-        print('Change in reaction rates written to {}'.format('{}_{}_new_rates.csv'))
+        print('Changes in reaction rates written to {}'.format(rate_file.name))
         rate_file.close()
 
     system_analysis.info()
@@ -497,14 +498,21 @@ def main():  #NOQA
     # TODO(jakub): save new bonds in GROMACS like topology file.
     # output_topol_file = 'output_{}_{}_toopol.top'.format(args.output_prefix, rng_seed)
 
-    print('finished!')
-    print('total time: {}'.format(time.time()-time0))
-    print('Some timers:')
-    print topology_manager.get_timers()
+    total_time = time.time() - time0
 
-    print traj_file.getTimers()
+    print('Topology manager timers:')
+    for k, v in topology_manager.get_timers():
+        print('\t{}: {}'.format(k, v))
+
+    traj_timers = reduce(lambda x, y: collections.Counter(x) + collections.Counter(y), traj_file.getTimers())
+    for k, v in traj_timers.items():
+        print('\t{}: {}'.format(k, v))
+
+    print('Final time analysis:')
     espressopp.tools.analyse.final_info(system, integrator, verletlist, time0, time.time())
 
+    print('Total time: {}'.format(total_time))
+    print('Finished! Thanks!')
 
 if __name__ == '__main__':
     main()

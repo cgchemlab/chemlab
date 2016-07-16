@@ -148,6 +148,8 @@ def _args():
                         help='Store positions')
     parser.add_argument('--store_velocity', default=False, type=ast.literal_eval,
                         help='Store velocity')
+    parser.add_argument('--store_charge', default=False, type=ast.literal_eval,
+                        help='Store charge')
     parser.add_argument('--maximum_conversion',
                         default=None,
                         help=('The comma separated list of conditions on which '
