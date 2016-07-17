@@ -1,0 +1,46 @@
+; configuration for polyester dicor
+
+[ defaults ]
+; nbfunc        comb-rule       gen-pairs       fudgeLJ fudgeQQ
+1               1               no             1.0     1.0
+
+[ atomtypes ]
+A 44.999   0.000  A   1.0   1.0
+B 76.098   0.000  A   1.0   1.0
+C 44.009   0.000  A   1.0   1.0
+D 62.050   0.000  A   1.0   1.0
+E 28.053   0.000  A   1.0   1.0
+
+[ bondtypes ]
+A B     8 1 1.0 ; table_b1.xvg
+B C     8 2 1.0 ; table_b2.xvg
+C E     8 3 1.0 ; table_b3.xvg
+
+[ angletypes ]
+A B A   8 1 1.0   ; table_a1.xvg
+A B C   8 2 1.0   ; table_a2.xvg
+B C E   8 3 1.0   ; table_a3.xvg
+C E C   8 4 1.0   ; table_a4.xvg
+
+[ dihedraltypes ]
+A B C E 8 1 1.0 ; table_d1.xvg
+B C E C 8 2 1.0 ; table_d2.xvg
+
+[ atomstate ]
+A 1
+B 0
+C 0
+D 2
+E 0
+
+#include "./diol_cg.itp"
+#include "./ter_cg.itp"
+
+[ system ]
+; Name
+DICOR
+
+[ molecules ]
+; Compound        #mols
+DIO                1000
+TER                1000
