@@ -26,6 +26,17 @@ C E C   8 4 1.0   ; table_a4.xvg
 A B C E 8 1 1.0 ; table_d1.xvg
 B C E C 8 2 1.0 ; table_d2.xvg
 
+[ nonbond_params ]
+A C 8 table_A_A.xvg
+A E 8 table_A_D.xvg
+B C 8 table_A_B.xvg
+B E 8 table_B_D.xvg
+C C 8 table_A_A.xvg
+C D 8 table_A_D.xvg
+C E 8 table_A_D.xvg
+D E 8 table_D_D.xvg
+E E 8 table_D_D.xvg
+
 [ atomstate ]
 A 1
 B 0

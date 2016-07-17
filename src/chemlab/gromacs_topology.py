@@ -120,7 +120,7 @@ def convertc6c12(c6, c12, cr):
 
 
 class GromacsTopology:
-    def __init__(self, input_topol):
+    def __init__(self, input_topol, generate_exclusions=True):
         self.input_file = input_topol
         self.content = None
         self.data = {}
@@ -129,10 +129,13 @@ class GromacsTopology:
         self.bonds = {}
         self.angles = {}
         self.dihedrals = {}
+        self.pairs = {}
 
         self.bondparams = {}
         self.angleparams = {}
         self.dihedralparams = {}
+
+        self.generate_exclusions = generate_exclusions
 
     def read(self):
         fb = FileBuffer()
@@ -144,11 +147,12 @@ class GromacsTopology:
         self.gt.content = f.lines
         self.gt.read()
 
+        print('Reading master topology file...')
         self.master_topol = files_io.GROMACSTopologyFile(self.input_file)
         self.master_topol.read()
-        if len(self.gt.molecules) > 1:
-            raise RuntimeError('Multiple molecules are not supported')
-
+        #if len(self.gt.molecules) > 1:
+        #    raise RuntimeError('Multiple molecules are not supported')
+        print('Preparing topology data for simulation...')
         self._prepare_data()
 
     def _prepare_data(self):
@@ -156,7 +160,6 @@ class GromacsTopology:
         self.atomsym_atomtype = {}  # atom_symbol -> type_id
 
         self.atomparams = {}
-        self.atom_id_params = {}
         self.used_atomtypes = set()
         self.used_atomnr = set()
         self.used_atomsym_atomtype = {}
@@ -165,39 +168,49 @@ class GromacsTopology:
 
         combinationrule = self.topol.defaults['combinationrule']
         atype_id = 0
-        for at_id in sorted(self.gt.atoms):
-            at_data = self.gt.atoms[at_id]
-            at_type = self.gt.atomtypes[at_data.atom_type]
-            at_key = '{}-{}'.format(at_data.chain_name, at_data.name)
-            if at_data.atom_type not in self.atomsym_atomtype:
-                self.atomsym_atomtype[at_data.atom_type] = atype_id
-                atype_id += 1
-            self.atomparams[at_key] = {
-                'molecule': at_data.chain_name,
-                'type': at_data.atom_type,
-                'sig': at_type['sigma'],
-                'eps': at_type['epsilon'],
-                'type_id': self.atomsym_atomtype[at_data.atom_type],
-                'state': at_type.get('state', 0)
-            }
-            self.used_atomtypes.add(at_data.atom_type)
-            self.used_atomnr.add(self.gt.atom_name2atomnr[at_data.atom_type])
-            self.used_atomnr2atom_type[self.gt.atom_name2atomnr[at_data.atom_type]].add(at_data.atom_type)
-            self.used_atomsym_atomtype[at_data.atom_type] = self.atomsym_atomtype[at_data.atom_type]
+        atom_id_offset = 0
+        for molecule_name, molecule_numbers in self.gt.molecules:
+            print('Building {} with {} molecules'.format(molecule_name, molecule_numbers))
+            atom_id_params = {}
+            for at_id in sorted(self.gt.molecules_data[molecule_name]['atoms']):
+                at_data = self.gt.molecules_data[molecule_name]['atoms'][at_id]
+                at_type = self.gt.atomtypes[at_data.atom_type]
+                at_key = '{}-{}'.format(at_data.chain_name, at_data.name)
+                if at_data.atom_type not in self.atomsym_atomtype:
+                    self.atomsym_atomtype[at_data.atom_type] = atype_id
+                    atype_id += 1
+                self.atomparams[at_key] = {
+                    'molecule': at_data.chain_name,
+                    'type': at_data.atom_type,
+                    'sig': at_type['sigma'],
+                    'eps': at_type['epsilon'],
+                    'type_id': self.atomsym_atomtype[at_data.atom_type],
+                    'state': at_type.get('state', 0)
+                }
+                self.used_atomtypes.add(at_data.atom_type)
+                self.used_atomnr.add(self.gt.atom_name2atomnr[at_data.atom_type])
+                self.used_atomnr2atom_type[self.gt.atom_name2atomnr[at_data.atom_type]].add(at_data.atom_type)
+                self.used_atomsym_atomtype[at_data.atom_type] = self.atomsym_atomtype[at_data.atom_type]
 
-            if at_data.charge:
-                self.atomparams[at_key]['charge'] = at_data.charge
-            else:
-                self.atomparams[at_key]['charge'] = at_type['charge']
-            if at_data.mass:
-                self.atomparams[at_key]['mass'] = at_data.mass
-            else:
-                self.atomparams[at_key]['mass'] = at_type['mass']
-            sig, eps = convertc6c12(
-                at_type['sigma'], at_type['epsilon'], combinationrule)
-            self.atomparams[at_key]['sig'] = sig
-            self.atomparams[at_key]['eps'] = eps
-            self.atom_id_params[at_id] = self.atomparams[at_key]
+                if at_data.charge:
+                    self.atomparams[at_key]['charge'] = at_data.charge
+                else:
+                    self.atomparams[at_key]['charge'] = at_type['charge']
+                if at_data.mass:
+                    self.atomparams[at_key]['mass'] = at_data.mass
+                else:
+                    self.atomparams[at_key]['mass'] = at_type['mass']
+                sig, eps = convertc6c12(
+                    at_type['sigma'], at_type['epsilon'], combinationrule)
+                self.atomparams[at_key]['sig'] = sig
+                self.atomparams[at_key]['eps'] = eps
+                atom_id_params[at_id] = self.atomparams[at_key]
+            # Replicate for this molecule, parameters
+            n_atoms = len(self.gt.molecules_data[molecule_name]['atoms'])
+            self.atoms = {
+                atom_id_offset + k + (mol * n_atoms): v for mol in range(molecule_numbers)
+                for k, v in atom_id_params.items()}
+            atom_id_offset += molecule_numbers
 
         # Update non_bonded params
         for k, v in self.topol.nonbond_params.items():
@@ -210,7 +223,7 @@ class GromacsTopology:
 
         # Gets the atomtypes from master_topol and set it as the used_atomtypes.
         # This is required to work with chemical reactions although it is not
-        # nessecary to work with standard simulation.
+        # necessary to work with standard simulation.
         for at_name, at_data in self.master_topol.atomtypes.items():
             self.used_atomtypes.add(at_name)
             self.used_atomnr.add(self.master_topol.atom_name2atomnr[at_name])
@@ -219,36 +232,115 @@ class GromacsTopology:
                 self.atomsym_atomtype[at_name] = atype_id
                 atype_id += 1
             self.used_atomsym_atomtype[at_name] = self.atomsym_atomtype[at_name]
+
         self._prepare_bondedparams()
         self._prepare_bondedlists()
-        self._prepare_exclusionlists()
+        if self.generate_exclusions:
+            self._prepare_exclusionlists()
 
     def _prepare_bondedlists(self):
         """Replicate bonded lists."""
-        n_atoms = len(self.gt.atoms)
-        n_mols = self.gt.molecules.values()[0]
-        if len(self.gt.molecules.values()) > 1:
-            raise RuntimeError('Single molecule is supported, found: {}'.format(self.gt.molecules))
+        bonded_lists = [
+            ('bonds', self.bonds),
+            ('angles', self.angles),
+            ('dihedrals', self.dihedrals),
+            ('pairs', self.pairs)]
 
-        self.atoms = {
-            k+(mol*n_atoms): v for mol in range(n_mols)
-            for k, v in self.atom_id_params.items()}
-
-        self.bonds = self._replicate_lists(
-            n_mols, n_atoms, self.gt.bonds)
-        self.angles = self._replicate_lists(
-            n_mols, n_atoms, self.gt.angles)
-        self.dihedrals = self._replicate_lists(
-            n_mols, n_atoms, self.gt.dihedrals)
-        self.pairs = self._replicate_lists(
-            n_mols, n_atoms, self.gt.pairs)
+        atom_id_offset = 0
+        for molecule_name, n_mols in self.gt.molecules:
+            print('Replicate bonded lists: {}'.format(molecule_name))
+            n_atoms = len(self.gt.molecules_data[molecule_name]['atoms'])
+            for list_name, list_ptr in bonded_lists:
+                if list_name in self.gt.molecules_data[molecule_name]:
+                    list_ptr.update(self._replicate_lists(
+                        n_mols,
+                        n_atoms,
+                        self.gt.molecules_data[molecule_name][list_name],
+                        atom_id_offset
+                    ))
+            atom_id_offset += n_mols
 
     def _prepare_exclusionlists(self):
-        self.exclusions = {tuple(sorted(x)) for x in self.bonds.keys()[:]}
-        self.exclusions.update(
-            {tuple(sorted([x[0], x[2]])) for x in self.angles})
-        self.exclusions.update(
-            {tuple(sorted([x[0], x[3]])) for x in self.dihedrals})
+        self.exclusions = {tuple(sorted(x)) for x in self.bonds.keys()}
+        # Generate remaining exclusions, based on the nrexcl.
+        atom_id_offset = 0
+        for molecule_name, n_mols in self.gt.molecules:
+            print('Building exclusion list for: {}'.format(molecule_name))
+            n_atoms = len(self.gt.molecules_data[molecule_name]['atoms'])
+            nrexcl = self.gt.moleculetype[molecule_name]  # This many bonds to be removed.
+            if 'bonds' in self.gt.molecules_data[molecule_name]:
+                mol_excl = self._generate_exclusions(self.gt.molecules_data[molecule_name]['bonds'], nrexcl)
+                self.exclusions.update({
+                    tuple(sorted(map(lambda x: atom_id_offset + x + (mol*n_atoms), l)))
+                    for mol in range(n_mols) for l in mol_excl
+                })
+                print mol_excl
+                print sorted(self.exclusions)[:10]
+            else:
+                print('Molecule {} does not have bonds, no exclusions needed'.format(molecule_name))
+            atom_id_offset += n_mols  # Still the offset is neighter the exclusions are generated or not
+
+    def _generate_exclusions(self, bond_list, nrexcl):
+        """Generates exclusion list for single molecule to be replicated."""
+        # Build adjance list, simple who is neighbour of whom.
+        exclusion_list = set(bond_list)
+
+        class Node:
+            def __init__(self, pid):
+                self.pid = pid
+                self.neighbours = []
+
+            def add_neighbours(self, nb):
+                self.neighbours.append(nb)
+
+        def get_node_by_id(id, nodes):
+            node_list = [n for n in nodes if n.pid == id]
+            if len(node_list) > 1:
+                print "Error: duplicate nodes", id
+                exit()
+            elif len(node_list) == 0:
+                return None
+            return node_list[0]
+
+        def get_next_neighbour(root, nr_neighbours, neighbours, visited_nodes):
+            if nr_neighbours == 0:
+                return neighbours
+
+            # avoid going back the same path
+            visited_nodes.append(root)
+
+            # Loop over next neighbours and add them to the neighbours list
+            # Recursively call the function with numberNeighbours-1
+            for n in root.neighbours:
+                if not n in visited_nodes:
+                    if n not in neighbours: neighbours.append(n)  # avoid double counting in rings
+                    get_next_neighbour(n, nr_neighbours - 1, neighbours, visited_nodes)
+
+        nodes = []
+        # make a Node object for each atom involved in bonds
+        for bids in bond_list:
+            for i in bids:
+                if get_node_by_id(i, nodes) is None:
+                    n = Node(i)
+                    nodes.append(n)
+
+        # find the next neighbours for each node and append them
+        for b in bond_list:
+            permutations = [(b[0], b[1]), (b[1], b[0])]
+            for p in permutations:
+                n = get_node_by_id(p[0], nodes)
+                nn = get_node_by_id(p[1], nodes)
+                n.add_neighbours(nn)
+
+        # seraches for nrexcl next neighbours
+        for n in nodes:
+            neighbours = []
+            get_next_neighbour(n, nrexcl, neighbours, visited_nodes=[])
+            for nb in neighbours:
+                # check if the permutation is already in the exclusion list
+                exclusion_list.add(tuple(sorted((n.pid, nb.pid))))
+
+        return exclusion_list
 
     def _prepare_bondedparams(self):
         """Prepares bonded params to use with FixedListTypes interaction."""
@@ -297,13 +389,24 @@ class GromacsTopology:
                                             self.dihedralparams[(t1, t2, t3, t4)] = params
 
     def _replicate_lists(self, n_mols, n_atoms, input_list, shift=0):
+        """Replicate input lists by n_mols, where every mol contains n_atoms.
+
+        Args:
+            n_mols: Number of mols.
+            n_atoms: Number of atoms in single mol.
+            input_list: The input list to replicate.
+            shift: Shift the atom ids by this value.
+
+        Returns:
+             The replicated list.
+        """
         return {
             tuple(map(lambda x: shift+x+(mol*n_atoms), l)): v
             for mol in range(n_mols) for l, v in input_list.items()
             }
 
-Molecule = collections.namedtuple('Molecule', ['pid', 'pos', 'mass', 'type'])
 
+Molecule = collections.namedtuple('Molecule', ['pid', 'pos', 'mass', 'type'])
 
 def combination(sig_1, eps_1, sig_2, eps_2, cr):
     if cr == 2:
@@ -316,7 +419,7 @@ def combination(sig_1, eps_1, sig_2, eps_2, cr):
     return sig, eps
 
 
-def setNonbondedInteractions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, tables=None, cr_observs=None):  #NOQA
+def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, tables=None, cr_observs=None):  #NOQA
     """Sets the non-bonded interactions
     Args:
         system: The espressopp.System object.
@@ -382,7 +485,10 @@ def setNonbondedInteractions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, ta
                     sig_2, eps_2 = atomparams[type_2]['sigma'], atomparams[type_2]['epsilon']
                     sig, eps = combination(sig_1, eps_1, sig_2, eps_2, combinationrule)
             elif func == 8:
-                table_name = 'table_{}_{}.xvg'.format(type_1, type_2)
+                if param['params']:
+                    table_name = param['params'][0]
+                else:
+                    table_name = 'table_{}_{}.xvg'.format(type_1, type_2)
             elif func == 9:
                 tab_name = 'table_{}_{}.xvg'.format(param['params'][1], param['params'][0])
                 cr_type = atomsym_atomtype[param['params'][2]]
@@ -490,7 +596,7 @@ def setNonbondedInteractions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, ta
     return cr_observs
 
 
-def set_bonded_interactions(system, gt, name='bonds'):
+def set_bonded_interactions(system, gt, dynamic_type_ids, name='bonds'):
     """Set bonded interactions."""
     def convert_params(func, raw_data):
         if func == 1:
@@ -520,18 +626,22 @@ def set_bonded_interactions(system, gt, name='bonds'):
     dynamics_bonds_by_func = collections.defaultdict(list)
     for b, parameters in gt.bonds.items():
         ptypes = map(lambda x: gt.atoms[x]['type_id'], b)
-        if parameters:
+        s_ptypes = set(ptypes)
+        is_dynamic_bond = s_ptypes - dynamic_type_ids != s_ptypes
+        if parameters:  # Has parameters on the list.
             func = int(parameters[0])
             params = tuple(map(float, parameters[1:]))
             if params not in bonds_by_func[func]:
                 bonds_by_func[func][params] = []
-            bonds_by_func[func][params].append(b)
-        else:
-            pparams = gt.bondparams[tuple(ptypes)]
-            if not pparams:
-                pparams = gt.bonds[tuple(reversed(ptypes))]
-            func = int(pparams['func'])
+        else:  # Without parameters, take from bondtypes
+            params = gt.bondparams[tuple(ptypes)]
+            if not params:
+                params = gt.bonds[tuple(reversed(ptypes))]
+            func = int(params['func'])
+        if is_dynamic_bond:
             dynamics_bonds_by_func[func].append(b)
+        else:
+            bonds_by_func[func][params].append(b)
 
     # Set first static bonds, those one that has explicitly the parameters
     static_fpls = []
@@ -544,8 +654,6 @@ def set_bonded_interactions(system, gt, name='bonds'):
             static_fpls.append(fpl)
             interaction = interaction_class(system, fpl, potential_class(**convert_params(func, params)))
             system.addInteraction(interaction, '{}_{}'.format(name, bond_count))
-            #print('Set static bond potential "{}_{}" ({}) func_type={} params={}'.format(
-            #    name, bond_count, len(b_list), func, params[1:]))
             bond_count += 1
 
     dynamics_fpls = collections.defaultdict(dict)
@@ -565,7 +673,7 @@ def set_bonded_interactions(system, gt, name='bonds'):
                 type1=t[0], type2=t[1],
                 potential=potential_class(**convert_params(func, params['params']))
             )
-        system.addInteraction(interaction, 'bond_{}'.format(bond_count))
+        system.addInteraction(interaction, '{}_{}'.format(name, bond_count))
         bond_count += 1
         dynamics_fpls[func] = fpl
 
@@ -573,7 +681,7 @@ def set_bonded_interactions(system, gt, name='bonds'):
     return dynamics_fpls, static_fpls
 
 
-def set_angle_interactions(system, gt, name='angles'):
+def set_angle_interactions(system, gt, dynamic_type_ids, name='angles'):
     """Set angle interactions."""
     def convert_params(func, raw_data):
         if func == 1:
@@ -603,18 +711,22 @@ def set_angle_interactions(system, gt, name='angles'):
     dynamics_angles_by_func = collections.defaultdict(list)
     for b, parameters in gt.angles.items():
         ptypes = map(lambda x: gt.atoms[x]['type_id'], b)
+        s_ptypes = set(ptypes)
+        is_dynamic_bond = s_ptypes - dynamic_type_ids != s_ptypes
         if parameters:
             func = int(parameters[0])
             params = tuple(map(float, parameters[1:]))
             if params not in angles_by_func[func]:
                 angles_by_func[func][params] = []
-            angles_by_func[func][params].append(b)
         else:
-            pparams = gt.angleparams[tuple(ptypes)]
-            if not pparams:
-                pparams = gt.angles[tuple(reversed(ptypes))]
-            func = int(pparams['func'])
+            params = gt.angleparams[tuple(ptypes)]
+            if not params:
+                params = gt.angles[tuple(reversed(ptypes))]
+            func = int(params['func'])
+        if is_dynamic_bond:
             dynamics_angles_by_func[func].append(b)
+        else:
+            angles_by_func[func][params].append(b)
 
     # Set first static angles, those one that has explicitly the parameters
     static_ftls = []
@@ -654,11 +766,13 @@ def set_angle_interactions(system, gt, name='angles'):
     return dynamics_ftls, static_ftls
 
 
-def set_dihedral_interactions(system, gt, name='dihedrals'):
+def set_dihedral_interactions(system, gt, dynamic_type_ids, name='dihedrals'):
     """Set dihedral interactions."""
     def convert_params(func, raw_data):
         if func == 1:
-            return {'K': float(raw_data[1]), 'phi0': float(raw_data[0])*2*math.pi/360, 'multiplicity': int(raw_data[2])}
+            return {'K': float(raw_data[1]),
+                    'phi0': float(raw_data[0])*2*math.pi/360,
+                    'multiplicity': int(raw_data[2])}
         elif func == 3:
             t = map(float, raw_data[1:])
             return {'K{}'.format(i): v for i, v in enumerate(t[1:])}
@@ -695,18 +809,22 @@ def set_dihedral_interactions(system, gt, name='dihedrals'):
     dynamics_dihedrals_by_func = collections.defaultdict(list)
     for b, parameters in gt.dihedrals.items():
         ptypes = map(lambda x: gt.atoms[x]['type_id'], b)
+        s_ptypes = set(ptypes)
+        is_dynamic_bond = s_ptypes - dynamic_type_ids != s_ptypes
         if parameters:
             func = int(parameters[0])
             params = tuple(map(float, parameters[1:]))
             if params not in dihedrals_by_func[func]:
                 dihedrals_by_func[func][params] = []
-            dihedrals_by_func[func][params].append(b)
         else:
-            pparams = gt.dihedralparams[tuple(ptypes)]
-            if not pparams:
-                pparams = gt.dihedrals[tuple(reversed(ptypes))]
-            func = int(pparams['func'])
+            params = gt.dihedralparams.get(tuple(ptypes))
+            if not params:
+                params = gt.dihedralparams[tuple(reversed(ptypes))]
+            func = int(params['func'])
+        if is_dynamic_bond:
             dynamics_dihedrals_by_func[func].append(b)
+        else:
+            dihedrals_by_func[func][params].append(b)
 
     # Set first static dihedrals, those one that has explicitly the parameters
     static_fqls = []
@@ -746,27 +864,38 @@ def set_dihedral_interactions(system, gt, name='dihedrals'):
     return dynamics_fqls, static_fqls
 
 
-def set_pair_interactions(system, gt, args):
+def set_pair_interactions(system, gt, args, dynamic_type_ids):
     fudgeLJ = gt.gt.defaults.get('fudgeLJ', 1.0)
     fudgeQQ = gt.gt.defaults.get('fudgeQQ', 1.0)
-
-    # Set LJ pair interactions. If parameters are set then add to static list, otherwise to dynamic.
 
     # Sort existing pair lists by functional type.
     static_pairs = {}
     dynamics_pairs = []
+    atomparams = gt.gt.atomtypes
+    combinationrule = int(gt.gt.defaults['combinationrule'])
     for b, parameters in gt.pairs.items():
-        func = parameters[0]
-        params = tuple(map(float, parameters[1:]))
-        if params:
-            if params not in static_pairs:
-                static_pairs[params] = []
-            static_pairs[params].append(b)
-        else:
+        ptypes = map(lambda x: gt.atoms[x]['type_id'], b)
+        s_ptypes = set(ptypes)
+        is_dynamic_bond = s_ptypes - dynamic_type_ids != s_ptypes
+        if is_dynamic_bond:
             dynamics_pairs.append(b)
+        else:
+            params = tuple(map(float, parameters[1:]))
+            if params:
+                if params not in static_pairs:
+                    static_pairs[params] = []
+            else:
+                params = gt.pairparams.get(tuple(ptypes))
+                if not params:
+                    params = gt.pairparams.get(tuple(reversed(ptypes)))
+                    if not params and gt.gt.defaults['gen-pairs']:
+                        sig_1, eps_1 = atomparams[ptypes[0]]['sigma'], atomparams[ptypes[0]]['epsilon']
+                        sig_2, eps_2 = atomparams[ptypes[0]]['sigma'], atomparams[ptypes[0]]['epsilon']
+                        sig, eps = combination(sig_1, eps_1, sig_2, eps_2, combinationrule)
+                        params = [sig, fudgeLJ*eps]
+            static_pairs[params].append(b)
 
     # Set first static pairs, those one that has explicitly the parameters
-    combinationrule = int(gt.gt.defaults['combinationrule'])
     static_fpls = []
     pair_count = 0
     for params, b_list in static_pairs.items():
@@ -793,8 +922,8 @@ def set_pair_interactions(system, gt, args):
         for type_2 in gt.used_atomsym_atomtype:
             type_pairs.add(tuple(sorted([type_1, type_2])))
     atomsym_atomtype = gt.used_atomsym_atomtype
-    atomparams = gt.gt.atomtypes
     if type_pairs:
+        print('Set up 1-4 pair interactions')
         for type_1, type_2 in type_pairs:
             t1 = atomsym_atomtype[type_1]
             t2 = atomsym_atomtype[type_2]
@@ -808,7 +937,6 @@ def set_pair_interactions(system, gt, args):
             )
         system.addInteraction(interaction, 'lj14_{}'.format(pair_count))
 
-        print('Set up 1-4 pair interactions')
         # Set coulombic pair interaction
         prefQQ = 138.935485 * fudgeQQ
         qq_count = 0

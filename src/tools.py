@@ -161,5 +161,6 @@ def _args():
                         help='Maximum force in the system.')
     parser.add_argument('--rate_arrhenius', default=False, help='Change rate based on the Arrhenius equation.',
                         type=ast.literal_eval)
+    parser.add_argument('--exclusion_list', default=None, help='Read exclusion list from external file')
 
     return parser

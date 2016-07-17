@@ -201,6 +201,7 @@ class SetupReactions:
         self.tm = topol_manager
         self.cfg = config
         self.name2type = topol.atomsym_atomtype
+        self.dynamic_types = set()  # Stores the particle types that will change during the reactions.
 
     def _setup_reaction(self, chem_reaction, fpl):
         """Setup single reaction.
@@ -279,6 +280,9 @@ class SetupReactions:
                     espressopp.ParticleProperties(
                         t1_new, new_property['mass'],
                         new_property['charge']))
+                self.dynamic_types.add(t1_old)
+                self.dynamic_types.add(t1_new)
+
             t2_old = self.name2type[rl['type_2']['name']]
             t2_new = self.name2type[rl['type_2']['new_type']]
             if t2_old != t2_new:
@@ -289,6 +293,9 @@ class SetupReactions:
                     espressopp.ParticleProperties(
                         t2_new, new_property['mass'],
                         new_property['charge']))
+                self.dynamic_types.add(t2_old)
+                self.dynamic_types.add(t2_new)
+
             r.add_postprocess(r_pp)
 
         return r
