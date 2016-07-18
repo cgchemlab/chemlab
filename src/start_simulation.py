@@ -195,6 +195,11 @@ def main():  #NOQA
             ar, chem_fpls, reactions = sc.setup_reactions()
             chem_dynamic_types = sc.dynamic_types
 
+            if cr_observs is None:
+                cr_observs = {}
+            if sc.cr_observs is not None:
+                cr_observs.update(sc.cr_observs)
+
             output_reaction_config = '{}_{}_{}'.format(args.output_prefix, rng_seed, args.reactions)
             print('Save copy of reaction config to: {}'.format(output_reaction_config))
             shutil.copyfile(args.reactions, output_reaction_config)
@@ -216,6 +221,8 @@ def main():  #NOQA
     maximum_conversion = []
     eq_run = 0
     if args.maximum_conversion:
+        if cr_observs is None:
+            cr_observs = {}
         for o in args.maximum_conversion.split(','):
             type_symbol, max_number, tot_number = o.split(':')
             type_id_symbol = gt.used_atomsym_atomtype[type_symbol]
@@ -247,6 +254,7 @@ def main():  #NOQA
         thermostat.temperature = temperature
         thermostat.gamma = args.thermostat_gamma
         if has_reaction and sc and sc.use_thermal_group:
+            print('Running thermostat ')
             thermostat.add_valid_types(gt.used_atomsym_atomtype.values())
     elif args.thermostat == 'vr':
         thermostat = espressopp.integrator.StochasticVelocityRescaling(system)

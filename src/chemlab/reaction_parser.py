@@ -208,6 +208,7 @@ class SetupReactions:
 
         self.use_thermal_group = False
         self.fix_distance = None
+        self.cr_observs = None   # Observs conversion types.
 
     def _setup_reaction(self, chem_reaction, fpl):
         """Setup single reaction.
@@ -418,6 +419,10 @@ class SetupReactions:
             # Because of the dummy particle, we have to use thermal group for thermostat to not
             # thermoset the dummy particle
             self.use_thermal_group = True
+
+            # Observ progress of generating that molecule by checking the total number of target type_id
+            self.cr_observs[(target_type_id, len(particle_list))] = espressopp.analysis.ChemicalConversion(
+                    self.system, target_type_id, len(particle_list))
 
             return None
 
