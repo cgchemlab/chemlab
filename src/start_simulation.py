@@ -247,6 +247,7 @@ def main():  #NOQA
         thermostat.temperature = temperature
         thermostat.gamma = args.thermostat_gamma
         if has_reaction and sc and sc.use_thermal_group:
+            print('Run thermostat only on {}'.format(gt.used_atomsym_atomtype.values()))
             thermostat.add_valid_types(gt.used_atomsym_atomtype.values())
     elif args.thermostat == 'vr':
         thermostat = espressopp.integrator.StochasticVelocityRescaling(system)
