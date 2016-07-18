@@ -562,6 +562,11 @@ def main():  #NOQA
     input_conf.write(output_gro_file, force=True)
     print('Wrote end configuration to: {}'.format(output_gro_file))
 
+    output_whole_gro = '{}_{}_whole_confout.gro'.format(args.output_prefix, rng_seed)
+    dump_gro = espressopp.io.DumpGRO(system, integrator, filename=output_whole_gro)
+    dump_gro.dump()
+    print('Wrote whole configuration to: {}'.format(output_whole_gro))
+
     # Saves output topology file.
     # TODO(jakub): save new bonds in GROMACS like topology file.
     # output_topol_file = 'output_{}_{}_toopol.top'.format(args.output_prefix, rng_seed)
