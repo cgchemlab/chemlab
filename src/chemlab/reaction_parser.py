@@ -207,6 +207,7 @@ class SetupReactions:
         self.dynamic_types = set()  # Stores the particle types that will change during the reactions.
 
         self.use_thermal_group = False
+        self.fix_distance = None
 
     def _setup_reaction(self, chem_reaction, fpl):
         """Setup single reaction.
@@ -396,6 +397,7 @@ class SetupReactions:
                 fix_list,
                 self.topol.atomsym_atomtype[host_type],
                 dummy_type_id)
+            self.fix_distance = fix_distance
 
             fxd_post_process = espressopp.integrator.PostProcessChangeProperty()
             fxd_post_process.add_change_property(

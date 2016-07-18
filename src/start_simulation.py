@@ -247,7 +247,6 @@ def main():  #NOQA
         thermostat.temperature = temperature
         thermostat.gamma = args.thermostat_gamma
         if has_reaction and sc and sc.use_thermal_group:
-            print('Run thermostat only on {}'.format(gt.used_atomsym_atomtype.values()))
             thermostat.add_valid_types(gt.used_atomsym_atomtype.values())
     elif args.thermostat == 'vr':
         thermostat = espressopp.integrator.StochasticVelocityRescaling(system)
@@ -508,7 +507,9 @@ def main():  #NOQA
             if args.rate_arrhenius:
                 bonds0 = sum(f.totalSize() for f in chem_fpls)  # TODO(jakub): this is terrible.
                 energy0 = system_analysis.potential_energy
-
+            if sc.fix_distance:
+                print sc.fix_distance.totalSize()
+        
         integrator.run(integrator_step)
 
         if args.rate_arrhenius and reactions_enabled:
