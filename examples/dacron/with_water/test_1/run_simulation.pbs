@@ -12,7 +12,7 @@ module purge
 
 cd $PBS_O_WORKDIR
 
-module load espressopp/chem2
+module load espressopp/chem
 module load chemlab
 # Set up OpenMPI environment
 n_proc=$(cat $PBS_NODEFILE | wc -l)
