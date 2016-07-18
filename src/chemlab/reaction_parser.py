@@ -23,6 +23,9 @@ import re
 import warnings
 
 
+__doc__ = """This is a reaction parser."""
+
+
 def parse_equation(input_string):
     """Parse chemical equation and returns properties extracted from the input string
 
@@ -203,6 +206,8 @@ class SetupReactions:
         self.name2type = topol.atomsym_atomtype
         self.dynamic_types = set()  # Stores the particle types that will change during the reactions.
 
+        self.use_thermal_group = False
+
     def _setup_reaction(self, chem_reaction, fpl):
         """Setup single reaction.
 
@@ -237,6 +242,10 @@ class SetupReactions:
             fpl=fpl,
             cutoff=float(chem_reaction.get('cutoff', 0.0))
         )
+
+        self.dynamic_types.add(self.name2type[rl['type_1']['name']])
+        self.dynamic_types.add(self.name2type[rl['type_2']['name']])
+
         print('Setup reaction: {}({})-{}({})'.format(
             rt1, self.name2type[rt1], rt2, self.name2type[rt2]))
         if not chem_reaction['reverse']:
@@ -273,6 +282,8 @@ class SetupReactions:
             t1_old = self.name2type[rl['type_1']['name']]
             t1_new = self.name2type[rl['type_1']['new_type']]
             if t1_old != t1_new:
+                self.dynamic_types.add(t1_old)
+                self.dynamic_types.add(t1_new)
                 print('Reaction: {}-{}, change type {}->{}'.format(rt1, rt2, t1_old, t1_new))
                 new_property = self.topol.gt.atomtypes[rl['type_1']['new_type']]
                 r_pp.add_change_property(
@@ -280,12 +291,12 @@ class SetupReactions:
                     espressopp.ParticleProperties(
                         t1_new, new_property['mass'],
                         new_property['charge']))
-                self.dynamic_types.add(t1_old)
-                self.dynamic_types.add(t1_new)
 
             t2_old = self.name2type[rl['type_2']['name']]
             t2_new = self.name2type[rl['type_2']['new_type']]
             if t2_old != t2_new:
+                self.dynamic_types.add(t2_old)
+                self.dynamic_types.add(t2_new)
                 print('Reaction: {}-{}, change type {}->{}'.format(rt1, rt2, t2_old, t2_new))
                 new_property = self.topol.gt.atomtypes[rl['type_2']['new_type']]
                 r_pp.add_change_property(
@@ -293,8 +304,6 @@ class SetupReactions:
                     espressopp.ParticleProperties(
                         t2_new, new_property['mass'],
                         new_property['charge']))
-                self.dynamic_types.add(t2_old)
-                self.dynamic_types.add(t2_new)
 
             r.add_postprocess(r_pp)
 
@@ -318,6 +327,8 @@ class SetupReactions:
                         old_type, new_type, nb_level, nb_level+1))
                     t1_old = self.name2type[old_type]
                     t1_new = self.name2type[new_type]
+                    self.dynamic_types.add(t1_old)
+                    self.dynamic_types.add(t1_new)
                     new_property = self.topol.gt.atomtypes[new_type]
                     pp.add_change_property(
                         t1_old,
@@ -352,14 +363,73 @@ class SetupReactions:
                 pp.add_bond_to_remove(anchor_type_id, nb_level, type_pid1, type_pid2)
             return pp
 
+        def _cfg_post_process_release_molecule(cfg):
+            """Setup release molecules."""
+            host_type = cfg['host_type']
+            target_type = cfg['target_type']
+            eq_length = float(cfg['eq_length'])
+            alpha = float(cfg['alpha'])
+            init_res = float(cfg['init_res'])
+
+            # Generate dummy molecules
+            max_pid = max(self.topol.atoms)
+            dummy_type_id = max(self.topol.used_atomsym_atomtype.values()) + 1
+            host_pids = [x for x, v in self.topol.atoms.items() if v['type'] == host_type]
+            target_type_id = self.topol.atomsym_atomtype[target_type]
+            target_properties = self.topol.gt.atomtypes[target_type]
+            print('Generate {} of dummy particles (type: {}) linked to {}'.format(
+                len(host_pids), dummy_type_id, host_type))
+            particle_list = []
+            fix_list = []
+            for idx, host_pid in enumerate(host_pids):
+                host_p = self.system.storage.getParticle(host_pid)
+                dummy_pos = host_p.pos + espressopp.Real3D(eq_length, 0.0, 0.0)
+                new_pid = max_pid + idx + 1
+                fix_list.append((host_pid, new_pid, eq_length))
+                particle_list.append((new_pid, dummy_type_id, dummy_pos, target_properties['mass'], new_pid, init_res))
+            props = ['id', 'type', 'pos', 'mass', 'res_id', 'lambda_adr']
+            self.system.storage.addParticles(particle_list, *props)
+            self.system.storage.decompose()
+
+            fix_distance = espressopp.integrator.FixDistances(
+                self.system,
+                fix_list,
+                self.topol.atomsym_atomtype[host_type],
+                dummy_type_id)
+
+            fxd_post_process = espressopp.integrator.PostProcessChangeProperty()
+            fxd_post_process.add_change_property(
+                dummy_type_id,
+                espressopp.ParticleProperties(
+                    target_type_id,
+                    target_properties['mass'],
+                    0.0
+                ))
+            fix_distance.add_postprocess(fxd_post_process)
+            self.system.integrator.addExtension(fix_distance)
+
+            basic_dynamic_res = espressopp.integrator.BasicDynamicResolution(
+                self.system, {target_type_id: alpha}
+            )
+            self.system.integrator.addExtension(basic_dynamic_res)
+
+            # Because of the dummy particle, we have to use thermal group for thermostat to not
+            # thermoset the dummy particle
+            self.use_thermal_group = True
+
+            return None
+
 
         class_to_cfg = {
             'ChangeNeighboursProperty': _cfg_post_process_change_neighbour,
-            'RemoveNeighboursBonds': _cfg_post_process_remove_neighbour_bonds
+            'RemoveNeighboursBonds': _cfg_post_process_remove_neighbour_bonds,
+            'ReleaseMolecule': _cfg_post_process_release_molecule
         }
         for pp_cfg in cfg.values():
             cfg_setup = class_to_cfg[pp_cfg['class']]
-            pps.append(cfg_setup(pp_cfg['options']))
+            post_process_obj = cfg_setup(pp_cfg['options'])
+            if post_process_obj:
+                pps.append(post_process_obj)
 
         return pps
 
@@ -402,6 +472,7 @@ class SetupReactions:
             potential = pot_class(**pot_options)
             interaction = eval('espressopp.interaction.FixedPairList{}'.format(
                 reaction_group['potential']))(self.system, fpl, potential)
+            fpl.interaction = interaction
             self.system.addInteraction(interaction, 'fpl_{}'.format(group_name))
 
             # Setting the post process extensions.

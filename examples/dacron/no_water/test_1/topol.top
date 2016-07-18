@@ -25,6 +25,8 @@ C E C   8 4 1.0   ; table_a4.xvg
 [ dihedraltypes ]
 A B C E 8 1 1.0 ; table_d1.xvg
 B C E C 8 2 1.0 ; table_d2.xvg
+A B A D 8 1 1.0 ; table_d1.xvg
+B A D A 8 2 1.0 ; table_d2.xvg
 
 [ nonbond_params ]
 A C 8 table_A_A.xvg
@@ -38,7 +40,7 @@ D E 8 table_D_D.xvg
 E E 8 table_D_D.xvg
 
 [ atomstate ]
-A 1
+A 2
 B 0
 C 0
 D 2

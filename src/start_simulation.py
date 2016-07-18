@@ -166,47 +166,6 @@ def main():  #NOQA
     print('Angles: {}'.format(len(gt.angles)))
     print('Dihedrals: {}'.format(len(gt.dihedrals)))
 
-# Define the thermostat
-    temperature = args.temperature*kb
-    print('Temperature: {} ({}), gamma: {}'.format(args.temperature, temperature, args.thermostat_gamma))
-    print('Thermostat: {}'.format(args.thermostat))
-    if args.thermostat == 'lv':
-        thermostat = espressopp.integrator.LangevinThermostat(system)
-        thermostat.temperature = temperature
-        thermostat.gamma = args.thermostat_gamma
-    elif args.thermostat == 'vr':
-        thermostat = espressopp.integrator.StochasticVelocityRescaling(system)
-        thermostat.temperature = temperature
-        thermostat.coupling = args.thermostat_gamma
-    elif args.thermostat == 'iso':
-        thermostat = espressopp.integrator.Isokinetic(system)
-        thermostat.temperature = temperature
-        thermostat.coupling = int(args.thermostat_gamma)
-    else:
-        raise Exception('Wrong thermostat keyword: `{}`'.format(args.thermostat))
-    integrator.addExtension(thermostat)
-
-# Pressure coupling if needed,
-    pressure_comp = espressopp.analysis.Pressure(system)
-    pressure = 0.0
-    if args.pressure:
-        pressure = args.pressure * 0.060221374  # convert from bars to gromacs units kj/mol/nm^3
-        if args.barostat == 'lv':
-            print('Barostat: Langevin with P={}, gamma={}, mass={}'.format(
-                pressure, 0.5, pow(10, 4)))
-            barostat = espressopp.integrator.LangevinBarostat(system, system.rng, temperature)
-            barostat.gammaP = args.barostat_gammaP
-            barostat.mass = args.barostat_mass
-            barostat.pressure = pressure
-        elif args.barostat == 'br':
-            print('Barostat: Berendsen with P={} and tau={}'.format(pressure, 0.5))
-            barostat = espressopp.integrator.BerendsenBarostat(system, pressure_comp)
-            barostat.tau = args.barostat_tau
-            barostat.pressure = pressure
-        else:
-            raise Exception('Wrong barostat keyword: `{}`'.format(args.barostat))
-        integrator.addExtension(barostat)
-
     print("Decomposing now ...")
     system.storage.decompose()
 
@@ -222,12 +181,17 @@ def main():  #NOQA
     reactions = []
     cr_interval = 0
     has_reaction = False
+    sc = None
     if args.reactions:
         if os.path.exists(args.reactions):
             print('Set chemical reactions from: {}'.format(args.reactions))
             reaction_config = chemlab.reaction_parser.parse_config(args.reactions)
             sc = chemlab.reaction_parser.SetupReactions(
-                system, verletlist, gt, topology_manager, reaction_config)
+                system,
+                verletlist,
+                gt,
+                topology_manager,
+                reaction_config)
             ar, chem_fpls, reactions = sc.setup_reactions()
             chem_dynamic_types = sc.dynamic_types
 
@@ -273,6 +237,49 @@ def main():  #NOQA
 
     dynamic_fpairs, static_fpairs = chemlab.gromacs_topology.set_pair_interactions(system, gt, args, chem_dynamic_types)
     chemlab.gromacs_topology.set_coulomb_interactions(system, gt, args)
+
+    # Define the thermostat
+    temperature = args.temperature * kb
+    print('Temperature: {} ({}), gamma: {}'.format(args.temperature, temperature, args.thermostat_gamma))
+    print('Thermostat: {}'.format(args.thermostat))
+    if args.thermostat == 'lv':
+        thermostat = espressopp.integrator.LangevinThermostat(system)
+        thermostat.temperature = temperature
+        thermostat.gamma = args.thermostat_gamma
+        if has_reaction and sc and sc.use_thermal_group:
+            thermostat.add_valid_types(gt.used_atomsym_atomtype.values())
+    elif args.thermostat == 'vr':
+        thermostat = espressopp.integrator.StochasticVelocityRescaling(system)
+        thermostat.temperature = temperature
+        thermostat.coupling = args.thermostat_gamma
+    elif args.thermostat == 'iso':
+        thermostat = espressopp.integrator.Isokinetic(system)
+        thermostat.temperature = temperature
+        thermostat.coupling = int(args.thermostat_gamma)
+    else:
+        raise Exception('Wrong thermostat keyword: `{}`'.format(args.thermostat))
+    integrator.addExtension(thermostat)
+
+    # Pressure coupling if needed,
+    pressure_comp = espressopp.analysis.Pressure(system)
+    pressure = 0.0
+    if args.pressure:
+        pressure = args.pressure * 0.060221374  # convert from bars to gromacs units kj/mol/nm^3
+        if args.barostat == 'lv':
+            print('Barostat: Langevin with P={}, gamma={}, mass={}'.format(
+                pressure, 0.5, pow(10, 4)))
+            barostat = espressopp.integrator.LangevinBarostat(system, system.rng, temperature)
+            barostat.gammaP = args.barostat_gammaP
+            barostat.mass = args.barostat_mass
+            barostat.pressure = pressure
+        elif args.barostat == 'br':
+            print('Barostat: Berendsen with P={} and tau={}'.format(pressure, 0.5))
+            barostat = espressopp.integrator.BerendsenBarostat(system, pressure_comp)
+            barostat.tau = args.barostat_tau
+            barostat.pressure = pressure
+        else:
+            raise Exception('Wrong barostat keyword: `{}`'.format(args.barostat))
+        integrator.addExtension(barostat)
 
     print('Set Dynamic Exclusion lists.')
     for static_fpl in static_fpls:
@@ -332,6 +339,10 @@ def main():  #NOQA
         integrator,
         espressopp.analysis.SystemMonitorOutputCSV(energy_file))
     temp_comp = espressopp.analysis.Temperature(system)
+    if has_reaction and sc and sc.use_thermal_group:
+        for t_id in gt.used_atomsym_atomtype.values():
+            temp_comp.add_type(t_id)
+
     system_analysis.add_observable('T', temp_comp)
     system_analysis.add_observable(
         'Ekin', espressopp.analysis.KineticEnergy(
@@ -346,11 +357,44 @@ def main():  #NOQA
     for fidx, f in enumerate(chem_fpls):
         system_analysis.add_observable(
             'count_{}'.format(fidx), espressopp.analysis.NFixedPairListEntries(system, f))
+
+    # This is a bit expensive
+    if args.count_tuples:
+        bcount = 0
+        for static_fpl in static_fpls:
+            system_analysis.add_observable(
+                'bcount_{}'.format(bcount), espressopp.analysis.NFixedPairListEntries(system, static_fpl))
+            bcount += 1
+        for _, fpl in dynamic_fpls.items():
+            system_analysis.add_observable(
+                'bcount_{}'.format(bcount), espressopp.analysis.NFixedPairListEntries(system, fpl))
+            bcount += 1
+        bcount = 0
+        for static_ftl in static_ftls:
+            system_analysis.add_observable(
+                'acount_{}'.format(bcount), espressopp.analysis.NFixedTripleListEntries(system, static_ftl))
+            bcount += 1
+        for _, ftl in dynamic_ftls.items():
+            system_analysis.add_observable(
+                'acount_{}'.format(bcount), espressopp.analysis.NFixedTripleListEntries(system, ftl))
+            bcount += 1
+        bcount = 0
+        for static_fql in static_fqls:
+            system_analysis.add_observable(
+                'qcount_{}'.format(bcount), espressopp.analysis.NFixedQuadrupleListEntries(system, static_fql))
+            bcount += 1
+        for _, fql in dynamic_fqls.items():
+            system_analysis.add_observable(
+                'qcount_{}'.format(bcount), espressopp.analysis.NFixedQuadrupleListEntries(system, fql))
+            bcount += 1
+
+
     ext_analysis = espressopp.integrator.ExtAnalyze(system_analysis, cr_interval)
     integrator.addExtension(ext_analysis)
     print('Configured system analysis, collect data every {} steps'.format(cr_interval))
 
     print('Configure H5MD trajectory writer')
+    NPart = espressopp.analysis.NPart(system).compute()
     h5md_output_file = '{}_{}_traj.h5'.format(args.output_prefix, rng_seed)
     traj_file = espressopp.io.DumpH5MD(
         system,
@@ -420,6 +464,7 @@ def main():  #NOQA
 
     print('Running {} steps'.format(sim_step*integrator_step))
     print('Temperature: {} ({} K)'.format(args.temperature*kb, args.temperature))
+    print('Number of particles: {}'.format(NPart))
     system_analysis.dump()
 
     stop_simulation = False
@@ -538,4 +583,9 @@ def main():  #NOQA
     print('Finished! Thanks!')
 
 if __name__ == '__main__':
-    main()
+    try:
+        import ipdb
+        with ipdb.launch_ipdb_on_exception():
+            main()
+    except ImportError:
+        main()
