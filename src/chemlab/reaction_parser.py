@@ -421,6 +421,8 @@ class SetupReactions:
             self.use_thermal_group = True
 
             # Observ progress of generating that molecule by checking the total number of target type_id
+            if self.cr_observs is None:
+                self.cr_observs = {}
             self.cr_observs[(target_type_id, len(particle_list))] = espressopp.analysis.ChemicalConversion(
                     self.system, target_type_id, len(particle_list))
 
