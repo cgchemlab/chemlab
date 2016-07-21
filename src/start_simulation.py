@@ -176,41 +176,40 @@ def main():  #NOQA
     topology_manager = espressopp.integrator.TopologyManager(system)
 
     # Set chemical reactions, parser in reaction_parser.py
-    chem_dynamic_types = []
+    chem_dynamic_types = set()
     chem_fpls = []
     reactions = []
     cr_interval = 0
     has_reaction = False
     sc = None
-    if args.reactions:
-        if os.path.exists(args.reactions):
-            print('Set chemical reactions from: {}'.format(args.reactions))
-            reaction_config = chemlab.reaction_parser.parse_config(args.reactions)
-            sc = chemlab.reaction_parser.SetupReactions(
-                system,
-                verletlist,
-                gt,
-                topology_manager,
-                reaction_config)
-            ar, chem_fpls, reactions = sc.setup_reactions()
-            chem_dynamic_types = sc.dynamic_types
+    if os.path.exists(args.reactions):
+        print('Set chemical reactions from: {}'.format(args.reactions))
+        reaction_config = chemlab.reaction_parser.parse_config(args.reactions)
+        sc = chemlab.reaction_parser.SetupReactions(
+            system,
+            verletlist,
+            gt,
+            topology_manager,
+            reaction_config)
+        ar, chem_fpls, reactions = sc.setup_reactions()
+        chem_dynamic_types = sc.dynamic_types
 
-            if cr_observs is None:
-                cr_observs = {}
-            if sc.cr_observs is not None:
-                cr_observs.update(sc.cr_observs)
+        if cr_observs is None:
+            cr_observs = {}
+        if sc.cr_observs is not None:
+            cr_observs.update(sc.cr_observs)
 
-            output_reaction_config = '{}_{}_{}'.format(args.output_prefix, rng_seed, args.reactions)
-            print('Save copy of reaction config to: {}'.format(output_reaction_config))
-            shutil.copyfile(args.reactions, output_reaction_config)
+        output_reaction_config = '{}_{}_{}'.format(args.output_prefix, rng_seed, args.reactions)
+        print('Save copy of reaction config to: {}'.format(output_reaction_config))
+        shutil.copyfile(args.reactions, output_reaction_config)
 
-            cr_interval = sc.ar_interval
-            integrator_step = min(cr_interval, integrator_step)
-            print('Change integrator step to {}'.format(integrator_step))
-            sim_step = args.run / integrator_step
-            print('Change topology collect interval to {}'.format(cr_interval))
-            args.topol_collect = cr_interval
-            has_reaction = True
+        cr_interval = sc.ar_interval
+        integrator_step = min(cr_interval, integrator_step)
+        print('Change integrator step to {}'.format(integrator_step))
+        sim_step = args.run / integrator_step
+        print('Change topology collect interval to {}'.format(cr_interval))
+        args.topol_collect = cr_interval
+        has_reaction = True
     else:
         cr_interval = integrator_step
 
@@ -439,7 +438,7 @@ def main():  #NOQA
         ext_dump = espressopp.integrator.ExtAnalyze(dump_topol, args.topol_collect)
         integrator.addExtension(ext_dump)
 
-    trj_collect = min([args.trj_collect, cr_interval])
+    trj_collect = min([args.trj_collect, cr_interval]) if cr_interval > 0 else args.trj_collect
     k_trj_collect = int(math.ceil(trj_collect/float(integrator_step)))
     k_trj_flush = 25 if 25 < k_trj_collect else k_trj_collect
     print('Collect trajectory every {} steps'.format(trj_collect))

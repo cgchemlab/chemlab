@@ -707,7 +707,7 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, name='bonds'):
                 type1=t[0], type2=t[1],
                 potential=potential_class(**convert_params(func, params['params']))
             )
-        system.addInteraction(interaction, 'd{}_{}'.format(name, bond_count))
+        system.addInteraction(interaction, 'dyn_{}_{}'.format(name, bond_count))
         bond_count += 1
         dynamics_fpls[func] = fpl
 
@@ -797,7 +797,7 @@ def set_angle_interactions(system, gt, dynamic_type_ids, name='angles'):
                 type1=t[0], type2=t[1], type3=t[2],
                 potential=potential_class(**convert_params(func, params['params']))
             )
-        system.addInteraction(interaction, 'd{}_{}'.format(name, angle_count))
+        system.addInteraction(interaction, 'dyn_{}_{}'.format(name, angle_count))
         angle_count += 1
         dynamics_ftls[func] = ftl
     print('Set up angle interactions')
@@ -897,7 +897,7 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, name='dihedrals'):
                 type1=t[0], type2=t[1], type3=t[2], type4=t[3],
                 potential=potential_class(**convert_params(func, params['params']))
             )
-        system.addInteraction(interaction, 'd{}_{}'.format(name, dihedral_count))
+        system.addInteraction(interaction, 'dyn_{}_{}'.format(name, dihedral_count))
         dihedral_count += 1
         dynamics_fqls[func] = fql
 
@@ -978,7 +978,7 @@ def set_pair_interactions(system, gt, args, dynamic_type_ids):
                 potential=espressopp.interaction.LennardJones(
                     sigma=sig, epsilon=fudgeLJ*eps, cutoff=args.lj_cutoff)
             )
-        system.addInteraction(interaction, 'dlj14_{}'.format(pair_count))
+        system.addInteraction(interaction, 'dyn_lj14_{}'.format(pair_count))
 
         # Set coulombic pair interaction
         prefQQ = 138.935485 * fudgeQQ
