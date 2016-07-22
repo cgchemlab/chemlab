@@ -415,6 +415,7 @@ class SetupReactions:
             basic_dynamic_res = espressopp.integrator.BasicDynamicResolution(self.system, {target_type_id: alpha})
             # If the final_type != target_type then we have to change the type of molecules after resolution reaches
             # 1.0
+            final_type_id = target_type_id
             if target_type != final_type:
                 final_type_id = self.topol.atomsym_atomtype[final_type]
                 final_properties = self.topol.gt.atomtypes[final_type]
@@ -438,8 +439,9 @@ class SetupReactions:
             # Observ progress of generating that molecule by checking the total number of target type_id
             if self.cr_observs is None:
                 self.cr_observs = {}
-            self.cr_observs[(target_type_id, len(particle_list))] = espressopp.analysis.ChemicalConversion(
-                self.system, target_type_id, len(particle_list))
+
+            self.cr_observs[(final_type_id, len(particle_list))] = espressopp.analysis.ChemicalConversion(
+                self.system, final_type_id, len(particle_list))
 
             return None
 
