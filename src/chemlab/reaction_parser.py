@@ -421,7 +421,8 @@ class SetupReactions:
                 final_particle_properties = espressopp.ParticleProperties(
                             final_type_id,
                             final_properties['mass'],
-                            final_properties['charge'])
+                            final_properties['charge'],
+                            1.0)
                 basic_dynamic_res.add_postprocess(
                     espressopp.integrator.PostProcessChangeProperty(
                         target_type_id, final_particle_properties))
