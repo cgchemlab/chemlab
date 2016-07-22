@@ -418,11 +418,15 @@ class SetupReactions:
             if target_type != final_type:
                 final_type_id = self.topol.atomsym_atomtype[final_type]
                 final_properties = self.topol.gt.atomtypes[final_type]
+                final_particle_properties = espressopp.ParticleProperties(
+                            final_type_id,
+                            final_properties['mass'],
+                            final_properties['charge'])
                 basic_dynamic_res.add_postprocess(
-                    espressopp.ParticleProperties(
-                        final_type_id,
-                        final_properties['mass'],
-                        final_properties['charge']))
+                    espressopp.integrator.PostProcessChangeProperty(
+                        target_type_id, final_particle_properties))
+                print('Change property of final type {}->{} whenever resolution reaches 1.0'.format(
+                    target_type_id, final_type_id))
 
             self.system.integrator.addExtension(basic_dynamic_res)
 

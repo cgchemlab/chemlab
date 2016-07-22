@@ -11,6 +11,7 @@ C 44.009   0.000  A   1.0   1.0
 D 62.050   0.000  A   1.0   1.0
 E 28.053   0.000  A   1.0   1.0
 W 18.006   0.000  A   1.0   1.0
+Z 18.006   0.000  A   1.0   1.0
 
 [ bondtypes ]
 A B     8 1 1.0 ; table_b1.xvg
@@ -49,12 +50,19 @@ C E 8 table_A_D.xvg
 D D 8 table_D_D.xvg
 D E 8 table_D_D.xvg
 E E 8 table_D_D.xvg
-A W 11 table_A_W.xvg 1000.0
-B W 11 table_B_W.xvg 1000.0
-D W 11 table_D_W.xvg 1000.0
-C W 11 table_A_W.xvg 1000.0
-E W 11 table_D_W.xvg 1000.0
-W W 11 table_W_W.xvg
+A W 8 table_A_W.xvg
+B W 8 table_B_W.xvg
+D W 8 table_D_W.xvg
+C W 8 table_A_W.xvg
+E W 8 table_D_W.xvg
+W W 8 table_W_W.xvg
+A Z 11 table_A_W.xvg 1000.0
+B Z 11 table_B_W.xvg 1000.0
+D Z 11 table_D_W.xvg 1000.0
+C Z 11 table_A_W.xvg 1000.0
+E Z 11 table_D_W.xvg 1000.0
+W Z 11 table_W_W.xvg 1000.0
+Z Z 11 table_W_W.xvg 1000.0
 
 [ atomstate ]
 A 1
@@ -62,6 +70,8 @@ B 0
 C 0
 D 2
 E 0
+W 0
+Z 0
 
 #include "./diol_cg.itp"
 #include "./ter_cg.itp"
