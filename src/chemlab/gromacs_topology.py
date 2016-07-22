@@ -523,12 +523,15 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                     tab1,
                     tab2])
             elif func == 11:  # Special case, dynamic interactions with tables
+                max_force = -1
                 if param['params']:
                     tn = param['params'][0]
+                    if len(param['params']) == 2:
+                        max_force = float(param['params'][1])
                 else:
                     tn = 'table_{}_{}.xvg'.format(type_1, type_2)
                 sig, eps = 0.0, 0.0
-                dynamic_interactions[func][(t1, t2)] = tn
+                dynamic_interactions[func][(t1, t2)] = (tn, max_force)
         elif type_1 in tables and type_2 in tables:
             table_name = 'table_{}_{}.xvg'.format(type_1, type_2)
         else:
@@ -601,18 +604,27 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
         print('Set up DynamicResolution non-bonded interactions')
         for func, data_list in dynamic_interactions.items():
             if func == 11:
-                interDynamicTab = espressopp.interaction.VerletListDynamicResolutionTabulated(vl, False)
-                print dynamic_interactions
-                for (t1, t2), tab_name in data_list.items():
-                    espp_tab_name = '{}.pot'.format(tab_name.replace('.xvg', ''))
-                    if not os.path.exists(espp_tab_name):
-                        print('Convert {} to {}'.format(tab_name, espp_tab_name))
-                        espressopp.tools.convert.gromacs.convertTable(tab_name, espp_tab_name)
-                    interDynamicTab.setPotential(
-                        type1=t1,
-                        type2=t2,
-                        potential=espressopp.interaction.Tabulated(2, espp_tab_name, cutoff=tab_cutoff))
-                system.addInteraction(interDynamicTab, 'tab-dynamic')
+                max_forces_group = collections.defaultdict(dict)
+                for (t1, t2), (tab_name, max_force) in data_list.items():
+                    max_forces_group[max_force][(t1, t2)] = tab_name
+
+                bn = 0
+                for max_force, data in max_forces_group.items():
+                    interDynamicTab = espressopp.interaction.VerletListDynamicResolutionTabulated(vl, False)
+                    for (t1, t2), tab_name in data.items():
+                        espp_tab_name = '{}.pot'.format(tab_name.replace('.xvg', ''))
+                        if not os.path.exists(espp_tab_name):
+                            print('Convert {} to {}'.format(tab_name, espp_tab_name))
+                            espressopp.tools.convert.gromacs.convertTable(tab_name, espp_tab_name)
+                        print('Set dynamic resolution potential {}-{} (max force: {})'.format(t1, t2, max_force))
+                        interDynamicTab.setPotential(
+                            type1=t1,
+                            type2=t2,
+                            potential=espressopp.interaction.Tabulated(2, espp_tab_name, cutoff=tab_cutoff))
+                    if max_force != -1:
+                        interDynamicTab.setMaxForce(max_force)
+                    system.addInteraction(interDynamicTab, 'tab-dynamic_{}'.format(bn))
+                    bn += 1
             else:
                 raise RuntimeError('Currently {} not supported'.format(func))
 

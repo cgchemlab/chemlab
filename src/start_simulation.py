@@ -514,9 +514,7 @@ def main():  #NOQA
             if args.rate_arrhenius:
                 bonds0 = sum(f.totalSize() for f in chem_fpls)  # TODO(jakub): this is terrible.
                 energy0 = system_analysis.potential_energy
-            if sc.fix_distance:
-                print sc.fix_distance.totalSize()
-        
+
         integrator.run(integrator_step)
 
         if args.rate_arrhenius and reactions_enabled:

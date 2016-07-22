@@ -49,12 +49,12 @@ C E 8 table_A_D.xvg
 D D 8 table_D_D.xvg
 D E 8 table_D_D.xvg
 E E 8 table_D_D.xvg
-A W 11
-B W 11
-D W 11
-C W 11 table_A_W.xvg
-E W 11 table_D_W.xvg
-W W 11
+A W 11 table_A_W.xvg 1000.0
+B W 11 table_B_W.xvg 1000.0
+D W 11 table_D_W.xvg 1000.0
+C W 11 table_A_W.xvg 1000.0
+E W 11 table_D_W.xvg 1000.0
+W W 11 table_W_W.xvg
 
 [ atomstate ]
 A 1
