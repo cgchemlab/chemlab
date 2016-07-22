@@ -245,6 +245,12 @@ def main():  #NOQA
     dynamic_fpairs, static_fpairs = chemlab.gromacs_topology.set_pair_interactions(system, gt, args, chem_dynamic_types)
     chemlab.gromacs_topology.set_coulomb_interactions(system, gt, args)
 
+    # Add cap force
+    if args.max_force > -1:
+        cap_force = espressopp.integrator.CapForce(system, args.max_force)
+        integrator.addExtension(cap_force)
+        print('Cap force to {}'.format(args.max_force))
+
     # Define the thermostat
     temperature = args.temperature * kb
     print('Temperature: {} ({}), gamma: {}'.format(args.temperature, temperature, args.thermostat_gamma))
@@ -461,10 +467,6 @@ def main():  #NOQA
     total_velocity = espressopp.analysis.TotalVelocity(system)
     total_velocity.reset()
 
-    if args.max_force > -1:
-        cap_force = espressopp.integrator.CapForce(system, args.max_force)
-        integrator.addExtension(cap_force)
-        print('Cap force to {}'.format(args.max_force))
 
     print('Type name  type id')
     for at_sym in gt.used_atomtypes:
