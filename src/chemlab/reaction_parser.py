@@ -22,7 +22,6 @@ import random
 import re
 import warnings
 
-
 __doc__ = """This is a reaction parser."""
 
 
@@ -88,7 +87,7 @@ def process_reaction(reaction):
         'intramolecular': eval(reaction.get('intramolecular', 'False')),
         'intraresidual': eval(reaction.get('intraresidual', 'False')),
         'virtual': eval(reaction.get('virtual', 'False'))
-        }
+    }
 
     try:
         data['reactant_list'] = parse_equation(reaction['reaction'])
@@ -197,6 +196,7 @@ class SetupReactions:
         topology_manager: The espressopp.integrator.TopologyManager object.
         config: The config file.
     """
+
     def __init__(self, system, vl, topol, topol_manager, config):
         self.system = system
         self.vl = vl
@@ -208,7 +208,7 @@ class SetupReactions:
 
         self.use_thermal_group = False
         self.fix_distance = None
-        self.cr_observs = None   # Observs conversion types.
+        self.cr_observs = None  # Observs conversion types.
 
     def _setup_reaction(self, chem_reaction, fpl):
         """Setup single reaction.
@@ -279,7 +279,7 @@ class SetupReactions:
 
         # Change type if necessary.
         if (rl['type_1']['name'] != rl['type_1']['new_type'] or
-                rl['type_2']['name'] != rl['type_2']['new_type']):
+                    rl['type_2']['name'] != rl['type_2']['new_type']):
             r_pp = espressopp.integrator.PostProcessChangeProperty()
             t1_old = self.name2type[rl['type_1']['name']]
             t1_new = self.name2type[rl['type_1']['new_type']]
@@ -326,7 +326,7 @@ class SetupReactions:
                 nb_level = int(nb_level)
                 if old_type != new_type:
                     print('Change property {}->{} nb={} and {}'.format(
-                        old_type, new_type, nb_level, nb_level+1))
+                        old_type, new_type, nb_level, nb_level + 1))
                     t1_old = self.name2type[old_type]
                     t1_new = self.name2type[new_type]
                     self.dynamic_types.add(t1_old)
@@ -342,7 +342,7 @@ class SetupReactions:
                         t1_old,
                         espressopp.ParticleProperties(
                             t1_new, new_property['mass'], new_property['charge']),
-                        nb_level+1
+                        nb_level + 1
                     )
             return pp
 
@@ -351,7 +351,7 @@ class SetupReactions:
             pp = espressopp.integrator.PostProcessRemoveNeighbourBond(self.tm)
             bond_types = [
                 x.split('->') for x in cfg['bonds_to_remove'].split(',')
-            ]
+                ]
             # bonds_to_remove=opls_220->opls_220:opls_154:1,opls_268->opls_268:opls_270:1
             for anchor_type, pairs_to_remove in bond_types:
                 anchor_type_id = self.topol.used_atomsym_atomtype[anchor_type]
@@ -372,6 +372,7 @@ class SetupReactions:
             eq_length = float(cfg['eq_length'])
             alpha = float(cfg['alpha'])
             init_res = float(cfg['init_res'])
+            final_type = cfg.get('final_type', target_type)
 
             # Generate dummy molecules
             max_pid = max(self.topol.atoms)
@@ -411,9 +412,18 @@ class SetupReactions:
             fix_distance.add_postprocess(fxd_post_process)
             self.system.integrator.addExtension(fix_distance)
 
-            basic_dynamic_res = espressopp.integrator.BasicDynamicResolution(
-                self.system, {target_type_id: alpha}
-            )
+            basic_dynamic_res = espressopp.integrator.BasicDynamicResolution(self.system, {target_type_id: alpha})
+            # If the final_type != target_type then we have to change the type of molecules after resolution reaches
+            # 1.0
+            if target_type != final_type:
+                final_type_id = self.topol.atomsym_atomtype[final_type]
+                final_properties = self.topol.gt.atomtypes[final_type]
+                basic_dynamic_res.add_postprocess(
+                    espressopp.ParticleProperties(
+                        final_type_id,
+                        final_properties['mass'],
+                        final_properties['charge']))
+
             self.system.integrator.addExtension(basic_dynamic_res)
 
             # Because of the dummy particle, we have to use thermal group for thermostat to not
@@ -424,10 +434,9 @@ class SetupReactions:
             if self.cr_observs is None:
                 self.cr_observs = {}
             self.cr_observs[(target_type_id, len(particle_list))] = espressopp.analysis.ChemicalConversion(
-                    self.system, target_type_id, len(particle_list))
+                self.system, target_type_id, len(particle_list))
 
             return None
-
 
         class_to_cfg = {
             'ChangeNeighboursProperty': _cfg_post_process_change_neighbour,
