@@ -696,11 +696,14 @@ class GROMACSTopologyFile(TopologyFile):
         if j not in self.dihedraltypes[l][k]:
             self.dihedraltypes[l][k][j] = {}
 
-        self.dihedraltypes[i][j][k][l] = {
-            'func': int(raw_data[4]),
-            'params': raw_data[5:]
-        }
-        self.dihedraltypes[l][k][j][i] = self.dihedraltypes[i][j][k][l]
+        try:
+            self.dihedraltypes[i][j][k][l] = {
+                'func': int(raw_data[4]),
+                'params': raw_data[5:]
+            }
+            self.dihedraltypes[l][k][j][i] = self.dihedraltypes[i][j][k][l]
+        except ValueError:
+            print('Skip {}'.format(raw_data))
 
     def _parse_atoms(self, raw_data):
         if self.current_molecule is None:

@@ -371,6 +371,9 @@ def main():  #NOQA
         system_analysis.add_observable(
             'count_{}'.format(fidx), espressopp.analysis.NFixedPairListEntries(system, f))
 
+    system_analysis.add_observable(
+        'Fmax', espressopp.analysis.MaxForce(system))
+
     # This is a bit expensive
     if args.count_tuples:
         bcount = 0
