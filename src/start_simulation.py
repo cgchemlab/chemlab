@@ -182,7 +182,7 @@ def main():  #NOQA
     cr_interval = 0
     has_reaction = False
     sc = None
-    if os.path.exists(args.reactions):
+    if args.reactions is not None and os.path.exists(args.reactions):
         print('Set chemical reactions from: {}'.format(args.reactions))
         reaction_config = chemlab.reaction_parser.parse_config(args.reactions)
         sc = chemlab.reaction_parser.SetupReactions(
@@ -259,7 +259,7 @@ def main():  #NOQA
         thermostat.temperature = temperature
         thermostat.gamma = args.thermostat_gamma
         if has_reaction and sc and sc.use_thermal_group:
-            print('Running thermostat ')
+            print('Running thermostat on thermal groups: {}'.format(gt.used_atomsym_atomtype))
             thermostat.add_valid_types(gt.used_atomsym_atomtype.values())
     elif args.thermostat == 'vr':
         thermostat = espressopp.integrator.StochasticVelocityRescaling(system)

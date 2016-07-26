@@ -277,8 +277,6 @@ class GromacsTopology:
                     tuple(sorted(map(lambda x: atom_id_offset + x + (mol*n_atoms), l)))
                     for mol in range(n_mols) for l in mol_excl
                 })
-                print mol_excl
-                print sorted(self.exclusions)[:10]
             else:
                 print('Molecule {} does not have bonds, no exclusions needed'.format(molecule_name))
             atom_id_offset += n_mols  # Still the offset is neighter the exclusions are generated or not
@@ -439,6 +437,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
     defaults = gt.gt.defaults
     atomparams = gt.gt.atomtypes
     atomsym_atomtype = gt.used_atomsym_atomtype
+    atomtype_atomsym = gt.atomsym_atomtype
 
     if tab_cutoff is None:
         tab_cutoff = lj_cutoff
@@ -616,7 +615,8 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                         if not os.path.exists(espp_tab_name):
                             print('Convert {} to {}'.format(tab_name, espp_tab_name))
                             espressopp.tools.convert.gromacs.convertTable(tab_name, espp_tab_name)
-                        print('Set dynamic resolution potential {}-{} (max force: {})'.format(t1, t2, max_force))
+                        print('Set dynamic resolution potential {}-{} (max force: {})'.format(
+                            t1, t2, max_force))
                         interDynamicTab.setPotential(
                             type1=t1,
                             type2=t2,
