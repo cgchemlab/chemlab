@@ -377,7 +377,7 @@ class SetupReactions:
             # Generate dummy molecules
             max_pid = max(self.topol.atoms)
             dummy_type_id = max(self.topol.used_atomsym_atomtype.values()) + 1
-            host_pids = [x for x, v in self.topol.atoms.items() if v['type'] == host_type]
+            host_pids = sorted([x for x, v in self.topol.atoms.items() if v['type'] == host_type])
             target_type_id = self.topol.atomsym_atomtype[target_type]
             target_properties = self.topol.gt.atomtypes[target_type]
             print('Generate {} of dummy particles (type: {}) linked to {}'.format(
