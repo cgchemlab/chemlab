@@ -360,6 +360,7 @@ def main():  #NOQA
     system_analysis.add_observable(
         'Ekin', espressopp.analysis.KineticEnergy(
             system, temp_comp))
+    system_analysis.add_observable('P', pressure_comp)
     for label, interaction in sorted(system.getAllInteractions().items()):
         print('System analysis: adding {}'.format(label))
         system_analysis.add_observable(
@@ -371,8 +372,8 @@ def main():  #NOQA
         system_analysis.add_observable(
             'count_{}'.format(fidx), espressopp.analysis.NFixedPairListEntries(system, f))
 
-    system_analysis.add_observable(
-        'Fmax', espressopp.analysis.MaxForce(system))
+    # system_analysis.add_observable(
+    #   'Fmax', espressopp.analysis.MaxForce(system))
 
     # This is a bit expensive
     if args.count_tuples:
