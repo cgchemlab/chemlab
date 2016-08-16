@@ -113,7 +113,6 @@ def convertc6c12(c6, c12, cr):
             eps = 0.25*c6*pow(sig, -6.0)
         else:
             eps = 0.0
-        print('Converted {}->{}; {}->{}'.format(c6, sig, c12, eps))
         return sig, eps
     else:
         return c6, c12

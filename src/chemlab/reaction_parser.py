@@ -79,6 +79,7 @@ def parse_reverse_equation(input_string):
 
 
 def process_reaction(reaction):
+    """Process a single reaction section."""
     reaction = dict(reaction)
 
     group = reaction['group']
@@ -122,6 +123,7 @@ def process_reaction(reaction):
 
 
 def process_general(cfg):
+    """Process general section."""
     cfg = dict(cfg)
     if cfg.get('bond_limit'):
         warnings.warn('Bond limit not supported anymore!')
@@ -133,6 +135,7 @@ def process_general(cfg):
 
 
 def process_group(cfg):
+    """Process group section."""
     cfg = dict(cfg)
     return_gr = {'potential': cfg['potential'],
                  'potential_options': dict(
@@ -147,6 +150,7 @@ def process_group(cfg):
 
 
 def process_extension(cfg):
+    """Process extension entry."""
     cfg = dict(cfg)
     ret = {'class': cfg['ext_type']}
     del cfg['ext_type']
@@ -308,7 +312,6 @@ class SetupReactions:
                         new_property['charge']))
 
             r.add_postprocess(r_pp)
-
         return r
 
     def _prepare_group_postprocess(self, cfg):
@@ -365,6 +368,15 @@ class SetupReactions:
                 pp.add_bond_to_remove(anchor_type_id, nb_level, type_pid1, type_pid2)
             return pp
 
+        def _cfg_post_process_freeze_region(cfg):
+            """Setup freeze region."""
+            directions = cfg['directions'].split(',')
+            target_type = cfg['target_type']
+            target_type_id = self.topol.atomsym_atomtype[target_type]
+            final_type_id = max(self.topol.used_atomsym_atomtype.values()) + 1
+            width = cfg['width']
+
+
         def _cfg_post_process_release_molecule(cfg):
             """Setup release molecules."""
             host_type = cfg['host_type']
@@ -377,6 +389,7 @@ class SetupReactions:
             # Generate dummy molecules
             max_pid = max(self.topol.atoms)
             dummy_type_id = max(self.topol.used_atomsym_atomtype.values()) + 1
+            self.topol.used_atomsym_atomtype['DUMMY_{}'.format(dummy_type_id)] = dummy_type_id
             host_pids = sorted([x for x, v in self.topol.atoms.items() if v['type'] == host_type])
             target_type_id = self.topol.atomsym_atomtype[target_type]
             target_properties = self.topol.gt.atomtypes[target_type]
@@ -448,7 +461,8 @@ class SetupReactions:
         class_to_cfg = {
             'ChangeNeighboursProperty': _cfg_post_process_change_neighbour,
             'RemoveNeighboursBonds': _cfg_post_process_remove_neighbour_bonds,
-            'ReleaseMolecule': _cfg_post_process_release_molecule
+            'ReleaseMolecule': _cfg_post_process_release_molecule,
+            'FreezeRegion': _cfg_post_process_freeze_region
         }
         for pp_cfg in cfg.values():
             cfg_setup = class_to_cfg[pp_cfg['class']]
