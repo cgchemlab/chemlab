@@ -370,12 +370,38 @@ class SetupReactions:
 
         def _cfg_post_process_freeze_region(cfg):
             """Setup freeze region."""
-            directions = cfg['directions'].split(',')
+            directions = cfg.get('directions', '-x,x,-y,y,-z,z').split(',')
             target_type = cfg['target_type']
             target_type_id = self.topol.atomsym_atomtype[target_type]
-            final_type_id = max(self.topol.used_atomsym_atomtype.values()) + 1
-            width = cfg['width']
+            final_type_id = max(self.topol.atomsym_atomtype.values()) + 1
+            self.topol.atomsym_atomtype['FREEZE_{}'.format(final_type_id)] = final_type_id
+            boxL = self.system.bc.boxL
+            if cfg.get('width_type', 'static') == 'ratio':
+                width = float(cfg['width'])*boxL
+            else:
+                width = espressopp.Real3D(float(cfg['width']))
 
+            dir_to_region = {
+                '-x': (espressopp.Real3D(0.0), espressopp.Real3D(width[0], boxL[1], boxL[2])),
+                '-y': (espressopp.Real3D(0.0), espressopp.Real3D(boxL[0], width[1], boxL[2])),
+                '-z': (espressopp.Real3D(0.0), espressopp.Real3D(boxL[0], boxL[1], width[2])),
+                'x': (espressopp.Real3D(boxL[0] - width[0], 0, 0), boxL),
+                'y': (espressopp.Real3D(0, boxL[1] - width[1], 0), boxL),
+                'z': (espressopp.Real3D(0, 0, boxL[2] - width[2]), boxL)}
+
+            for d in directions:
+                particle_region = espressopp.ParticleRegion(
+                    self.system.storage,
+                    self.system.integrator,
+                    dir_to_region[d][0],
+                    dir_to_region[d][1])
+                particle_region.add_type_id(target_type_id)
+                change_in_region = espressopp.integrator.ChangeInRegion(
+                    self.system, particle_region)
+                change_in_region.set_particle_properties(
+                    target_type_id, espressopp.ParticleProperties(final_type_id))
+                change_in_region.set_flags(target_type_id, True, True)
+                self.system.integrator.addExtension(change_in_region)
 
         def _cfg_post_process_release_molecule(cfg):
             """Setup release molecules."""
@@ -388,8 +414,8 @@ class SetupReactions:
 
             # Generate dummy molecules
             max_pid = max(self.topol.atoms)
-            dummy_type_id = max(self.topol.used_atomsym_atomtype.values()) + 1
-            self.topol.used_atomsym_atomtype['DUMMY_{}'.format(dummy_type_id)] = dummy_type_id
+            dummy_type_id = max(self.topol.atomsym_atomtype.values()) + 1
+            self.topol.atomsym_atomtype['DUMMY_{}'.format(dummy_type_id)] = dummy_type_id
             host_pids = sorted([x for x, v in self.topol.atoms.items() if v['type'] == host_type])
             target_type_id = self.topol.atomsym_atomtype[target_type]
             target_properties = self.topol.gt.atomtypes[target_type]
