@@ -210,6 +210,10 @@ def main():  #NOQA
         print('Change topology collect interval to {}'.format(cr_interval))
         args.topol_collect = cr_interval
         has_reaction = True
+
+        if sc.exclusions_list:
+            dynamic_exclusion_list.exclude(sc.exclusions_list)
+            print('Add {} new exclusions from restrict reactions'.format(len(sc.exclusions_list)))
     else:
         cr_interval = integrator_step
 

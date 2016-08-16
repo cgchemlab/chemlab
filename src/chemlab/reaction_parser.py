@@ -214,6 +214,8 @@ class SetupReactions:
         self.fix_distance = None
         self.cr_observs = None  # Observs conversion types.
 
+        self.exclusions_list = [] # For restric reactions, the exclusion lists has to be extended.
+
     def _setup_reaction(self, chem_reaction, fpl):
         """Setup single reaction.
 
@@ -246,8 +248,7 @@ class SetupReactions:
             max_state_2=int(rl['type_2']['max']),
             rate=float(chem_reaction['rate']),
             fpl=fpl,
-            cutoff=float(chem_reaction.get('cutoff', 0.0))
-        )
+            cutoff=float(chem_reaction.get('cutoff', 0.0)))
 
         self.dynamic_types.add(self.name2type[rl['type_1']['name']])
         self.dynamic_types.add(self.name2type[rl['type_2']['name']])
@@ -274,12 +275,14 @@ class SetupReactions:
             print('Reading connectivity map {}, reaction will be restricted'.format(
                 chem_reaction['connectivity_map']))
             connectivity_map = open(chem_reaction['connectivity_map'])
-            b = 0
+            ex_list = set()
             for l in connectivity_map.readlines():
                 b1, b2 = map(int, l.strip().split())
+                ex_list.add(tuple(sorted(b1, b2)))
+            for b1, b2 in ex_list:
                 r.define_connection(b1, b2)
-                b += 1
-            print('Restricted to {} connections'.format(b))
+            self.exclusions_list.extend(list(ex_list))
+            print('Restricted to {} connections'.format(len(ex_list)))
 
         # Change type if necessary.
         if (rl['type_1']['name'] != rl['type_1']['new_type'] or
