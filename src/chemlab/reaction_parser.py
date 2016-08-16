@@ -379,6 +379,7 @@ class SetupReactions:
             target_type = cfg['target_type']
             target_type_id = self.topol.atomsym_atomtype[target_type]
             final_type_id = max(self.topol.atomsym_atomtype.values()) + 1
+            print('Freeze region with particles of type {}, change type to {}'.format(target_type_id, final_type_id))
             self.topol.atomsym_atomtype['FREEZE_{}'.format(final_type_id)] = final_type_id
             boxL = self.system.bc.boxL
             if cfg.get('width_type', 'static') == 'ratio':
