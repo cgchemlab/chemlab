@@ -229,12 +229,14 @@ class SetupReactions:
         rl = chem_reaction['reactant_list']
         if not chem_reaction['active']:
             return None
+        # Select reaction class.
         if chem_reaction['reverse']:
             r_class = espressopp.integrator.DissociationReaction
         elif chem_reaction.get('connectivity_map'):
             r_class = espressopp.integrator.RestrictReaction
         else:
             r_class = espressopp.integrator.Reaction
+
         rt1 = rl['type_1']['name']
         rt2 = rl['type_2']['name']
         r = r_class(

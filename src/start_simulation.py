@@ -361,7 +361,8 @@ def main():  #NOQA
     system_analysis.add_observable(
         'Ekin', espressopp.analysis.KineticEnergy(
             system, temp_comp))
-    system_analysis.add_observable('P', pressure_comp)
+    if args.store_pressure:
+        system_analysis.add_observable('P', pressure_comp)
     for label, interaction in sorted(system.getAllInteractions().items()):
         print('System analysis: adding {}'.format(label))
         system_analysis.add_observable(
