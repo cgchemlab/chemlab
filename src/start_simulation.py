@@ -182,6 +182,7 @@ def main():  #NOQA
     cr_interval = 0
     has_reaction = False
     sc = None
+    ar = None
     if args.reactions is not None and os.path.exists(args.reactions):
         print('Set chemical reactions from: {}'.format(args.reactions))
         reaction_config = chemlab.reaction_parser.parse_config(args.reactions)
@@ -210,10 +211,6 @@ def main():  #NOQA
         print('Change topology collect interval to {}'.format(cr_interval))
         args.topol_collect = cr_interval
         has_reaction = True
-
-        if sc.exclusions_list:
-            dynamic_exclusion_list.exclude(sc.exclusions_list)
-            print('Add {} new exclusions from restrict reactions'.format(len(sc.exclusions_list)))
     else:
         cr_interval = integrator_step
 
@@ -511,6 +508,9 @@ def main():  #NOQA
             input_conf.update_position(system)
             input_conf.write(output_gro_file, force=True)
             print('Save configuration before start of the reaction, filename: {}'.format(output_gro_file))
+            if sc.exclusions_list:
+                dynamic_exclusion_list.exclude(sc.exclusions_list)
+                print('Add {} new exclusions from restrict reactions'.format(len(sc.exclusions_list)))
         if reactions_enabled:
             for obs, stop_value in maximum_conversion:
                 val = obs.compute()
