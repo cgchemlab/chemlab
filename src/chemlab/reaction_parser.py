@@ -390,6 +390,11 @@ class SetupReactions:
                 'z': (espressopp.Real3D(0, 0, boxL[2] - width[2]), boxL)}
 
             for d in directions:
+                print('Define region {}: {}-{} with type: {}'.format(
+                    d,
+                    dir_to_region[d][0],
+                    dir_to_region[d][1],
+                    target_type_id))
                 particle_region = espressopp.ParticleRegion(
                     self.system.storage,
                     self.system.integrator,
