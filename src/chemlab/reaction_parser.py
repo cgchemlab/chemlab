@@ -87,7 +87,8 @@ def process_reaction(reaction):
         'rate': float(reaction['rate']),
         'intramolecular': eval(reaction.get('intramolecular', 'False')),
         'intraresidual': eval(reaction.get('intraresidual', 'False')),
-        'virtual': eval(reaction.get('virtual', 'False'))
+        'virtual': eval(reaction.get('virtual', 'False')),
+        'revert': eval(reaction.get('revert', 'False'))
     }
 
     try:
@@ -285,6 +286,8 @@ class SetupReactions:
                 r.define_connection(b1, b2)
             self.exclusions_list.extend(list(ex_list))
             print('Restricted to {} connections'.format(len(ex_list)))
+            if chem_reaction.get('revert'):
+                r.revert = True
 
         # Change type if necessary.
         if (rl['type_1']['name'] != rl['type_1']['new_type'] or
@@ -387,6 +390,8 @@ class SetupReactions:
             else:
                 width = espressopp.Real3D(float(cfg['width']))
 
+            remove_particles = eval(cfg.get('remove_particle', 'False'))
+
             dir_to_region = {
                 '-x': (espressopp.Real3D(0.0), espressopp.Real3D(width[0], boxL[1], boxL[2])),
                 '-y': (espressopp.Real3D(0.0), espressopp.Real3D(boxL[0], width[1], boxL[2])),
@@ -411,7 +416,7 @@ class SetupReactions:
                     self.system, particle_region)
                 change_in_region.set_particle_properties(
                     target_type_id, espressopp.ParticleProperties(final_type_id))
-                change_in_region.set_flags(target_type_id, True, True)
+                change_in_region.set_flags(target_type_id, reset_velocity=True, reset_force=True, remove_particle=remove_particles)
                 self.system.integrator.addExtension(change_in_region)
 
         def _cfg_post_process_release_molecule(cfg):
