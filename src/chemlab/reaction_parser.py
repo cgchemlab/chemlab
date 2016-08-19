@@ -390,7 +390,7 @@ class SetupReactions:
             else:
                 width = espressopp.Real3D(float(cfg['width']))
 
-            remove_particles = eval(cfg.get('remove_particle', 'False'))
+            remove_particles = eval(cfg.get('remove_particles', 'False'))
 
             dir_to_region = {
                 '-x': (espressopp.Real3D(0.0), espressopp.Real3D(width[0], boxL[1], boxL[2])),
