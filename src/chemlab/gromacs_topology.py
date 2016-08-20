@@ -282,7 +282,7 @@ class GromacsTopology:
 
     def _generate_exclusions(self, bond_list, nrexcl):
         """Generates exclusion list for single molecule to be replicated."""
-        # Build adjance list, simple who is neighbour of whom.
+        # Build  neighbour ist, simple who is neighbour of whom.
         exclusion_list = set(bond_list)
 
         class Node:
@@ -354,7 +354,7 @@ class GromacsTopology:
                         for tj in self.used_atomnr2atom_type[j]:
                             t1 = self.atomsym_atomtype[ti]
                             t2 = self.atomsym_atomtype[tj]
-                            self.bondparams[(t1, t2)] = params
+                            self.bondparams[tuple(sorted([t1, t2]))] = params
         acount = 0
         for i in self.gt.angletypes:
             for j in self.gt.angletypes[i]:
@@ -368,7 +368,10 @@ class GromacsTopology:
                                     t1 = self.atomsym_atomtype[ti]
                                     t2 = self.atomsym_atomtype[tj]
                                     t3 = self.atomsym_atomtype[tk]
-                                    self.angleparams[(t1, t2, t3)] = params
+                                    ptypes = (t1, t2, t3)
+                                    if t1 > t3:
+                                        ptypes = (t3, t2, t1)
+                                    self.angleparams[ptypes] = params
 
         dcount = 0
         for i in self.gt.dihedraltypes:
@@ -386,7 +389,10 @@ class GromacsTopology:
                                             t2 = self.atomsym_atomtype[tj]
                                             t3 = self.atomsym_atomtype[tk]
                                             t4 = self.atomsym_atomtype[tl]
-                                            self.dihedralparams[(t1, t2, t3, t4)] = params
+                                            ptypes = (t1, t2, t3, t4)
+                                            if t4 > t1:
+                                                ptypes = (t4, t3, t2, t1)
+                                            self.dihedralparams[ptypes] = params
 
     def _replicate_lists(self, n_mols, n_atoms, input_list, shift=0):
         """Replicate input lists by n_mols, where every mol contains n_atoms.
@@ -637,8 +643,19 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
     return cr_observs
 
 
-def set_bonded_interactions(system, gt, dynamic_type_ids, name='bonds'):
-    """Set bonded interactions."""
+def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(), name='bonds'):
+    """Set bonded interactions.
+
+        Args:
+            system: The espressopp.System object.
+            gt: The GromacsTopology object.
+            dynamic_type_ids: The set of particle types that can change during the simulation.
+            change_bond_types: The set of bond types that can be updated during the simulation.
+            name: The prefix for the interaction. (default: 'bonds')
+
+        Return:
+            tuple with dictionary of dynamic bond fixed pair list and list of static fixed pair list.
+    """
     def convert_params(func, raw_data):
         if func == 1:
             return {'K': float(raw_data[1])/2.0, 'r0': float(raw_data[0])}
@@ -662,18 +679,34 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, name='bonds'):
         8: (espressopp.interaction.FixedPairListTabulated, espressopp.interaction.Tabulated)
     }
 
-    # Sort existing bond lists by functional type.
-    bonds_by_func = collections.defaultdict(dict)
     dynamics_bonds_by_func = collections.defaultdict(list)
+
+    bondparams_func = collections.defaultdict(list)
+    dynamic_ptypes = {}
+    for pt, p in gt.bondparams.items():
+        # Bond types are not in the list of dynamic bond types or in set of change
+        if set(pt) - dynamic_type_ids == set(pt) and tuple(pt) not in change_bond_types:
+            continue
+        params = p['params']
+        if tuple(params) not in set(dynamic_ptypes.values()):
+            dynamic_ptypes[tuple(sorted(pt))] = tuple(params)
+            bondparams_func[p['func']].append((pt, p))
+            if p['func'] not in dynamics_bonds_by_func:
+                dynamics_bonds_by_func[p['func']] = []
+        else:
+            dynamic_ptypes = {k: v for k, v in dynamic_ptypes.items() if v != tuple(params)}
+            bondparams_func[p['func']] = [x for x in bondparams_func[p['func']][:] if x != (pt, p)]
+
+    # Sort existing bond lists by functional type and select if it is dynamic bond or static.
+    bonds_by_func = collections.defaultdict(dict)
     for b, parameters in gt.bonds.items():
-        ptypes = map(lambda x: gt.atoms[x]['type_id'], b)
-        s_ptypes = set(ptypes)
-        is_dynamic_bond = s_ptypes - dynamic_type_ids != s_ptypes
+        ptypes = tuple(sorted(map(lambda x: gt.atoms[x]['type_id'], b)))
+        is_dynamic_bond = ptypes in dynamic_ptypes
         if parameters:  # Has parameters on the list.
             func = int(parameters[0])
             params = tuple(map(float, parameters[1:]))
         else:  # Without parameters, take from bondtypes
-            params = gt.bondparams[tuple(ptypes)]
+            params = gt.bondparams[ptypes]
             if not params:
                 params = gt.bonds[tuple(reversed(ptypes))]
             func = int(params['func'])
@@ -685,9 +718,27 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, name='bonds'):
                 bonds_by_func[func][params] = []
             bonds_by_func[func][params].append(b)
 
-    # Set first static bonds, those one that has explicitly the parameters
-    static_fpls = []
     bond_count = 0
+    # Process the dynamic bonds, those are stored in the FixedPairTypesList where
+    # potential is choose depends on the type of particles.
+    dynamics_fpls = collections.defaultdict(dict)
+    static_fpls = []
+    for func, b_list in dynamics_bonds_by_func.items():
+        fpl = espressopp.FixedPairList(system.storage)
+        fpl.addBonds(b_list)
+        interaction_class, potential_class = func2interaction_dynamic.get(func)
+        interaction = interaction_class(system, fpl)
+        observe_list = False
+        for t, params in bondparams_func[func]:
+            observe_list = observe_list or (t in change_bond_types)
+            interaction.setPotential(
+                type1=t[0], type2=t[1],
+                potential=potential_class(**convert_params(func, params['params'])))
+        system.addInteraction(interaction, 'dyn_{}_{}'.format(name, bond_count))
+        bond_count += 1
+        dynamics_fpls[(func, observe_list)] = fpl
+
+    # Set first static bonds, those one that has explicitly the parameters
     for func in bonds_by_func:
         interaction_class, potential_class = func2interaction_static.get(func)
         for params, b_list in bonds_by_func[func].items():
@@ -698,29 +749,6 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, name='bonds'):
                 interaction = interaction_class(system, fpl, potential_class(**convert_params(func, params)))
                 system.addInteraction(interaction, '{}_{}'.format(name, bond_count))
                 bond_count += 1
-
-    dynamics_fpls = collections.defaultdict(dict)
-    bondparams_func = collections.defaultdict(list)
-    for pt, p in gt.bondparams.items():
-        if set(pt) - dynamic_type_ids == set(pt):
-            continue
-        bondparams_func[p['func']].append((pt, p))
-        if p['func'] not in dynamics_bonds_by_func:
-            dynamics_bonds_by_func[p['func']] = []
-
-    for func, b_list in dynamics_bonds_by_func.items():
-        fpl = espressopp.FixedPairList(system.storage)
-        fpl.addBonds(b_list)
-        interaction_class, potential_class = func2interaction_dynamic.get(func)
-        interaction = interaction_class(system, fpl)
-        for t, params in bondparams_func[func]:
-            interaction.setPotential(
-                type1=t[0], type2=t[1],
-                potential=potential_class(**convert_params(func, params['params']))
-            )
-        system.addInteraction(interaction, 'dyn_{}_{}'.format(name, bond_count))
-        bond_count += 1
-        dynamics_fpls[func] = fpl
 
     print('Set up bond interactions')
     return dynamics_fpls, static_fpls

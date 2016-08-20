@@ -177,6 +177,7 @@ def main():  #NOQA
 
     # Set chemical reactions, parser in reaction_parser.py
     chem_dynamic_types = set()
+    chem_dynamic_bond_types = set()
     chem_fpls = []
     reactions = []
     cr_interval = 0
@@ -194,6 +195,7 @@ def main():  #NOQA
             reaction_config)
         ar, chem_fpls, reactions = sc.setup_reactions()
         chem_dynamic_types = sc.dynamic_types
+        chem_dynamic_bond_types = sc.obser_bondtypes
 
         if cr_observs is None:
             cr_observs = {}
@@ -238,11 +240,13 @@ def main():  #NOQA
     # Set potentials.
     cr_observs = chemlab.gromacs_topology.set_nonbonded_interactions(
         system, gt, verletlist, lj_cutoff, cg_cutoff, tables=args.table_groups, cr_observs=cr_observs)
-    dynamic_fpls, static_fpls = chemlab.gromacs_topology.set_bonded_interactions(system, gt, chem_dynamic_types)
+    dynamic_fpls, static_fpls = chemlab.gromacs_topology.set_bonded_interactions(
+        system, gt, chem_dynamic_types, chem_dynamic_bond_types)
     dynamic_ftls, static_ftls = chemlab.gromacs_topology.set_angle_interactions(system, gt, chem_dynamic_types)
     dynamic_fqls, static_fqls = chemlab.gromacs_topology.set_dihedral_interactions(system, gt, chem_dynamic_types)
 
-    dynamic_fpairs, static_fpairs = chemlab.gromacs_topology.set_pair_interactions(system, gt, args, chem_dynamic_types)
+    dynamic_fpairs, static_fpairs = chemlab.gromacs_topology.set_pair_interactions(
+        system, gt, args, chem_dynamic_types)
     chemlab.gromacs_topology.set_coulomb_interactions(system, gt, args)
 
     # Add cap force
@@ -437,10 +441,14 @@ def main():  #NOQA
     for i, f in enumerate(chem_fpls):
         dump_topol.observe_tuple(f, 'chem_bonds_{}'.format(i))
 
-    for i, f in dynamic_fpls.items():
-        dump_topol.observe_tuple(f, 'dynamic_bonds_{}'.format(i))
-
     bcount = 0
+    for (i, observe_tuple), f in dynamic_fpls.items():
+        if observe_tuple:
+            dump_topol.observe_tuple(f, 'dynamic_bonds_{}'.format(i))
+        else:
+            dump_topol.add_static_tuple(f, 'bonds_{}'.format(bcount))
+            bcount += 1
+
     for static_fpl in static_fpls:
         dump_topol.add_static_tuple(static_fpl, 'bonds_{}'.format(bcount))
         bcount += 1

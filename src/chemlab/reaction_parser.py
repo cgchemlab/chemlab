@@ -215,6 +215,9 @@ class SetupReactions:
         self.fix_distance = None
         self.cr_observs = None  # Observs conversion types.
 
+        # Bond types that will change and has to be observed by dump topology
+        self.obser_bondtypes = set()
+
         self.exclusions_list = [] # For restric reactions, the exclusion lists has to be extended.
 
     def _setup_reaction(self, chem_reaction, fpl):
@@ -374,6 +377,7 @@ class SetupReactions:
                 type_pid1 = self.topol.used_atomsym_atomtype[type_name1]
                 type_pid2 = self.topol.used_atomsym_atomtype[type_name2]
                 pp.add_bond_to_remove(anchor_type_id, nb_level, type_pid1, type_pid2)
+                self.obser_bondtypes.add(tuple(sorted([type_pid1, type_pid2])))
             return pp
 
         def _cfg_post_process_freeze_region(cfg):
