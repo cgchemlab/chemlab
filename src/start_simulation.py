@@ -554,6 +554,7 @@ def main():  #NOQA
         rate_file.close()
 
     system_analysis.info()
+    traj_file.store_position = True
     traj_file.dump(sim_step*integrator_step, sim_step*integrator_step*args.dt)
     dump_topol.dump()
     dump_topol.update()
