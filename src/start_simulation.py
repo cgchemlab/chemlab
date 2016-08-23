@@ -423,7 +423,7 @@ def main():  #NOQA
         system,
         h5md_output_file,
         group_name='atoms',
-        static_box=False,
+        static_box=False if args.pressure else True,
         author='XXX',
         email='xxx',
         store_species=args.store_species,
@@ -554,6 +554,7 @@ def main():  #NOQA
         rate_file.close()
 
     system_analysis.info()
+    traj_file.store_position = True
     traj_file.dump(sim_step*integrator_step, sim_step*integrator_step*args.dt)
     dump_topol.dump()
     dump_topol.update()
