@@ -423,7 +423,7 @@ def main():  #NOQA
         system,
         h5md_output_file,
         group_name='atoms',
-        static_box=False,
+        static_box=False if args.pressure else True,
         author='XXX',
         email='xxx',
         store_species=args.store_species,
