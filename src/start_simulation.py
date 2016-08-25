@@ -427,7 +427,7 @@ def main():  #NOQA
         author='XXX',
         email='xxx',
         store_species=args.store_species,
-        store_res_id=True,
+        store_res_id=False,
         store_charge=args.store_charge,
         store_position=args.store_position,
         store_state=args.store_state,
