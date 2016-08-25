@@ -262,7 +262,9 @@ class SetupReactions:
         print('Setup reaction: {}({})-{}({})'.format(
             rt1, self.name2type[rt1], rt2, self.name2type[rt2]))
         if not chem_reaction['reverse']:
-            r.intramolecular = bool(chem_reaction['intramolecular'])
+            if 'intramolecular' in chem_reaction:
+                print('Warning, tag intramolecular not used anymore!')
+
             r.intraresidual = bool(chem_reaction['intraresidual'])
             r.is_virtual = bool(chem_reaction['virtual'])
 
