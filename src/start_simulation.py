@@ -617,11 +617,4 @@ def main():  #NOQA
     print('Finished! Thanks!')
 
 if __name__ == '__main__':
-    try:
-        import ipdb
-        with ipdb.launch_ipdb_on_exception():
-            main()
-            exit(1)
-    except ImportError:
-        main()
-    exit(0)
+    main()
