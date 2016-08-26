@@ -444,12 +444,15 @@ def main():  #NOQA
     bcount = 0
     for (i, observe_tuple), f in dynamic_fpls.items():
         if observe_tuple:
+            print('DumpTopol: observe dynamic_bonds_{}'.format(i))
             dump_topol.observe_tuple(f, 'dynamic_bonds_{}'.format(i))
         else:
+            print('DumpTopol: observe bonds_{}'.format(i))
             dump_topol.add_static_tuple(f, 'bonds_{}'.format(bcount))
-            bcount += 1
+        bcount += 1
 
     for static_fpl in static_fpls:
+        print('DumpTopol: store bonds_{}'.format(bcount))
         dump_topol.add_static_tuple(static_fpl, 'bonds_{}'.format(bcount))
         bcount += 1
 
@@ -554,7 +557,6 @@ def main():  #NOQA
         rate_file.close()
 
     system_analysis.info()
-    traj_file.store_position = True
     traj_file.dump(sim_step*integrator_step, sim_step*integrator_step*args.dt)
     dump_topol.dump()
     dump_topol.update()
