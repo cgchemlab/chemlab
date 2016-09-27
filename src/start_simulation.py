@@ -119,7 +119,7 @@ def main():  #NOQA
 
     system = espressopp.System()
     system.rng = espressopp.esutil.RNG(rng_seed)
-    system.bc = espressopp.bc.OrthorhombicBC(system.rng, box)
+
     system.skin = skin
     if args.node_grid:
         nodeGrid = map(int, args.node_grid.split(','))
@@ -131,12 +131,25 @@ def main():  #NOQA
 
     print('Cell grid: {}'.format(cellGrid))
 
-    system.storage = espressopp.storage.DomainDecomposition(system, nodeGrid, cellGrid)
+    if args.periodicity:
+        periodicity = [x.strip() == 'p' for x in args.periodicity.split(',')]
+        if len(periodicity) != 3:
+            raise RuntimeError('Wrong periodicity argument: {}'.format(periodicity))
+        system.bc = espressopp.bc.FreeOrthorhombicBC(system.rng, box, periodicity=periodicity)
+        system.storage = espressopp.storage.DomainDecompositionFree(system, nodeGrid, cellGrid)
+        print('System periodic only in {}'.format(periodicity))
+    else:
+        periodicity = [True, True, True]
+        system.bc = espressopp.bc.OrthorhombicBC(system.rng, box)
+        system.storage = espressopp.storage.DomainDecomposition(system, nodeGrid, cellGrid)
+    print('Periodicity: {}'.format(periodicity))
+
     integrator = espressopp.integrator.VelocityVerlet(system)
     integrator.dt = dt
     system.integrator = integrator
 
     system.storage.addParticles(particle_list, *part_prop)
+
     system.storage.decompose()
 
 # Dynamic exclude list, depends on the new create bonds as well.
@@ -298,6 +311,18 @@ def main():  #NOQA
         else:
             raise Exception('Wrong barostat keyword: `{}`'.format(args.barostat))
         integrator.addExtension(barostat)
+
+    # If system is not periodic then the LJ repulsive wall has to be added.
+    wall_name = ['x', 'y', 'z']
+    for pidx, periodic in enumerate(periodicity):
+        if not periodic:
+            print('System not periodic in {} direction'.format(wall_name[pidx]))
+            integrator.addExtension(espressopp.integrator.WallReflect(system, direction=pidx, r0=0.0))
+            wall_interaction = espressopp.interaction.WallLennardJonesGeneric(system, pidx, 0.0)
+            for t in gt.atomsym_atomtype.values():
+                 wall_interaction.setPotential(t, potential=espressopp.interaction.LennardJonesGeneric(
+                     sigma=1.0, a=3, b=0, cutoff=1.0))
+            system.addInteraction(wall_interaction, 'wall-{}'.format(wall_name[pidx]))
 
     print('Set Dynamic Exclusion lists.')
     for static_fpl in static_fpls:
@@ -501,6 +526,14 @@ def main():  #NOQA
     if args.rate_arrhenius:
         rate_file = open('{}_{}_new_rates.csv'.format(args.output_prefix, rng_seed), 'w')
 
+    #dump_gro = espressopp.io.DumpGRO(system, integrator, filename='traj.gro', unfolded=False)
+    #dump_gro2 = espressopp.io.DumpGRO(system, integrator, filename='traj_unfolded.gro', unfolded=True)
+    #ext_dump_gro = espressopp.integrator.ExtAnalyze(dump_gro, 100)
+    #ext_dump_gro2 = espressopp.integrator.ExtAnalyze(dump_gro2, 100)
+    #integrator.addExtension(ext_dump_gro)
+    #integrator.addExtension(ext_dump_gro2)
+    #dump_gro.dump()
+
     for k in range(sim_step):
         system_analysis.info()
         if k % k_trj_collect == 0:
@@ -586,7 +619,7 @@ def main():  #NOQA
 
     # Saves coordinate output file.
     output_gro_file = '{}_{}_confout.gro'.format(args.output_prefix, rng_seed)
-    input_conf.update_position(system)
+    input_conf.update_position(system, unfolded=False)
     input_conf.write(output_gro_file, force=True)
     print('Wrote end configuration to: {}'.format(output_gro_file))
 
@@ -616,11 +649,4 @@ def main():  #NOQA
     print('Finished! Thanks!')
 
 if __name__ == '__main__':
-    try:
-        import ipdb
-        with ipdb.launch_ipdb_on_exception():
-            main()
-            exit(1)
-    except ImportError:
-        main()
-    exit(0)
+    main()

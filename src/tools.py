@@ -165,5 +165,6 @@ def _args():
                         type=ast.literal_eval)
     parser.add_argument('--exclusion_list', default=None, help='Read exclusion list from external file')
     parser.add_argument('--count_tuples', default=False, type=ast.literal_eval, help='Count tuples')
+    parser.add_argument('--periodicity', default=None, help='Periodicity, p-periodic, f-non periodic, example: p,p,f')
 
     return parser

@@ -249,11 +249,9 @@ class GROFile(CoordinateFile):
             unfolded: If set to True then write in unfoded state.
         """
         if unfolded:
-            boxL = numpy.array(system.bc.boxL)
+            boxL = system.bc.boxL
             for pid in self.atoms:
                 p = system.storage.getParticle(pid)
-                old_pos = p.pos
-                old_pos[0] = old_pos[0] + p.imageBox[0]*boxL[0]
                 self.atoms[pid] = self.atoms[pid]._replace(
                     position=[p.pos[x] + p.imageBox[x]*boxL[x] for x in range(3)]
                 )

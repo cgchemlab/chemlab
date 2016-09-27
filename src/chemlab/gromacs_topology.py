@@ -1,7 +1,9 @@
 #  Copyright (C) 2016
 #      Jakub Krajniak (jkrajniak at gmail.com)
 #
-#  This file is part of ESPResSo++.
+#  This file is part of ChemLab.
+#
+#  Large part of the file is taken from ESPResSo++.
 #
 #  ESPResSo++ is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -1059,7 +1061,7 @@ def gen_particle_list(coordinate, topol):
 
     for atom_id in sorted(coordinate.atoms):
         data = coordinate.atoms[atom_id]
-        top_data = topol.atomparams['{}-{}'.format(data.chain_name, data.name)]
+        top_data = topol.atoms[atom_id]
         particle_list.append(
             [atom_id,
              top_data['type_id'],

@@ -22,5 +22,5 @@ setup(
     name='chemlab',
     author='Jakub Krajniak',
     author_email='jkrajniak@gmail.com',
-    version='1.1.0',
+    version='1.2.0',
 )

@@ -24,6 +24,11 @@ import warnings
 
 __doc__ = """This is a reaction parser."""
 
+# Constant
+REACTION_NORMAL = 'normal'
+REACTION_DISSOCATION = 'diss'
+REACTION_EXCHANGE = 'exchange'
+
 
 def parse_equation(input_string):
     """Parse chemical equation and returns properties extracted from the input string
@@ -55,10 +60,18 @@ def parse_equation(input_string):
     reactant_list['type_1']['new_type'] = products[0]['name']
     reactant_list['type_2']['new_type'] = products[1]['name']
 
-    return reactant_list
+    return reactant_list, REACTION_NORMAL
 
 
 def parse_reverse_equation(input_string):
+    """Parse chemical reaction: dissociation
+
+    Equation:
+        A[min,max):B[min,max) -> A(deltaA) + B(deltaB)
+
+    Args:
+        input_string: The input string with equation to parse.
+    """
     re_reactant = re.compile(r'(?P<name>\w+)\((?P<min>\d+),\s*(?P<max>\d+)\)')
     re_product = re.compile(r'(?P<name>\w+)\((?P<delta>[0-9-]+)\)')
 
@@ -75,7 +88,40 @@ def parse_reverse_equation(input_string):
     reactant_list['type_1']['new_type'] = products[0]['name']
     reactant_list['type_2']['new_type'] = products[1]['name']
 
-    return reactant_list
+    return reactant_list, REACTION_DISSOCATION
+
+
+def parse_exchange_equation(input_string):
+    """Parse chemical reaction: exchange
+
+    Equation:
+        A[min,max):B[min,max) + C[min,max) -> A(deltaA):C(deltaC) + B(deltaB)
+
+    Args:
+        input_string: The input string with equation to parse.
+    """
+    re_reactant = re.compile(r'(?P<name>\w+)\((?P<min>\d+),\s*(?P<max>\d+)\)')
+    re_product = re.compile(r'(?P<new_type>\w+)\((?P<delta>[0-9-]+)\)')
+
+    reactant_list = {}
+
+    reactants, products = map(str.strip, input_string.split('->'))
+    part_a, part_b = [map(str.strip, x.split(':')) for x in reactants.split('+')]
+    mol_a, mol_b = [x.groupdict() for x in map(re_reactant.match, part_a)]
+    mol_c = re_reactant.match(part_b[0]).groupdict()
+
+    product_a, product_b = [map(str.strip, x.split(':')) for x in products.split('+')]
+    prod_a, prod_b = [x.groupdict() for x in map(re_product.match, product_a)]
+    prod_c = re_product.match(product_b[0]).groupdict()
+
+    reactant_list['type_1'] = mol_a
+    reactant_list['type_2'] = mol_b
+    reactant_list['type_3'] = mol_c
+    reactant_list['type_1'].update(prod_a)
+    reactant_list['type_2'].update(prod_c)
+    reactant_list['type_3'].update(prod_b)
+
+    return reactant_list, REACTION_EXCHANGE
 
 
 def process_reaction(reaction):
@@ -88,15 +134,20 @@ def process_reaction(reaction):
         'intramolecular': eval(reaction.get('intramolecular', 'False')),
         'intraresidual': eval(reaction.get('intraresidual', 'False')),
         'virtual': eval(reaction.get('virtual', 'False')),
-        'revert': eval(reaction.get('revert', 'False'))
     }
 
-    try:
-        data['reactant_list'] = parse_equation(reaction['reaction'])
-        data['reverse'] = False
-    except:
-        data['reactant_list'] = parse_reverse_equation(reaction['reaction'])
-        data['reverse'] = True
+    reaction_parsers = [parse_equation, parse_reverse_equation, parse_exchange_equation]
+    reaction_type = None
+    for reaction_parser in reaction_parsers:
+        try:
+            data['reactant_list'], reaction_type = reaction_parser(reaction['reaction'])
+        except:
+            continue
+
+    if reaction_type is None:
+        raise RuntimeError('Could not parse reaction equation: {}'.format(reaction['reaction']))
+
+    data['reaction_type'] = reaction_type
 
     if 'min_cutoff' in reaction:
         data['min_cutoff'] = float(reaction['min_cutoff'])
@@ -234,12 +285,16 @@ class SetupReactions:
         if not chem_reaction['active']:
             return None
         # Select reaction class.
-        if chem_reaction['reverse']:
-            r_class = espressopp.integrator.DissociationReaction
-        elif chem_reaction.get('connectivity_map'):
+        reaction_type2class = {
+            REACTION_NORMAL: espressopp.integrator.Reaction,
+            REACTION_EXCHANGE: espressopp.integrator.Reaction,
+            REACTION_DISSOCATION: espressopp.integrator.DissociationReaction
+        }
+
+        if chem_reaction.get('connectivity_map'):
             r_class = espressopp.integrator.RestrictReaction
         else:
-            r_class = espressopp.integrator.Reaction
+            r_class = reaction_type2class[chem_reaction['reaction_type']]
 
         rt1 = rl['type_1']['name']
         rt2 = rl['type_2']['name']
@@ -261,7 +316,7 @@ class SetupReactions:
 
         print('Setup reaction: {}({})-{}({})'.format(
             rt1, self.name2type[rt1], rt2, self.name2type[rt2]))
-        if not chem_reaction['reverse']:
+        if chem_reaction['reaction_type'] != REACTION_DISSOCATION:
             if 'intramolecular' in chem_reaction:
                 print('Warning, tag intramolecular not used anymore!')
 
@@ -291,7 +346,7 @@ class SetupReactions:
                 r.define_connection(b1, b2)
             self.exclusions_list.extend(list(ex_list))
             print('Restricted to {} connections'.format(len(ex_list)))
-            if chem_reaction.get('revert'):
+            if chem_reaction.get('reaction_type') == REACTION_DISSOCATION:
                 r.revert = True
 
         # Change type if necessary.
@@ -360,7 +415,7 @@ class SetupReactions:
                             t1_new, new_property['mass'], new_property['charge']),
                         nb_level + 1
                     )
-            return pp
+            return pp, None
 
         def _cfg_post_process_remove_neighbour_bonds(cfg):
             """Setup PostProcessRemoveNeighbourBonds"""
@@ -380,7 +435,7 @@ class SetupReactions:
                 type_pid2 = self.topol.used_atomsym_atomtype[type_name2]
                 pp.add_bond_to_remove(anchor_type_id, nb_level, type_pid1, type_pid2)
                 self.obser_bondtypes.add(tuple(sorted([type_pid1, type_pid2])))
-            return pp
+            return pp, None
 
         def _cfg_post_process_freeze_region(cfg):
             """Setup freeze region."""
@@ -424,6 +479,7 @@ class SetupReactions:
                     target_type_id, espressopp.ParticleProperties(final_type_id))
                 change_in_region.set_flags(target_type_id, reset_velocity=True, reset_force=True, remove_particle=remove_particles)
                 self.system.integrator.addExtension(change_in_region)
+            return None
 
         def _cfg_post_process_release_molecule(cfg):
             """Setup release molecules."""
@@ -434,6 +490,15 @@ class SetupReactions:
             init_res = float(cfg['init_res'])
             final_type = cfg.get('final_type', target_type)
 
+            replicate = int(cfg.get('replicate', 1))
+            release_on = cfg.get('release_on', 'type')  # bond or type
+            if release_on not in ['bond', 'type']:
+                raise RuntimeError('Wrong keyword release_on {}, only: bond or type'.format(release_on))
+            release_count = int(cfg.get('release_count', 1))
+            release_host = cfg.get('release_host', 'both')
+            if release_host not in ['type_1', 'type_2', 'both']:
+                raise RuntimeError('Wrong keyword release_ost {}, only left, right, both'.format(release_host))
+
             # Generate dummy molecules
             max_pid = max(self.topol.atoms)
             dummy_type_id = max(self.topol.atomsym_atomtype.values()) + 1
@@ -442,24 +507,40 @@ class SetupReactions:
             target_type_id = self.topol.atomsym_atomtype[target_type]
             target_properties = self.topol.gt.atomtypes[target_type]
             print('Generate {} of dummy particles (type: {}) linked to {}'.format(
-                len(host_pids), dummy_type_id, host_type))
+                len(host_pids)*replicate, dummy_type_id, host_type))
+
             particle_list = []
             fix_list = []
+            dummy_idx = max_pid + 1
             for idx, host_pid in enumerate(host_pids):
                 host_p = self.system.storage.getParticle(host_pid)
-                dummy_pos = host_p.pos + espressopp.Real3D(eq_length, 0.0, 0.0)
-                new_pid = max_pid + idx + 1
-                fix_list.append((host_pid, new_pid, eq_length))
-                particle_list.append((new_pid, dummy_type_id, dummy_pos, target_properties['mass'], new_pid, init_res))
+                for _ in range(replicate):
+                    dummy_pos = host_p.pos + espressopp.Real3D(eq_length, 0.0, 0.0)
+                    fix_list.append((host_pid, dummy_idx, eq_length))
+                    particle_list.append((
+                        dummy_idx,
+                        dummy_type_id,
+                        dummy_pos,
+                        target_properties['mass'],
+                        dummy_idx,
+                        init_res))
+                    dummy_idx += 1
             props = ['id', 'type', 'pos', 'mass', 'res_id', 'lambda_adr']
             self.system.storage.addParticles(particle_list, *props)
             self.system.storage.decompose()
 
-            fix_distance = espressopp.integrator.FixDistances(
-                self.system,
-                fix_list,
-                self.topol.atomsym_atomtype[host_type],
-                dummy_type_id)
+            reaction_post_process = None
+
+            if release_on == 'type':
+                fix_distance = espressopp.integrator.FixDistances(
+                    self.system,
+                    fix_list,
+                    self.topol.atomsym_atomtype[host_type],
+                    dummy_type_id)
+            else:  # do not remove fix when change of type
+                fix_distance = espressopp.integrator.FixDistances(self.system,fix_list)
+                # Remove by post process in the reaction
+                reaction_post_process = espressopp.integrator.PostProcessReleaseParticles(fix_distance, release_count)
             self.fix_distance = fix_distance
 
             fxd_post_process = espressopp.integrator.PostProcessChangeProperty()
@@ -504,7 +585,7 @@ class SetupReactions:
             self.cr_observs[(final_type_id, len(particle_list))] = espressopp.analysis.ChemicalConversion(
                 self.system, final_type_id, len(particle_list))
 
-            return None
+            return reaction_post_process, release_host
 
         class_to_cfg = {
             'ChangeNeighboursProperty': _cfg_post_process_change_neighbour,
@@ -571,8 +652,11 @@ class SetupReactions:
                 chem_reaction['connectivity_map'] = reaction_group['connectivity_map']
                 r = self._setup_reaction(chem_reaction, fpl)
                 if r is not None:
-                    for pp in extensions:
-                        r.add_postprocess(pp)
+                    for pp, reactant_switch in extensions:
+                        if reactant_switch:
+                            r.add_postprocess(pp, reactant_switch)
+                        else:
+                            r.add_postprocess(pp)
                     ar.add_reaction(r)
                     reactions.append(r)
 
