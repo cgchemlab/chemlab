@@ -469,12 +469,15 @@ def main():  #NOQA
     bcount = 0
     for (i, observe_tuple), f in dynamic_fpls.items():
         if observe_tuple:
+            print('DumpTopol: observe dynamic_bonds_{}'.format(i))
             dump_topol.observe_tuple(f, 'dynamic_bonds_{}'.format(i))
         else:
+            print('DumpTopol: observe bonds_{}'.format(i))
             dump_topol.add_static_tuple(f, 'bonds_{}'.format(bcount))
-            bcount += 1
+        bcount += 1
 
     for static_fpl in static_fpls:
+        print('DumpTopol: store bonds_{}'.format(bcount))
         dump_topol.add_static_tuple(static_fpl, 'bonds_{}'.format(bcount))
         bcount += 1
 

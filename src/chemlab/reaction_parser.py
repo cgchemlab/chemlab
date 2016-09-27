@@ -380,6 +380,7 @@ class SetupReactions:
                         new_property['charge']))
 
             r.add_postprocess(r_pp)
+
         return r
 
     def _prepare_group_postprocess(self, cfg):
