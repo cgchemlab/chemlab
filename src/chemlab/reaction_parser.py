@@ -146,6 +146,7 @@ def process_reaction(reaction):
 
     if reaction_type is None:
         raise RuntimeError('Could not parse reaction equation: {}'.format(reaction['reaction']))
+    print('Reaction_type: {}'.format(reaction_type))
 
     data['reaction_type'] = reaction_type
 
@@ -498,7 +499,7 @@ class SetupReactions:
             release_count = int(cfg.get('release_count', 1))
             release_host = cfg.get('release_host', 'both')
             if release_host not in ['type_1', 'type_2', 'both']:
-                raise RuntimeError('Wrong keyword release_ost {}, only left, right, both'.format(release_host))
+                raise RuntimeError('Wrong keyword release_host {}, only left, right, both'.format(release_host))
 
             # Generate dummy molecules
             max_pid = max(self.topol.atoms)
@@ -654,6 +655,8 @@ class SetupReactions:
                 r = self._setup_reaction(chem_reaction, fpl)
                 if r is not None:
                     for pp, reactant_switch in extensions:
+                        if pp is None:
+                            continue
                         if reactant_switch:
                             r.add_postprocess(pp, reactant_switch)
                         else:
