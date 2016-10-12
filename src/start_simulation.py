@@ -108,10 +108,15 @@ def main():  #NOQA
     print('Box: {} nm'.format(box))
 
     # Generate velocity.
+    if args.temperature is None:
+        raise RuntimeError('Temperature not defined!')
+    temperature = args.temperature * kb
     print('Generating velocities from Maxwell-Boltzmann distribution T={} ({})'.format(
         args.temperature, args.temperature*kb))
     vx, vy, vz = espressopp.tools.velocities.gaussian(
-        args.temperature, len(particle_list), [x[3]*mass_factor for x in particle_list],
+        args.temperature,
+        len(particle_list),
+        [x[3]*mass_factor for x in particle_list],
         kb=kb)
     part_prop.append('v')
     for i, p in enumerate(particle_list):
@@ -269,7 +274,6 @@ def main():  #NOQA
         print('Cap force to {}'.format(args.max_force))
 
     # Define the thermostat
-    temperature = args.temperature * kb
     print('Temperature: {} ({}), gamma: {}'.format(args.temperature, temperature, args.thermostat_gamma))
     print('Thermostat: {}'.format(args.thermostat))
     if args.thermostat == 'lv':
