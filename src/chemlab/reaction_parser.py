@@ -585,6 +585,10 @@ class SetupReactions:
 
             self.cr_observs[(final_type_id, len(particle_list))] = espressopp.analysis.ChemicalConversion(
                 self.system, final_type_id, len(particle_list))
+            self.cr_observs[(dummy_type_id, len(particle_list))] = espressopp.analysis.ChemicalConversion(
+                self.system, dummy_type_id, len(particle_list))
+            self.cr_observs[(target_type_id, len(particle_list))] = espressopp.analysis.ChemicalConversion(
+                self.system, target_type_id, len(particle_list))
 
             return reaction_post_process, release_host
 

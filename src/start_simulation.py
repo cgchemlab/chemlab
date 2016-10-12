@@ -529,13 +529,8 @@ def main():  #NOQA
     if args.rate_arrhenius:
         rate_file = open('{}_{}_new_rates.csv'.format(args.output_prefix, rng_seed), 'w')
 
-    #dump_gro = espressopp.io.DumpGRO(system, integrator, filename='traj.gro', unfolded=False)
-    #dump_gro2 = espressopp.io.DumpGRO(system, integrator, filename='traj_unfolded.gro', unfolded=True)
-    #ext_dump_gro = espressopp.integrator.ExtAnalyze(dump_gro, 100)
-    #ext_dump_gro2 = espressopp.integrator.ExtAnalyze(dump_gro2, 100)
-    #integrator.addExtension(ext_dump_gro)
-    #integrator.addExtension(ext_dump_gro2)
-    #dump_gro.dump()
+    totalTime = time.time()
+    integratorLoop = 0.0
 
     for k in range(sim_step):
         system_analysis.info()
@@ -572,7 +567,9 @@ def main():  #NOQA
                 bonds0 = sum(f.totalSize() for f in chem_fpls)  # TODO(jakub): this is terrible.
                 energy0 = system_analysis.potential_energy
 
+        loopTimer = time.time()
         integrator.run(integrator_step)
+        integratorLoop += (time.time() - loopTimer)
 
         if args.rate_arrhenius and reactions_enabled:
             bonds1 = sum(f.totalSize() for f in chem_fpls)  # TODO(jakub): this is terrible.
@@ -584,6 +581,11 @@ def main():  #NOQA
                 rate_file.write('{} {:e}\n'.format(k*integrator_step, new_rate))
                 for r in reactions:
                     r.rate = new_rate
+    totalTime = time.time() - totalTime
+    ##### END of main integrator loop ###########
+
+    with open('{}_{}_benchmark.csv'.format(args.output_prefix, args.rng_seed), 'a+') as benchmark_file:
+        benchmark_file.write('{} {} {} {}\n'.format(MPI.COMM_WORLD.size, NPart, totalTime, integratorLoop))
 
     if args.rate_arrhenius:
         print('Changes in reaction rates written to {}'.format(rate_file.name))
