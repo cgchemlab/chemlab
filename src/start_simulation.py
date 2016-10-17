@@ -136,18 +136,8 @@ def main():  #NOQA
 
     print('Cell grid: {}'.format(cellGrid))
 
-    if args.periodicity:
-        periodicity = [x.strip() == 'p' for x in args.periodicity.split(',')]
-        if len(periodicity) != 3:
-            raise RuntimeError('Wrong periodicity argument: {}'.format(periodicity))
-        system.bc = espressopp.bc.FreeOrthorhombicBC(system.rng, box, periodicity=periodicity)
-        system.storage = espressopp.storage.DomainDecompositionFree(system, nodeGrid, cellGrid)
-        print('System periodic only in {}'.format(periodicity))
-    else:
-        periodicity = [True, True, True]
-        system.bc = espressopp.bc.OrthorhombicBC(system.rng, box)
-        system.storage = espressopp.storage.DomainDecomposition(system, nodeGrid, cellGrid)
-    print('Periodicity: {}'.format(periodicity))
+    system.bc = espressopp.bc.OrthorhombicBC(system.rng, box)
+    system.storage = espressopp.storage.DomainDecomposition(system, nodeGrid, cellGrid)
 
     integrator = espressopp.integrator.VelocityVerlet(system)
     integrator.dt = dt
@@ -198,6 +188,7 @@ def main():  #NOQA
     chem_dynamic_bond_types = set()
     chem_fpls = []
     reactions = []
+    extensions_integrator = []
     cr_interval = 0
     has_reaction = False
     sc = None
@@ -211,7 +202,7 @@ def main():  #NOQA
             gt,
             topology_manager,
             reaction_config)
-        ar, chem_fpls, reactions = sc.setup_reactions()
+        ar, chem_fpls, reactions, extensions_integrator = sc.setup_reactions()
         chem_dynamic_types = sc.dynamic_types
         chem_dynamic_bond_types = sc.obser_bondtypes
 
@@ -315,18 +306,6 @@ def main():  #NOQA
         else:
             raise Exception('Wrong barostat keyword: `{}`'.format(args.barostat))
         integrator.addExtension(barostat)
-
-    # If system is not periodic then the LJ repulsive wall has to be added.
-    wall_name = ['x', 'y', 'z']
-    for pidx, periodic in enumerate(periodicity):
-        if not periodic:
-            print('System not periodic in {} direction'.format(wall_name[pidx]))
-            integrator.addExtension(espressopp.integrator.WallReflect(system, direction=pidx, r0=0.0))
-            wall_interaction = espressopp.interaction.WallLennardJonesGeneric(system, pidx, 0.0)
-            for t in gt.atomsym_atomtype.values():
-                 wall_interaction.setPotential(t, potential=espressopp.interaction.LennardJonesGeneric(
-                     sigma=1.0, a=3, b=0, cutoff=1.0))
-            system.addInteraction(wall_interaction, 'wall-{}'.format(wall_name[pidx]))
 
     print('Set Dynamic Exclusion lists.')
     for static_fpl in static_fpls:
@@ -546,6 +525,9 @@ def main():  #NOQA
         if k_enable_reactions == k:
             print('Enabling chemical reactions')
             integrator.addExtension(ar)
+            if extensions_integrator:
+                for ext in extensions_integrator:
+                    integrator.addExtension(ext)
             reactions_enabled = True
             # Saves coordinate output file.
             output_gro_file = '{}_{}_before_reaction_confout.gro'.format(args.output_prefix, args.rng_seed)
@@ -555,6 +537,7 @@ def main():  #NOQA
             if sc.exclusions_list:
                 dynamic_exclusion_list.exclude(sc.exclusions_list)
                 print('Add {} new exclusions from restrict reactions'.format(len(sc.exclusions_list)))
+
         if reactions_enabled:
             for obs, stop_value in maximum_conversion:
                 val = obs.compute()

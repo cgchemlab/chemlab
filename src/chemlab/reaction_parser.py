@@ -386,6 +386,7 @@ class SetupReactions:
 
     def _prepare_group_postprocess(self, cfg):
         """Prepare extensions for the reactions."""
+
         pps = []
 
         # Belows are the sub-functions to create PostProcess objects.
@@ -417,7 +418,7 @@ class SetupReactions:
                             t1_new, new_property['mass'], new_property['charge']),
                         nb_level + 1
                     )
-            return pp, None
+            return pp, None, 'PP'
 
         def _cfg_post_process_remove_neighbour_bonds(cfg):
             """Setup PostProcessRemoveNeighbourBonds"""
@@ -437,7 +438,7 @@ class SetupReactions:
                 type_pid2 = self.topol.used_atomsym_atomtype[type_name2]
                 pp.add_bond_to_remove(anchor_type_id, nb_level, type_pid1, type_pid2)
                 self.obser_bondtypes.add(tuple(sorted([type_pid1, type_pid2])))
-            return pp, None
+            return pp, None, 'PP'
 
         def _cfg_post_process_freeze_region(cfg):
             """Setup freeze region."""
@@ -481,7 +482,7 @@ class SetupReactions:
                     target_type_id, espressopp.ParticleProperties(final_type_id))
                 change_in_region.set_flags(target_type_id, reset_velocity=True, reset_force=True, remove_particle=remove_particles)
                 self.system.integrator.addExtension(change_in_region)
-            return None
+            return None, None, None
 
         def _cfg_post_process_release_molecule(cfg):
             """Setup release molecules."""
@@ -591,14 +592,32 @@ class SetupReactions:
             self.cr_observs[(target_type_id, len(particle_list))] = espressopp.analysis.ChemicalConversion(
                 self.system, target_type_id, len(particle_list))
 
-            return reaction_post_process, release_host
+            return reaction_post_process, release_host, 'PP'
+
+        def _cfg_change_particle_type(cfg):
+            interval = int(cfg['interval'])
+            old_type_id = int(cfg['type_id'])
+            new_type_id = int(cfg['new_type_id'])
+            num_particles = int(cfg['num_particles'])
+
+            change_type = espressopp.integrator.ChangeParticleType(
+                self.system,
+                interval,
+                num_particles,
+                old_type_id,
+                new_type_id)
+
+            return change_type, None, 'Integrator'
+
 
         class_to_cfg = {
             'ChangeNeighboursProperty': _cfg_post_process_change_neighbour,
             'RemoveNeighboursBonds': _cfg_post_process_remove_neighbour_bonds,
             'ReleaseMolecule': _cfg_post_process_release_molecule,
-            'FreezeRegion': _cfg_post_process_freeze_region
+            'FreezeRegion': _cfg_post_process_freeze_region,
+            'ChangeParticleType': _cfg_change_particle_type
         }
+
         for pp_cfg in cfg.values():
             cfg_setup = class_to_cfg[pp_cfg['class']]
             post_process_obj = cfg_setup(pp_cfg['options'])
@@ -626,6 +645,7 @@ class SetupReactions:
 
         fpls = []
         reactions = []
+        extensions_to_integrator = []
 
         for group_name, reaction_group in self.cfg['reactions'].items():
             print('Setting reaction group {}'.format(group_name))
@@ -658,7 +678,10 @@ class SetupReactions:
                 chem_reaction['connectivity_map'] = reaction_group['connectivity_map']
                 r = self._setup_reaction(chem_reaction, fpl)
                 if r is not None:
-                    for pp, reactant_switch in extensions:
+                    for pp, reactant_switch, ext_type in extensions:
+                        if ext_type == 'Integrator':
+                            extensions_to_integrator.append(pp)
+                            continue
                         if pp is None:
                             continue
                         if reactant_switch:
@@ -668,4 +691,4 @@ class SetupReactions:
                     ar.add_reaction(r)
                     reactions.append(r)
 
-        return ar, fpls, reactions
+        return ar, fpls, reactions, extensions_to_integrator
