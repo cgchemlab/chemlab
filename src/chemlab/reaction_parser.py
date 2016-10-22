@@ -15,7 +15,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
+import collections
 import espressopp
 import ConfigParser
 import random
@@ -28,6 +28,8 @@ __doc__ = """This is a reaction parser."""
 REACTION_NORMAL = 'normal'
 REACTION_DISSOCATION = 'diss'
 REACTION_EXCHANGE = 'exchange'
+EXT_POSTPROCESS = 'PP'
+EXT_INTEGRATOR = 'Integrator'
 
 
 def parse_equation(input_string):
@@ -385,9 +387,19 @@ class SetupReactions:
         return r
 
     def _prepare_group_postprocess(self, cfg):
-        """Prepare extensions for the reactions."""
+        """Prepare extensions for the reactions.
 
-        pps = []
+        Args:
+            cfg: The dictionary with configuration.
+
+        Returns:
+            The list of triplets, object, if PostProcess then which particle will be involved and extension type.
+            The extension type can be: 'PP' - PostProcess, 'Integrator' - Extension to integrator.
+            If either postprocess nor extension to integrator is added this triplet has to be (None, None, None)
+        """
+
+        list_of_extensions = []
+        output_triplet = collections.namedtuple('Extension', ['ext', 'pp_type', 'ext_type'])
 
         # Belows are the sub-functions to create PostProcess objects.
         def _cfg_post_process_change_neighbour(cfg):
@@ -418,7 +430,7 @@ class SetupReactions:
                             t1_new, new_property['mass'], new_property['charge']),
                         nb_level + 1
                     )
-            return pp, None, 'PP'
+            return output_triplet(pp, None, EXT_POSTPROCESS)
 
         def _cfg_post_process_remove_neighbour_bonds(cfg):
             """Setup PostProcessRemoveNeighbourBonds"""
@@ -438,7 +450,7 @@ class SetupReactions:
                 type_pid2 = self.topol.used_atomsym_atomtype[type_name2]
                 pp.add_bond_to_remove(anchor_type_id, nb_level, type_pid1, type_pid2)
                 self.obser_bondtypes.add(tuple(sorted([type_pid1, type_pid2])))
-            return pp, None, 'PP'
+            return output_triplet(pp, None, EXT_POSTPROCESS)
 
         def _cfg_post_process_freeze_region(cfg):
             """Setup freeze region."""
@@ -482,7 +494,7 @@ class SetupReactions:
                     target_type_id, espressopp.ParticleProperties(final_type_id))
                 change_in_region.set_flags(target_type_id, reset_velocity=True, reset_force=True, remove_particle=remove_particles)
                 self.system.integrator.addExtension(change_in_region)
-            return None, None, None
+            return output_triplet(None, None, None)
 
         def _cfg_post_process_release_molecule(cfg):
             """Setup release molecules."""
@@ -592,7 +604,7 @@ class SetupReactions:
             self.cr_observs[(target_type_id, len(particle_list))] = espressopp.analysis.ChemicalConversion(
                 self.system, target_type_id, len(particle_list))
 
-            return reaction_post_process, release_host, 'PP'
+            return output_triplet(reaction_post_process, release_host, EXT_POSTPROCESS)
 
         def _cfg_change_particle_type(cfg):
             interval = int(cfg['interval'])
@@ -607,7 +619,7 @@ class SetupReactions:
                 old_type_id,
                 new_type_id)
 
-            return change_type, None, 'Integrator'
+            return output_triplet(change_type, None, EXT_INTEGRATOR)
 
 
         class_to_cfg = {
@@ -622,9 +634,9 @@ class SetupReactions:
             cfg_setup = class_to_cfg[pp_cfg['class']]
             post_process_obj = cfg_setup(pp_cfg['options'])
             if post_process_obj:
-                pps.append(post_process_obj)
+                list_of_extensions.append(post_process_obj)
 
-        return pps
+        return list_of_extensions
 
     def setup_reactions(self):
         """Setup reactions.
@@ -678,16 +690,16 @@ class SetupReactions:
                 chem_reaction['connectivity_map'] = reaction_group['connectivity_map']
                 r = self._setup_reaction(chem_reaction, fpl)
                 if r is not None:
-                    for pp, reactant_switch, ext_type in extensions:
-                        if ext_type == 'Integrator':
-                            extensions_to_integrator.append(pp)
+                    for extension in extensions:
+                        if extension.ext is None:
                             continue
-                        if pp is None:
+                        if extension.ext_type == EXT_INTEGRATOR:
+                            extensions_to_integrator.append(extension.ext)
                             continue
-                        if reactant_switch:
-                            r.add_postprocess(pp, reactant_switch)
+                        if extension.ext_type:
+                            r.add_postprocess(extension.ext, extension.ext_type)
                         else:
-                            r.add_postprocess(pp)
+                            r.add_postprocess(extension.ext)
                     ar.add_reaction(r)
                     reactions.append(r)
 
