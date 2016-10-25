@@ -621,13 +621,40 @@ class SetupReactions:
 
             return output_triplet(change_type, None, EXT_INTEGRATOR)
 
+        def _cfg_atrp_activator(cfg):
+            interval = int(cfg['interval'])
+            num_particles = int(cfg['num_particles'])
+
+            atrp_activator = espressopp.integrator.ATRPActivator(
+                self.system, interval, num_particles)
+            options = [x.split('->') for x in cfg['options'].split(';')]
+            print('Settings ATRP activator extension')
+            print('ATRPActivator.interval={} num_part={}'.format(interval, num_particles))
+            re_reactant = re.compile(r'(?P<name>\w+)\((?P<min>\d+),\s*(?P<max>\d+)\)')
+            re_product = re.compile(r'(?P<new_type>\w+)\((?P<delta>[0-9-]+)\)\[p=(?P<p>[0-9\.]+)')
+            for to_process, after_process in options:
+                reactant = re_reactant.match(to_process).groupdict()
+                product = re_product.match(after_process).groupdict()
+                reactant_type_id = self.topol.atomsym_atomtype[reactant['name']]
+                product_type_id = self.topol.atomsym_atomtype[product['new_type']]
+                atrp_activator.add_reactive_center(
+                    type_id=reactant_type_id,
+                    min_state=int(reactant['min']),
+                    max_state=int(reactant['max']),
+                    new_property=espressopp.ParticleProperties(type=product_type_id),
+                    delta_state=int(product['delta']),
+                    prob=float(product['p']))
+                print('ATRPActivator: added {}->{}'.format(to_process, after_process))
+
+            return output_triplet(atrp_activator, None, EXT_INTEGRATOR)
 
         class_to_cfg = {
             'ChangeNeighboursProperty': _cfg_post_process_change_neighbour,
             'RemoveNeighboursBonds': _cfg_post_process_remove_neighbour_bonds,
             'ReleaseMolecule': _cfg_post_process_release_molecule,
             'FreezeRegion': _cfg_post_process_freeze_region,
-            'ChangeParticleType': _cfg_change_particle_type
+            'ChangeParticleType': _cfg_change_particle_type,
+            'ATRPActivator': _cfg_atrp_activator
         }
 
         for pp_cfg in cfg.values():
