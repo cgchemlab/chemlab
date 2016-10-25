@@ -196,7 +196,7 @@ def main():  #NOQA
     if args.reactions is not None and os.path.exists(args.reactions):
         print('Set chemical reactions from: {}'.format(args.reactions))
         reaction_config = chemlab.reaction_parser.parse_config(args.reactions)
-        sc = chemlab.reaction_parser.SetupReactions(
+        sc = chemlab.reaction_setup.SetupReactions(
             system,
             verletlist,
             gt,
