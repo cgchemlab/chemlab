@@ -142,34 +142,6 @@ class TopologyFile(object):
         self.parsers = {}
         self.writers = {}
 
-        # chain_name -> {chain_idx -> [at1, at2...]}
-        self.chains = {}  # chain_name -> {chain_idx: [at]}
-        # chain_name -> {chain_idx -> {atom_name -> atom}}
-        self.chains_atoms = {}  # chain_name -> {chain_idx: {at.name: at}}
-        # chain_name -> {atom_name -> [at1, at2, ...]}
-        self.chain_atom_names = {}  # chain_name -> {name: [at]}
-        # Chain neighbours.
-        #  key: (chain_name, chain_idx),
-        #  value: dict key: (chain_name, chain_idx) value: reference counter
-        self.chain_neighbours = collections.defaultdict(dict)
-        # Current charges of atoms
-        #   key: atom id
-        #   value: charge
-        self.current_charges = {}
-
-        self.atoms = {}
-        self.bonds = {}
-        # key: atom_id
-        # value: set of atom ids that are linked to the atom
-        self.bonds_def = collections.defaultdict(set)
-        self.angles = {}
-        self.dihedrals = {}
-        self.pairs = {}
-        self.cross_bonds = {}
-        self.cross_angles = {}
-        self.cross_dihedrals = {}
-        self.cross_pairs = {}
-        self.improper_dihedrals = {}
         self.content = None
         self.file = None
 
@@ -180,8 +152,6 @@ class TopologyFile(object):
         self.content = None
         self.file = None
         self.atoms_updated = False
-        if '__state' in self.__dict__:
-            del self.__dict__['__state']
 
 
 class GROFile(CoordinateFile):
@@ -279,11 +249,9 @@ class GROFile(CoordinateFile):
             unfolded: If set to True then write in unfoded state.
         """
         if unfolded:
-            boxL = numpy.array(system.bc.boxL)
+            boxL = system.bc.boxL
             for pid in self.atoms:
                 p = system.storage.getParticle(pid)
-                old_pos = p.pos
-                old_pos[0] = old_pos[0] + p.imageBox[0]*boxL[0]
                 self.atoms[pid] = self.atoms[pid]._replace(
                     position=[p.pos[x] + p.imageBox[x]*boxL[x] for x in range(3)]
                 )
@@ -427,10 +395,6 @@ class GROMACSTopologyFile(TopologyFile):
             'dihedraltypes': self._parse_dihedraltypes,
             'atoms': self._parse_atoms,
             'bonds': self._parse_bonds,
-            'cross_bonds': self._parse_cross_bonds,
-            'cross_angles': self._parse_cross_angles,
-            'cross_dihedrals': self._parse_cross_dihedrals,
-            'cross_pairs': self._parse_cross_pairs,
             'dihedrals': self._parse_dihedrals,
             'improper_dihedrals': self._parse_improper_dihedrals,
             'pairs': self._parse_pairs,
@@ -472,8 +436,12 @@ class GROMACSTopologyFile(TopologyFile):
         self.header_section = []
         self.defaults = None
         self.moleculetype = {}
-        self.molecules = {}
+        self.molecules = []
         self.system_name = None
+
+        # Store bond, angle, dihedral, pairs list by the moleculetype.
+        self.current_molecule = None
+        self.molecules_data = collections.defaultdict(dict)
 
     def init(self):
         """Reset the class properties without creating the object again."""
@@ -564,10 +532,6 @@ class GROMACSTopologyFile(TopologyFile):
                 'angles',
                 'dihedrals',
                 'pairs',
-                'cross_bonds',
-                'cross_angles',
-                'cross_dihedrals',
-                'cross_pairs',
                 'system',
                 'molecules'])
             self.content = []
@@ -614,21 +578,14 @@ class GROMACSTopologyFile(TopologyFile):
             'combinationrule': int(raw_data[1])
             }
         if len(raw_data) > 2:
-            self.defaults['gen-pairs'] = raw_data[2]
+            self.defaults['gen-pairs'] = raw_data[2] == 'yes'
             self.defaults['fudgeLJ'] = float(raw_data[3])
             self.defaults['fudgeQQ'] = float(raw_data[4])
         else:
-            self.defaults['gen-pairs'] = 'no'
+            self.defaults['gen-pairs'] = False
             self.defaults['fudgeLJ'] = 1.0
             self.defaults['fudgeQQ'] = 1.0
         self.defaults['nbfunc'] = 1
-
-    def _parse_bonds(self, raw_data):
-        atom_tuple = tuple(map(int, raw_data[0:2]))
-        self.bonds[atom_tuple] = raw_data[2:]
-
-        self.bonds_def[atom_tuple[0]].add(atom_tuple[1])
-        self.bonds_def[atom_tuple[1]].add(atom_tuple[0])
 
     def _parse_atomtypes(self, raw_data):
         has_data = True
@@ -678,7 +635,6 @@ class GROMACSTopologyFile(TopologyFile):
 
 
     def _parse_nonbond_params(self, raw_data):
-        i, j = raw_data[:2]
         k = tuple(sorted(raw_data[:2]))
         if k in self.nonbond_params:
             raise RuntimeError('{} already exists, wrong topology'.format(k))
@@ -738,13 +694,19 @@ class GROMACSTopologyFile(TopologyFile):
         if j not in self.dihedraltypes[l][k]:
             self.dihedraltypes[l][k][j] = {}
 
-        self.dihedraltypes[i][j][k][l] = {
-            'func': int(raw_data[4]),
-            'params': raw_data[5:]
-        }
-        self.dihedraltypes[l][k][j][i] = self.dihedraltypes[i][j][k][l]
+        try:
+            self.dihedraltypes[i][j][k][l] = {
+                'func': int(raw_data[4]),
+                'params': raw_data[5:]
+            }
+            self.dihedraltypes[l][k][j][i] = self.dihedraltypes[i][j][k][l]
+        except ValueError:
+            print('Skip {}'.format(raw_data))
 
     def _parse_atoms(self, raw_data):
+        if self.current_molecule is None:
+            raise RuntimeError('Wrong order, before bonds there should be a moleculetype section')
+
         at = TopoAtom()
         at.atom_id = int(raw_data[0])
         at.atom_type = raw_data[1]
@@ -758,53 +720,64 @@ class GROMACSTopologyFile(TopologyFile):
         if len(raw_data) > 7:
             at.mass = float(raw_data[7])
 
-        if at.chain_name not in self.chains:
-            self.chains[at.chain_name] = collections.defaultdict(list)
-            self.chains_atoms[at.chain_name] = collections.defaultdict(dict)
-            self.chain_atom_names[at.chain_name] = collections.defaultdict(list)
+        if 'atoms' not in self.molecules_data[self.current_molecule]:
+            self.molecules_data[self.current_molecule]['atoms'] = {}
+        self.molecules_data[self.current_molecule]['atoms'][at.atom_id] = at
 
-        self.chains[at.chain_name][at.chain_idx].append(at)
-        self.chain_atom_names[at.chain_name][at.name].append(at)
-        self.atoms[at.atom_id] = at
+    def _parse_bonds(self, raw_data):
+        atom_tuple = tuple(map(int, raw_data[0:2]))
+        if self.current_molecule is None:
+            raise RuntimeError('Wrong order, before bonds there should be a moleculetype section')
+        if 'bonds' not in self.molecules_data[self.current_molecule]:
+            self.molecules_data[self.current_molecule]['bonds'] = {}
+        self.molecules_data[self.current_molecule]['bonds'][atom_tuple] = raw_data[2:]
 
     def _parse_angles(self, raw_data):
         atom_tuple = tuple(map(int, raw_data[0:3]))
-        self.angles[atom_tuple] = raw_data[3:]
+
+        if self.current_molecule is None:
+            raise RuntimeError('Wrong order, before bonds there should be a moleculetype section')
+        if 'angles' not in self.molecules_data[self.current_molecule]:
+            self.molecules_data[self.current_molecule]['angles'] = {}
+        self.molecules_data[self.current_molecule]['angles'][atom_tuple] = raw_data[3:]
 
     def _parse_dihedrals(self, raw_data):
         atom_tuple = tuple(map(int, raw_data[0:4]))
-        self.dihedrals[atom_tuple] = raw_data[4:]
+
+        if self.current_molecule is None:
+            raise RuntimeError('Wrong order, before bonds there should be a moleculetype section')
+        if 'dihedrals' not in self.molecules_data[self.current_molecule]:
+            self.molecules_data[self.current_molecule]['dihedrals'] = {}
+        self.molecules_data[self.current_molecule]['dihedrals'][atom_tuple] = raw_data[4:]
 
     def _parse_improper_dihedrals(self, raw_data):
         atom_tuple = tuple(map(int, raw_data[0:4]))
-        self.improper_dihedrals[atom_tuple] = raw_data[4:]
+
+        if self.current_molecule is None:
+            raise RuntimeError('Wrong order, before bonds there should be a moleculetype section')
+        if 'improper_dihedrals' not in self.molecules_data[self.current_molecule]:
+            self.molecules_data[self.current_molecule]['improper_dihedrals'] = {}
+        self.molecules_data[self.current_molecule]['improper_dihedrals'][atom_tuple] = raw_data[3:]
 
     def _parse_pairs(self, raw_data):
         atom_tuple = tuple(map(int, raw_data[0:2]))
-        self.pairs[atom_tuple] = raw_data[2:]
 
-    def _parse_cross_bonds(self, raw_data):
-        atom_tuple = tuple(map(int, raw_data[0:2]))
-        self.cross_bonds[atom_tuple] = raw_data[2:]
+        if self.current_molecule is None:
+            raise RuntimeError('Wrong order, before bonds there should be a moleculetype section')
+        if 'pairs' not in self.molecules_data[self.current_molecule]:
+            self.molecules_data[self.current_molecule]['pairs'] = {}
+        self.molecules_data[self.current_molecule]['pairs'][atom_tuple] = raw_data[2:]
 
-    def _parse_cross_angles(self, raw_data):
-        atom_tuple = tuple(map(int, raw_data[0:3]))
-        self.cross_angles[atom_tuple] = raw_data[3:]
-
-    def _parse_cross_dihedrals(self, raw_data):
-        atom_tuple = tuple(map(int, raw_data[0:4]))
-        self.cross_dihedrals[atom_tuple] = raw_data[4:]
-
-    def _parse_cross_pairs(self, raw_data):
-        atom_tuple = tuple(map(int, raw_data[0:2]))
-        self.cross_pairs[atom_tuple] = raw_data[2:]
 
     def _parse_moleculetype(self, raw_data):
-        self.moleculetype['name'] = raw_data[0]
-        self.moleculetype['nrexcl'] = raw_data[1]
+        self.current_molecule = raw_data[0]
+        self.moleculetype[raw_data[0]] = int(raw_data[1])
+        print('Reading molecule {}, nrexcl={}'.format(raw_data[0], raw_data[1]))
 
     def _parse_molecules(self, raw_data):
-        self.molecules[raw_data[0]] = int(raw_data[1])
+        # Orders matter.
+        print('{} - {} molecules'.format(raw_data[0], int(raw_data[1])))
+        self.molecules.append((raw_data[0], int(raw_data[1])))
 
     def _parse_system(self, raw_data):
         self.system_name = raw_data[0]

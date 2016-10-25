@@ -1,0 +1,14 @@
+[ moleculetype ]
+TER 3
+
+[ atoms ]
+1 A 1 TER A1 1 0.0000 44.999
+2 B 1 TER B1 2 0.0000 76.098
+3 A 1 TER A2 3 0.0000 44.999
+
+[ bonds ]
+1 2
+2 3
+
+[ angles ]
+1 2 3

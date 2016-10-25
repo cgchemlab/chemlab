@@ -136,20 +136,22 @@ def _args():
                         help='Configuration file with chemical reactions')
     parser.add_argument('--debug', default=None, help='Turn on logging mechanism')
     parser.add_argument('--start_ar', default=0, type=int, help='When to start chemical reactions')
-    parser.add_argument('--store_species', default=False, type=ast.literal_eval,
+    parser.add_argument('--store_species', default=True, type=ast.literal_eval,
                         help='Store particle types')
     parser.add_argument('--store_state', default=True, type=ast.literal_eval,
                         help='Store chemical state')
+    parser.add_argument('--store_position', default=True, type=ast.literal_eval,
+                        help='Store positions')
     parser.add_argument('--store_lambda', default=False, type=ast.literal_eval,
                         help='Store lambda parameter')
     parser.add_argument('--store_force', default=False, type=ast.literal_eval,
                         help='Store forces')
-    parser.add_argument('--store_position', default=True, type=ast.literal_eval,
-                        help='Store positions')
     parser.add_argument('--store_velocity', default=False, type=ast.literal_eval,
                         help='Store velocity')
     parser.add_argument('--store_charge', default=False, type=ast.literal_eval,
                         help='Store charge')
+    parser.add_argument('--store_pressure', default=False, type=ast.literal_eval,
+                        help='Compute and store pressure')
     parser.add_argument('--maximum_conversion',
                         default=None,
                         help=('The comma separated list of conditions on which '
@@ -161,5 +163,8 @@ def _args():
                         help='Maximum force in the system.')
     parser.add_argument('--rate_arrhenius', default=False, help='Change rate based on the Arrhenius equation.',
                         type=ast.literal_eval)
+    parser.add_argument('--exclusion_list', default=None, help='Read exclusion list from external file')
+    parser.add_argument('--count_tuples', default=False, type=ast.literal_eval, help='Count tuples')
+    parser.add_argument('--benchmark_data', default=None, help='Store time measurment in the file')
 
     return parser
