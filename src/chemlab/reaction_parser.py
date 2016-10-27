@@ -637,11 +637,14 @@ class SetupReactions:
                 product = re_product.match(after_process).groupdict()
                 reactant_type_id = self.topol.atomsym_atomtype[reactant['name']]
                 product_type_id = self.topol.atomsym_atomtype[product['new_type']]
+                product_property = self.topol.gt.atomtypes[product['new_type']]
                 atrp_activator.add_reactive_center(
                     type_id=reactant_type_id,
                     min_state=int(reactant['min']),
                     max_state=int(reactant['max']),
-                    new_property=espressopp.ParticleProperties(type=product_type_id),
+                    new_property=espressopp.ParticleProperties(type=product_type_id,
+                                                               mass=product_property['mass'],
+                                                               q=product_property['charge']),
                     delta_state=int(product['delta']),
                     prob=float(product['p']))
                 print('ATRPActivator: added {}->{}'.format(to_process, after_process))
