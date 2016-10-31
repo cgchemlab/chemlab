@@ -153,6 +153,8 @@ def _args():
                         help='Store charge')
     parser.add_argument('--store_pressure', default=False, type=ast.literal_eval,
                         help='Compute and store pressure')
+    parser.add_argument('--store_single_precision', default=True, type=ast.literal_eval,
+                        help='Write data in single precision format')
     parser.add_argument('--maximum_conversion',
                         default=None,
                         help=('The comma separated list of conditions on which '

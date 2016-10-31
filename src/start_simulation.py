@@ -246,6 +246,8 @@ def main():  #NOQA
             maximum_conversion.append((cr_observs[(type_id_symbol, tot_number)], stop_value))
         eq_run = int(args.eq_steps / sim_step)
 
+    system.storage.decompose()
+
     # Set potentials.
     cr_observs = chemlab.gromacs_topology.set_nonbonded_interactions(
         system, gt, verletlist, lj_cutoff, cg_cutoff, tables=args.table_groups, cr_observs=cr_observs)
@@ -442,6 +444,7 @@ def main():  #NOQA
         store_lambda=args.store_lambda,
         store_force=args.store_force,
         store_velocity=args.store_velocity,
+        is_single_prec=args.store_single_precision,
         chunk_size=int(NPart/MPI.COMM_WORLD.size))
 
     print('Set topology writer')
