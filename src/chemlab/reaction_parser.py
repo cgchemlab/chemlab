@@ -186,6 +186,7 @@ def process_general(cfg):
     return {
         'interval': int(cfg['interval']),
         'nearest': bool(cfg.get('nearest', False)),
+        'pair_distances_filename': cfg.get('pair_distances_filename')
     }
 
 
@@ -684,6 +685,8 @@ class SetupReactions:
             self.tm,
             self.ar_interval)
         ar.nearest_mode = self.cfg['general']['nearest']
+        if self.cfg['general']['pair_distances_filename']:
+            ar.pair_distances_filename = self.cfg['general']['pair_distances_filename']
 
         fpls = []
         reactions = []
