@@ -186,6 +186,7 @@ def process_general(cfg):
     return {
         'interval': int(cfg['interval']),
         'nearest': bool(cfg.get('nearest', False)),
+        'pair_distances_filename': cfg.get('pair_distances_filename')
     }
 
 
@@ -643,11 +644,14 @@ class SetupReactions:
                 product = re_product.match(after_process).groupdict()
                 reactant_type_id = self.topol.atomsym_atomtype[reactant['name']]
                 product_type_id = self.topol.atomsym_atomtype[product['new_type']]
+                product_property = self.topol.gt.atomtypes[product['new_type']]
                 atrp_activator.add_reactive_center(
                     type_id=reactant_type_id,
                     min_state=int(reactant['min']),
                     max_state=int(reactant['max']),
-                    new_property=espressopp.ParticleProperties(type=product_type_id),
+                    new_property=espressopp.ParticleProperties(type=product_type_id,
+                                                               mass=product_property['mass'],
+                                                               q=product_property['charge']),
                     delta_state=int(product['delta']))
                 print('ATRPActivator: added {}->{}'.format(to_process, after_process))
 
@@ -686,6 +690,8 @@ class SetupReactions:
             self.tm,
             self.ar_interval)
         ar.nearest_mode = self.cfg['general']['nearest']
+        if self.cfg['general']['pair_distances_filename']:
+            ar.pair_distances_filename = self.cfg['general']['pair_distances_filename']
 
         fpls = []
         reactions = []
