@@ -136,6 +136,7 @@ def _args():
                         help='Configuration file with chemical reactions')
     parser.add_argument('--debug', default=None, help='Turn on logging mechanism')
     parser.add_argument('--start_ar', default=0, type=int, help='When to start chemical reactions')
+    parser.add_argument('--stop_ar', default=-1, type=int, help='When to stop chemical reactions')
     parser.add_argument('--store_species', default=True, type=ast.literal_eval,
                         help='Store particle types')
     parser.add_argument('--store_state', default=True, type=ast.literal_eval,

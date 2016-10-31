@@ -484,6 +484,12 @@ def main():  #NOQA
     else:
         k_enable_reactions = -1
 
+    if args.stop_ar >= 0 and has_reaction:
+        k_stop_reactions = int(math.ceil(args.stop_ar/float(integrator_step)))
+        print('Disable reactions at {} step'.format(args.stop_ar))
+    else:
+        k_stop_reactions = -1
+
     if args.rate_arrhenius:
         print(('Warning! Rate will change based on the arrhenius law. Keep in mind that it will'
                ' change rate for every reactions defined in configuration file based on the'
@@ -492,7 +498,6 @@ def main():  #NOQA
     print('Reset total velocity')
     total_velocity = espressopp.analysis.TotalVelocity(system)
     total_velocity.reset()
-
 
     print('Type name  type id')
     for at_sym in gt.used_atomtypes:
@@ -553,6 +558,9 @@ def main():  #NOQA
             if args.rate_arrhenius:
                 bonds0 = sum(f.totalSize() for f in chem_fpls)  # TODO(jakub): this is terrible.
                 energy0 = system_analysis.potential_energy
+
+            if k_stop_reactions == k:
+                ar.disconnect()
 
         loopTimer = time.time()
         integrator.run(integrator_step)
