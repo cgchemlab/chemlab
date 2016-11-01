@@ -201,7 +201,8 @@ def main():  #NOQA
             verletlist,
             gt,
             topology_manager,
-            reaction_config)
+            reaction_config,
+            args)
         ar, chem_fpls, reactions, extensions_integrator = sc.setup_reactions()
         chem_dynamic_types = sc.dynamic_types
         chem_dynamic_bond_types = sc.obser_bondtypes
@@ -245,6 +246,12 @@ def main():  #NOQA
                     system, type_id_symbol, tot_number)
             maximum_conversion.append((cr_observs[(type_id_symbol, tot_number)], stop_value))
         eq_run = int(args.eq_steps / sim_step)
+
+    if args.t_hybrid_bond > 0:
+        list_dynamic_resolution = espressopp.integrator.FixedListDynamicResolution(system)
+        for fpl in chem_fpls:
+            list_dynamic_resolution.register_pair_list(fpl, 1.0/args.t_hybrid_bond)
+        integrator.addExtension(list_dynamic_resolution)
 
     system.storage.decompose()
 

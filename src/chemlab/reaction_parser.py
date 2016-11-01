@@ -15,6 +15,8 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
 import collections
 import espressopp
 import ConfigParser
@@ -24,7 +26,7 @@ import warnings
 
 __doc__ = """This is a reaction parser."""
 
-# Constant
+# Constants
 REACTION_NORMAL = 'normal'
 REACTION_DISSOCATION = 'diss'
 REACTION_EXCHANGE = 'exchange'
@@ -257,12 +259,13 @@ class SetupReactions:
         config: The config file.
     """
 
-    def __init__(self, system, vl, topol, topol_manager, config):
+    def __init__(self, system, vl, topol, topol_manager, config, args):
         self.system = system
         self.vl = vl
         self.topol = topol
         self.tm = topol_manager
         self.cfg = config
+        self.args = args
         self.name2type = topol.atomsym_atomtype
         self.dynamic_types = set()  # Stores the particle types that will change during the reactions.
 
@@ -701,7 +704,14 @@ class SetupReactions:
             print('Setting reaction group {}'.format(group_name))
 
             # Setting the interaction for the pairs created by this reaction group.
-            fpl = espressopp.FixedPairList(self.system.storage)
+            if self.args.t_hybrid_bond > 0:
+                fpl = espressopp.FixedPairListLambda(self.system.storage, 0.0)
+                interaction_class = eval('espressopp.interaction.FixedPairListLambda{}'.format(
+                    reaction_group['potential']))
+            else:
+                fpl = espressopp.FixedPairList(self.system.storage)
+                interaction_class = eval('espressopp.interaction.FixedPairList{}'.format(
+                    reaction_group['potential']))
             fpls.append(fpl)
             pot_class = eval('espressopp.interaction.{}'.format(reaction_group['potential']))
             # Convert if it's possible, values for float
@@ -714,8 +724,8 @@ class SetupReactions:
             print('Setting potential for bond with class {}, options {}'.format(
                 reaction_group['potential'], reaction_group['potential_options']))
             potential = pot_class(**pot_options)
-            interaction = eval('espressopp.interaction.FixedPairList{}'.format(
-                reaction_group['potential']))(self.system, fpl, potential)
+
+            interaction = interaction_class(self.system, fpl, potential)
             fpl.interaction = interaction
             self.system.addInteraction(interaction, 'fpl_{}'.format(group_name))
 
