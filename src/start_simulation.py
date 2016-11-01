@@ -422,9 +422,9 @@ def main():  #NOQA
             bcount += 1
 
 
-    ext_analysis = espressopp.integrator.ExtAnalyze(system_analysis, cr_interval)
+    ext_analysis = espressopp.integrator.ExtAnalyze(system_analysis, min([cr_interval, args.energy_collect]))
     integrator.addExtension(ext_analysis)
-    print('Configured system analysis, collect data every {} steps'.format(cr_interval))
+    print('Configured system analysis, collect data every {} steps'.format(min([cr_interval, args.energy_collect])))
 
     print('Configure H5MD trajectory writer')
     NPart = espressopp.analysis.NPart(system).compute()
