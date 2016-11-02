@@ -395,6 +395,11 @@ def main():  #NOQA
         system_analysis.add_observable(
             'count_{}'.format(fidx), espressopp.analysis.NFixedPairListEntries(system, f))
 
+    if args.t_hybrid_bond > 0:
+        for fpl_idx, fpl in enumerate(chem_fpls):
+            system_analysis.add_observable(
+                'res_fpl_{}'.format(fpl_idx), espressopp.analysis.ResolutionFixedPairList(system, fpl))
+
     # system_analysis.add_observable(
     #   'Fmax', espressopp.analysis.MaxForce(system))
 
