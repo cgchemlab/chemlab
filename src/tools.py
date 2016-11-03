@@ -83,75 +83,81 @@ def _args():
     parser.add_argument('--node_grid')
     parser.add_argument('--skin', type=float, default=0.16,
                         help='Skin value for Verlet list')
-    parser.add_argument('--kb', type=float, default=0.0083144621, help='Boltzmann constant, default kJ/mol')
-    parser.add_argument('--mass_factor', type=float, default=1.6605402, help='Mass units, default a.u.')
-    parser.add_argument('--run', type=int, default=10000,
-                        help='Number of simulation steps')
-    parser.add_argument('--int_step', default=1000, type=int, help='Steps in integrator')
-    parser.add_argument('--rng_seed', type=int, help='Seed for RNG', required=False,
-                        default=random.randint(1000, 10000))
     parser.add_argument('--output_prefix',
                         default='sim', type=str,
                         help='Prefix for output files')
     parser.add_argument('--output_file',
                         default='trjout.h5', type=str,
                         help='Name of output trajectory file')
-    parser.add_argument('--thermostat',
+    args_simulation_options = parser.add_argument_group('Simulation options')
+    args_simulation_options.add_argument('--kb', type=float, default=0.0083144621, help='Boltzmann constant, default kJ/mol')
+    args_simulation_options.add_argument('--mass_factor', type=float, default=1.6605402, help='Mass units, default a.u.')
+    args_simulation_options.add_argument('--run', type=int, default=10000,
+                        help='Number of simulation steps')
+    args_simulation_options.add_argument('--int_step', default=1000, type=int, help='Steps in integrator')
+    args_simulation_options.add_argument('--rng_seed', type=int, help='Seed for RNG', required=False,
+                        default=random.randint(1000, 10000))
+    args_simulation_options.add_argument('--thermostat',
                         default='lv',
                         choices=('lv', 'vr', 'iso'),
                         help='Thermostat to use, lv: Langevine, vr: Stochastic velocity rescale')
-    parser.add_argument('--barostat', default='lv', choices=('lv', 'br'),
+    args_simulation_options.add_argument('--barostat', default='lv', choices=('lv', 'br'),
                         help='Barostat to use, lv: Langevine, br: Berendsen')
-    parser.add_argument('--barostat_tau', default=5.0, type=float,
+    args_simulation_options.add_argument('--barostat_tau', default=5.0, type=float,
                         help='Tau parameter for Berendsen barostat')
-    parser.add_argument('--barostat_mass', default=50.0, type=float,
+    args_simulation_options.add_argument('--barostat_mass', default=50.0, type=float,
                         help='Mass parameter for Langevin barostat')
-    parser.add_argument('--barostat_gammaP', default=1.0, type=float,
+    args_simulation_options.add_argument('--barostat_gammaP', default=1.0, type=float,
                         help='gammaP parameter for Langevin barostat')
-    parser.add_argument('--thermostat_gamma', type=float, default=5.0,
+    args_simulation_options.add_argument('--thermostat_gamma', type=float, default=5.0,
                         help='Thermostat coupling constant')
-    parser.add_argument('--temperature', default=458.0, type=float, help='Temperature')
-    parser.add_argument('--pressure', help='Pressure', type=float)
+    args_simulation_options.add_argument('--temperature', default=458.0, type=float, help='Temperature')
+    args_simulation_options.add_argument('--pressure', help='Pressure', type=float)
+    args_simulation_options.add_argument('--dt', default=0.001, type=float,
+                        help='Integrator time step')
+    args_simulation_options.add_argument('--lj_cutoff', default=1.2, type=float,
+                        help='Cutoff of atomistic non-bonded interactions')
+    args_simulation_options.add_argument('--cg_cutoff', default=1.4, type=float,
+                        help='Cuoff of coarse-grained non-bonded interactions')
+    args_simulation_options.add_argument('--coulomb_epsilon1', default=1.0, type=float,
+                        help='Epsilon_1 for coulomb interactions')
+    args_simulation_options.add_argument('--coulomb_epsilon2', default=80.0, type=float,
+                        help='Epsilon_2 for coulomb interactions')
+    args_simulation_options.add_argument('--coulomb_kappa', default=0.0, type=float,
+                        help='Kappa paramter for coulomb interactions')
+    args_simulation_options.add_argument('--coulomb_cutoff', default=0.9, type=float,
+                        help='Coulomb cut-off')
     parser.add_argument('--trj_collect', default=1000, type=int,
                         help='Collect trajectory every (step)')
     parser.add_argument('--energy_collect', default=1000, type=int,
                         help='Collect energy every (step)')
     parser.add_argument('--topol_collect', default=1000, type=int,
                         help='Collect topology every (step)')
-    parser.add_argument('--dt', default=0.001, type=float,
-                        help='Integrator time step')
-    parser.add_argument('--lj_cutoff', default=1.2, type=float,
-                        help='Cutoff of atomistic non-bonded interactions')
-    parser.add_argument('--cg_cutoff', default=1.4, type=float,
-                        help='Cuoff of coarse-grained non-bonded interactions')
-    parser.add_argument('--coulomb_epsilon1', default=1.0, type=float,
-                        help='Epsilon_1 for coulomb interactions')
-    parser.add_argument('--coulomb_epsilon2', default=80.0, type=float,
-                        help='Epsilon_2 for coulomb interactions')
-    parser.add_argument('--coulomb_kappa', default=0.0, type=float,
-                        help='Kappa paramter for coulomb interactions')
-    parser.add_argument('--coulomb_cutoff', default=0.9, type=float,
-                        help='Coulomb cut-off')
     parser.add_argument('--reactions', default=None,
                         help='Configuration file with chemical reactions')
     parser.add_argument('--debug', default=None, help='Turn on logging mechanism')
     parser.add_argument('--start_ar', default=0, type=int, help='When to start chemical reactions')
-    parser.add_argument('--store_species', default=True, type=ast.literal_eval,
+    parser.add_argument('--stop_ar', default=-1, type=int, help='When to stop chemical reactions')
+    args_storing_options = parser.add_argument_group('H5MD storage')
+    args_storing_options.add_argument('--store_species', default=True, type=ast.literal_eval,
                         help='Store particle types')
-    parser.add_argument('--store_state', default=True, type=ast.literal_eval,
+    args_storing_options.add_argument('--store_state', default=True, type=ast.literal_eval,
                         help='Store chemical state')
-    parser.add_argument('--store_position', default=True, type=ast.literal_eval,
+    args_storing_options.add_argument('--store_position', default=True, type=ast.literal_eval,
                         help='Store positions')
-    parser.add_argument('--store_lambda', default=False, type=ast.literal_eval,
+    args_storing_options.add_argument('--store_lambda', default=False, type=ast.literal_eval,
                         help='Store lambda parameter')
-    parser.add_argument('--store_force', default=False, type=ast.literal_eval,
+    args_storing_options.add_argument('--store_force', default=False, type=ast.literal_eval,
                         help='Store forces')
-    parser.add_argument('--store_velocity', default=False, type=ast.literal_eval,
+    args_storing_options.add_argument('--store_velocity', default=False, type=ast.literal_eval,
                         help='Store velocity')
-    parser.add_argument('--store_charge', default=False, type=ast.literal_eval,
+    args_storing_options.add_argument('--store_charge', default=False, type=ast.literal_eval,
                         help='Store charge')
-    parser.add_argument('--store_pressure', default=False, type=ast.literal_eval,
+    args_storing_options.add_argument('--store_pressure', default=False, type=ast.literal_eval,
                         help='Compute and store pressure')
+    args_storing_options.add_argument('--store_single_precision', default=True, type=ast.literal_eval,
+                        help='Write data in single precision format')
+
     parser.add_argument('--maximum_conversion',
                         default=None,
                         help=('The comma separated list of conditions on which '
@@ -165,6 +171,11 @@ def _args():
                         type=ast.literal_eval)
     parser.add_argument('--exclusion_list', default=None, help='Read exclusion list from external file')
     parser.add_argument('--count_tuples', default=False, type=ast.literal_eval, help='Count tuples')
-    parser.add_argument('--benchmark_data', default=None, help='Store time measurment in the file')
+    parser.add_argument('--benchmark_data', default=None, help='Store time measurement in the file')
+
+    args_hybrid_bonds = parser.add_argument_group('Hybrid bonds')
+    args_hybrid_bonds.add_argument('--t_hybrid_bond', default=0, type=int)
+    args_hybrid_bonds.add_argument('--t_hybrid_angle', default=0, type=int)
+    args_hybrid_bonds.add_argument('--t_hybrid_dihedral', default=0, type=int)
 
     return parser

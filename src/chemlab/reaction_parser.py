@@ -15,14 +15,16 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
+import collections
+import espressopp
 import ConfigParser
+import random
 import re
 import warnings
 
 __doc__ = """This is a reaction parser."""
 
-# Constant
+# Constants
 REACTION_NORMAL = 'normal'
 REACTION_DISSOCATION = 'diss'
 REACTION_EXCHANGE = 'exchange'
@@ -189,6 +191,7 @@ def process_general(cfg):
     return {
         'interval': int(cfg['interval']),
         'nearest': bool(cfg.get('nearest', False)),
+        'pair_distances_filename': cfg.get('pair_distances_filename')
     }
 
 

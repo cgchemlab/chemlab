@@ -201,7 +201,8 @@ def main():  #NOQA
             verletlist,
             gt,
             topology_manager,
-            reaction_config)
+            reaction_config,
+            args)
         ar, chem_fpls, reactions, extensions_integrator = sc.setup_reactions()
         chem_dynamic_types = sc.dynamic_types
         chem_dynamic_bond_types = sc.obser_bondtypes
@@ -245,6 +246,14 @@ def main():  #NOQA
                     system, type_id_symbol, tot_number)
             maximum_conversion.append((cr_observs[(type_id_symbol, tot_number)], stop_value))
         eq_run = int(args.eq_steps / sim_step)
+
+    if args.t_hybrid_bond > 0:
+        list_dynamic_resolution = espressopp.integrator.FixedListDynamicResolution(system)
+        for fpl in chem_fpls:
+            list_dynamic_resolution.register_pair_list(fpl, 1.0/args.t_hybrid_bond)
+        integrator.addExtension(list_dynamic_resolution)
+
+    system.storage.decompose()
 
     # Set potentials.
     cr_observs = chemlab.gromacs_topology.set_nonbonded_interactions(
@@ -386,6 +395,11 @@ def main():  #NOQA
         system_analysis.add_observable(
             'count_{}'.format(fidx), espressopp.analysis.NFixedPairListEntries(system, f))
 
+    if args.t_hybrid_bond > 0:
+        for fpl_idx, fpl in enumerate(chem_fpls):
+            system_analysis.add_observable(
+                'res_fpl_{}'.format(fpl_idx), espressopp.analysis.ResolutionFixedPairList(system, fpl))
+
     # system_analysis.add_observable(
     #   'Fmax', espressopp.analysis.MaxForce(system))
 
@@ -420,9 +434,9 @@ def main():  #NOQA
             bcount += 1
 
 
-    ext_analysis = espressopp.integrator.ExtAnalyze(system_analysis, cr_interval)
+    ext_analysis = espressopp.integrator.ExtAnalyze(system_analysis, min([cr_interval, args.energy_collect]))
     integrator.addExtension(ext_analysis)
-    print('Configured system analysis, collect data every {} steps'.format(cr_interval))
+    print('Configured system analysis, collect data every {} steps'.format(min([cr_interval, args.energy_collect])))
 
     print('Configure H5MD trajectory writer')
     NPart = espressopp.analysis.NPart(system).compute()
@@ -442,6 +456,7 @@ def main():  #NOQA
         store_lambda=args.store_lambda,
         store_force=args.store_force,
         store_velocity=args.store_velocity,
+        is_single_prec=args.store_single_precision,
         chunk_size=int(NPart/MPI.COMM_WORLD.size))
 
     print('Set topology writer')
@@ -484,6 +499,12 @@ def main():  #NOQA
     else:
         k_enable_reactions = -1
 
+    if args.stop_ar >= 0 and has_reaction:
+        k_stop_reactions = int(math.ceil(args.stop_ar/float(integrator_step)))
+        print('Disable reactions at {} step'.format(args.stop_ar))
+    else:
+        k_stop_reactions = -1
+
     if args.rate_arrhenius:
         print(('Warning! Rate will change based on the arrhenius law. Keep in mind that it will'
                ' change rate for every reactions defined in configuration file based on the'
@@ -492,7 +513,6 @@ def main():  #NOQA
     print('Reset total velocity')
     total_velocity = espressopp.analysis.TotalVelocity(system)
     total_velocity.reset()
-
 
     print('Type name  type id')
     for at_sym in gt.used_atomtypes:
@@ -553,6 +573,9 @@ def main():  #NOQA
             if args.rate_arrhenius:
                 bonds0 = sum(f.totalSize() for f in chem_fpls)  # TODO(jakub): this is terrible.
                 energy0 = system_analysis.potential_energy
+
+            if k_stop_reactions == k:
+                ar.disconnect()
 
         loopTimer = time.time()
         integrator.run(integrator_step)
