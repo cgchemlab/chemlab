@@ -736,8 +736,8 @@ class SetupReactions:
                         if extension.ext_type == EXT_INTEGRATOR:
                             extensions_to_integrator.append(extension.ext)
                             continue
-                        if extension.ext_type:
-                            r.add_postprocess(extension.ext, extension.ext_type)
+                        if extension.pp_type:
+                            r.add_postprocess(extension.ext, extension.pp_type)
                         else:
                             r.add_postprocess(extension.ext)
                     ar.add_reaction(r)

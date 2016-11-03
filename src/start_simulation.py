@@ -525,14 +525,12 @@ def main():  #NOQA
 
     # Hooks
     hook_init_reaction = None
-    try:
-        import hooks
-        hook_list = [x for x in dir(hooks) if x.startswith('hook_')]
-        if 'hook_init_reaction' in hook_list:
-            hook_init_reaction = hooks.hook_init_reaction
-        print('Found hooks.')
-    except ImportError:
-        pass
+    if os.path.exists('hooks.py'):
+        locals = {}
+        execfile('hooks.py', globals(), locals)
+        hook_list = [x for x in locals if x.startswith('hook_')]
+        hook_init_reaction = locals.get('hook_init_reaction')
+        print('Found hooks')
 
     for k in range(sim_step):
         system_analysis.info()
