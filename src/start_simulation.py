@@ -535,6 +535,15 @@ def main():  #NOQA
     totalTime = time.time()
     integratorLoop = 0.0
 
+    # Hooks
+    hook_init_reaction = None
+    if os.path.exists('hooks.py'):
+        locals = {}
+        execfile('hooks.py', globals(), locals)
+        hook_list = [x for x in locals if x.startswith('hook_')]
+        hook_init_reaction = locals.get('hook_init_reaction')
+        print('Found hooks')
+
     for k in range(sim_step):
         system_analysis.info()
         if k % k_trj_collect == 0:
@@ -557,6 +566,10 @@ def main():  #NOQA
             if sc.exclusions_list:
                 dynamic_exclusion_list.exclude(sc.exclusions_list)
                 print('Add {} new exclusions from restrict reactions'.format(len(sc.exclusions_list)))
+
+            if hook_init_reaction:
+                if not hook_init_reaction(system, integrator, gt, args):
+                    raise('hook_init_reaction return False')
 
         if reactions_enabled:
             for obs, stop_value in maximum_conversion:

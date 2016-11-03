@@ -640,7 +640,7 @@ class SetupReactions:
             options = [x.split('->') for x in cfg['options'].split(';')]
             print('Settings ATRP activator extension')
             print('ATRPActivator.interval={} num_part={}'.format(interval, num_particles))
-            re_reactant = re.compile(r'(?P<name>\w+)\((?P<min>\d+),\s*(?P<max>\d+)\)')
+            re_reactant = re.compile(r'(?P<name>\w+)\((?P<state>\d+),\s*(?P<flag>[AD]{1,2})\)')
             re_product = re.compile(r'(?P<new_type>\w+)\((?P<delta>[0-9-]+)\)')
             for to_process, after_process in options:
                 reactant = re_reactant.match(to_process).groupdict()
@@ -648,10 +648,12 @@ class SetupReactions:
                 reactant_type_id = self.topol.atomsym_atomtype[reactant['name']]
                 product_type_id = self.topol.atomsym_atomtype[product['new_type']]
                 product_property = self.topol.gt.atomtypes[product['new_type']]
+                if reactant['flag'] not in ['A', 'DA']:
+                    raise RuntimeError('Flag {} not "A" or "DA"'.format(reactant['flag']))
                 atrp_activator.add_reactive_center(
                     type_id=reactant_type_id,
-                    min_state=int(reactant['min']),
-                    max_state=int(reactant['max']),
+                    state=int(reactant['state']),
+                    is_activator=reactant['flag'] == 'A',
                     new_property=espressopp.ParticleProperties(type=product_type_id,
                                                                mass=product_property['mass'],
                                                                q=product_property['charge']),
@@ -744,8 +746,8 @@ class SetupReactions:
                         if extension.ext_type == EXT_INTEGRATOR:
                             extensions_to_integrator.append(extension.ext)
                             continue
-                        if extension.ext_type:
-                            r.add_postprocess(extension.ext, extension.ext_type)
+                        if extension.pp_type:
+                            r.add_postprocess(extension.ext, extension.pp_type)
                         else:
                             r.add_postprocess(extension.ext)
                     ar.add_reaction(r)
