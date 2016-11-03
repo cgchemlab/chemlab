@@ -21,7 +21,7 @@ __doc__ = """Main module for setup reactions."""
 import collections
 import espressopp
 import random
-from reaction_parser import REACTION_DISSOCATION, REACTION_RESTRICT, REACTION_NORMAL, REACTION_EXCHANGE, EXT_INTEGRATOR, \
+from reaction_parser import REACTION_DISSOCATION, REACTION_NORMAL, REACTION_EXCHANGE, EXT_INTEGRATOR, \
     EXT_POSTPROCESS
 
 
@@ -35,12 +35,13 @@ class SetupReactions:
         config: The config file.
     """
 
-    def __init__(self, system, vl, topol, topol_manager, config):
+    def __init__(self, system, vl, topol, topol_manager, config, args):
         self.system = system
         self.vl = vl
         self.topol = topol
         self.tm = topol_manager
         self.cfg = config
+        self.args = args
         self.name2type = topol.atomsym_atomtype
         self.dynamic_types = set()  # Stores the particle types that will change during the reactions.
 
@@ -53,85 +54,50 @@ class SetupReactions:
 
         self.exclusions_list = []  # For restric reactions, the exclusion lists has to be extended.
 
-    def _setup_reaction(self, chem_reaction, fpl):
-        """Setup single reaction.
-
-        Args:
-            chem_reaction: Dictionary with definition of the reactions
-            fpl: The FixedPairList.
-
-        Returns:
-            The espressopp.integrator.Reaction object.
-        """
+    def _setup_reaction_normal(self, chem_reaction, fpl):
         rl = chem_reaction['reactant_list']
-        if not chem_reaction['active']:
-            return None
-        # Select reaction class.
-        reaction_type2class = {
-            REACTION_NORMAL: espressopp.integrator.Reaction,
-            REACTION_EXCHANGE: espressopp.integrator.Reaction,
-            REACTION_DISSOCATION: espressopp.integrator.DissociationReaction
-        }
-        reaction_type = chem_reaction['reaction_type']
+
+        if chem_reaction.get('connectivity_map'):
+            r_class = espressopp.integrator.RestrictReaction
+        else:
+            r_class = espressopp.integrator.Reaction
+
         rt1 = rl['type_1']['name']
         rt2 = rl['type_2']['name']
-        reaction = None
+        reaction = r_class(
+            type_1=self.name2type[rl['type_1']['name']],
+            type_2=self.name2type[rl['type_2']['name']],
+            delta_1=int(rl['type_1']['delta']),
+            delta_2=int(rl['type_2']['delta']),
+            min_state_1=int(rl['type_1']['min']),
+            max_state_1=int(rl['type_1']['max']),
+            min_state_2=int(rl['type_2']['min']),
+            max_state_2=int(rl['type_2']['max']),
+            rate=float(chem_reaction['rate']),
+            fpl=fpl,
+            cutoff=float(chem_reaction.get('cutoff', 0.0)))
 
-        if reaction_type == REACTION_NORMAL:
-            reaction = espressopp.integrator.Reaction(
-                type_1=self.name2type[rl['type_1']['name']],
-                type_2=self.name2type[rl['type_2']['name']],
-                delta_1=int(rl['type_1']['delta']),
-                delta_2=int(rl['type_2']['delta']),
-                min_state_1=int(rl['type_1']['min']),
-                max_state_1=int(rl['type_1']['max']),
-                min_state_2=int(rl['type_2']['min']),
-                max_state_2=int(rl['type_2']['max']),
-                rate=float(chem_reaction['rate']),
-                fpl=fpl,
-                cutoff=float(chem_reaction.get('cutoff', 0.0)))
-            reaction.intraresidual = bool(chem_reaction['intraresidual'])
-            reaction.is_virtual = bool(chem_reaction['virtual'])
-            if 'sigma' in chem_reaction:
-                reaction.set_reaction_cutoff(espressopp.integrator.ReactionCutoffRandom(
-                    chem_reaction['eq_distance'],
-                    chem_reaction['sigma'],
-                    seed=random.randint(100, 100000)))
+        self.dynamic_types.add(self.name2type[rl['type_1']['name']])
+        self.dynamic_types.add(self.name2type[rl['type_2']['name']])
 
-            if 'min_cutoff' in chem_reaction:
-                reaction.get_reaction_cutoff().min_cutoff = float(chem_reaction['min_cutoff'])
+        print('Setup reaction: {}({})-{}({})'.format(
+            rt1, self.name2type[rt1], rt2, self.name2type[rt2]))
+        if 'intramolecular' in chem_reaction:
+            print('Warning, tag intramolecular not used anymore!')
 
-            self.dynamic_types.add(self.name2type[rl['type_1']['name']])
-            self.dynamic_types.add(self.name2type[rl['type_2']['name']])
-        elif reaction_type == REACTION_DISSOCATION:
-            reaction = espressopp.integrator.DissociationReaction(
-                type_1=self.name2type[rl['type_1']['name']],
-                type_2=self.name2type[rl['type_2']['name']],
-                delta_1=int(rl['type_1']['delta']),
-                delta_2=int(rl['type_2']['delta']),
-                min_state_1=int(rl['type_1']['min']),
-                max_state_1=int(rl['type_1']['max']),
-                min_state_2=int(rl['type_2']['min']),
-                max_state_2=int(rl['type_2']['max']),
-                rate=float(chem_reaction['rate']),
-                fpl=fpl,
-                cutoff=float(chem_reaction.get('cutoff', 0.0)))
-            if 'diss_rate' in chem_reaction:
-                reaction.diss_rate = float(chem_reaction['diss_rate'])
-            reaction.revert = True
-        elif reaction_type == REACTION_RESTRICT:
-            reaction = espressopp.integrator.RestrictReaction(
-                type_1=self.name2type[rl['type_1']['name']],
-                type_2=self.name2type[rl['type_2']['name']],
-                delta_1=int(rl['type_1']['delta']),
-                delta_2=int(rl['type_2']['delta']),
-                min_state_1=int(rl['type_1']['min']),
-                max_state_1=int(rl['type_1']['max']),
-                min_state_2=int(rl['type_2']['min']),
-                max_state_2=int(rl['type_2']['max']),
-                rate=float(chem_reaction['rate']),
-                fpl=fpl,
-                cutoff=float(chem_reaction.get('cutoff', 0.0)))
+        reaction.intraresidual = bool(chem_reaction['intraresidual'])
+        reaction.is_virtual = bool(chem_reaction['virtual'])
+
+        if 'sigma' in chem_reaction:
+            reaction.set_reaction_cutoff(espressopp.integrator.ReactionCutoffRandom(
+                chem_reaction['eq_distance'], chem_reaction['sigma'], seed=random.randint(100, 100000)))
+
+        if 'min_cutoff' in chem_reaction:
+            reaction.get_reaction_cutoff().min_cutoff = float(chem_reaction['min_cutoff'])
+        if 'active' in chem_reaction:
+            reaction.active = chem_reaction['active']
+
+        if chem_reaction.get('connectivity_map'):
             print('Reading connectivity map {}, reaction will be restricted'.format(
                 chem_reaction['connectivity_map']))
             connectivity_map = open(chem_reaction['connectivity_map'])
@@ -143,38 +109,12 @@ class SetupReactions:
                 reaction.define_connection(b1, b2)
             self.exclusions_list.extend(list(ex_list))
             print('Restricted to {} connections'.format(len(ex_list)))
-        elif reaction_type == REACTION_EXCHANGE:
-            reaction = espressopp.integrator.DissociationReaction(
-                type_1=self.name2type[rl['type_1']['name']],
-                type_2=self.name2type[rl['type_3']['name']],
-                delta_1=int(rl['type_1']['delta']),
-                delta_2=int(rl['type_3']['delta']),
-                min_state_1=int(rl['type_1']['min']),
-                max_state_1=int(rl['type_1']['max']),
-                min_state_2=int(rl['type_3']['min']),
-                max_state_2=int(rl['type_3']['max']),
-                rate=float(chem_reaction['rate']),
-                fpl=fpl)
-            reaction.is_virtual = True
-            if 'min_cutoff' in chem_reaction:
-                reaction.get_reaction_cutoff().min_cutoff = float(chem_reaction['min_cutoff'])
-            self.dynamic_types.add(self.name2type[rl['type_1']['name']])
-            self.dynamic_types.add(self.name2type[rl['type_2']['name']])
-            self.dynamic_types.add(self.name2type[rl['type_3']['name']])
-        else:
-            raise RuntimeError('Reaction type {} is not supported!'.format(reaction_type))
-
-        print('Setup reaction {}: {}({})-{}({}), intraresidual={}, virtual={}'.format(
-            reaction_type,
-            rt1,
-            self.name2type[rt1],
-            rt2,
-            self.name2type[rt2],
-            bool(chem_reaction['intraresidual']),
-            bool(chem_reaction['virtual'])))
+            if chem_reaction.get('reaction_type') == REACTION_DISSOCATION:
+                reaction.revert = True
 
         # Change type if necessary.
-        if (rl['type_1']['name'] != rl['type_1']['new_type'] or rl['type_2']['name'] != rl['type_2']['new_type']):
+        if (rl['type_1']['name'] != rl['type_1']['new_type'] or
+                    rl['type_2']['name'] != rl['type_2']['new_type']):
             r_pp = espressopp.integrator.PostProcessChangeProperty()
             t1_old = self.name2type[rl['type_1']['name']]
             t1_new = self.name2type[rl['type_1']['new_type']]
@@ -204,7 +144,122 @@ class SetupReactions:
 
             reaction.add_postprocess(r_pp)
 
-        return reaction, reaction_type
+        return reaction
+
+    def _setup_reaction_exchange(self, chem_reaction, fpl):
+        """
+        Setup exchange reaction of the form:
+            A[min,max):B[min,max) + C[min,max) -> A(deltaA):C(deltaC) + B(deltaB)
+            ^^^^^^^^^^ ^^^^^^^^^     ^^^^^^^^
+               type_1   type_2        type_3
+        Args:
+            chem_reaction: Definition of reaction object from the reaction_parser.
+            fpl: The fixed pair list.
+
+        Returns:
+            espressopp.integrator.Reaction object
+        """
+
+        rl = chem_reaction['reactant_list']
+        if chem_reaction.get('connectivity_map'):
+            raise RuntimeError('connectivity_map not supported by exchange reaction')
+        r_class = espressopp.integrator.Reaction
+        rt1 = rl['type_1']
+        rt2 = rl['type_3']
+        rt3 = rl['type_2']
+        reaction = r_class(
+            type_1=self.name2type[rt1['name']],
+            type_2=self.name2type[rt2['name']],
+            delta_1=int(rt1['delta']),
+            delta_2=int(rt2['delta']),
+            min_state_1=int(rt1['min']),
+            max_state_1=int(rt1['max']),
+            min_state_2=int(rt2['min']),
+            max_state_2=int(rt2['max']),
+            rate=float(chem_reaction['rate']),
+            fpl=fpl,
+            cutoff=float(chem_reaction.get('cutoff', 0.0)))
+        reaction.is_virtual = True  # We don't mean to make a bond.
+
+        self.dynamic_types.add(self.name2type[rl['type_1']['name']])
+        self.dynamic_types.add(self.name2type[rl['type_2']['name']])
+        self.dynamic_types.add(self.name2type[rl['type_3']['name']])
+        print('Setup reaction: {}({})-{}({})'.format(
+            rt1, self.name2type[rt1['name']], rt2, self.name2type[rt2['name']]))
+
+        reaction.intraresidual = bool(chem_reaction['intraresidual'])
+        if 'sigma' in chem_reaction:
+            reaction.set_reaction_cutoff(espressopp.integrator.ReactionCutoffRandom(
+                chem_reaction['eq_distance'], chem_reaction['sigma'], seed=random.randint(100, 100000)))
+
+        if 'min_cutoff' in chem_reaction:
+            reaction.get_reaction_cutoff().min_cutoff = float(chem_reaction['min_cutoff'])
+
+        # Change type if necessary.
+        if rt1['name'] != rt1['new_type'] or rt2['name'] != rt2['new_type'] or rt3['name'] != rt3['new_type']:
+            r_pp = espressopp.integrator.PostProcessChangeProperty()
+            t1_old = self.name2type[rt1['name']]
+            t1_new = self.name2type[rt1['new_type']]
+            if t1_old != t1_new:
+                self.dynamic_types.add(t1_old)
+                self.dynamic_types.add(t1_new)
+                print('Reaction: {}-{}, change type {}->{}'.format(rt1['name'], rt2['name'], t1_old, t1_new))
+                new_property = self.topol.gt.atomtypes[rt1['new_type']]
+                r_pp.add_change_property(
+                    t1_old,
+                    espressopp.ParticleProperties(
+                        t1_new, new_property['mass'],
+                        new_property['charge']))
+
+            t2_old = self.name2type[rt2['name']]
+            t2_new = self.name2type[rt2['new_type']]
+            if t2_old != t2_new:
+                self.dynamic_types.add(t2_old)
+                self.dynamic_types.add(t2_new)
+                print('Reaction: {}-{}, change type {}->{}'.format(rt1['name'], rt2['name'], t2_old, t2_new))
+                new_property = self.topol.gt.atomtypes[rl['type_2']['new_type']]
+                r_pp.add_change_property(
+                    t2_old,
+                    espressopp.ParticleProperties(
+                        t2_new, new_property['mass'],
+                        new_property['charge']))
+            t3_old = self.name2type[rt3['name']]
+            t3_new = self.name2type[rt3['new_type']]
+            if t3_old != t3_new:
+                self.dynamic_types.add(t3_old)
+                self.dynamic_types.add(t3_new)
+                print('Reaction: {}-{}, change type {}->{}'.format(rt1['name'], rt2['name'], t3_old, t3_new))
+                new_property = self.topol.gt.atomtypes[rl['type_3']['new_type']]
+                r_pp.add_change_property(
+                    t3_old,
+                    espressopp.ParticleProperties(
+                        t3_new, new_property['mass'],
+                        new_property['charge']))
+
+            reaction.add_postprocess(r_pp)
+
+        return reaction
+
+
+    def _setup_reaction(self, chem_reaction, fpl):
+        """Setup single reaction.
+
+        Args:
+            chem_reaction: Dictionary with definition of the reactions
+            fpl: The FixedPairList.
+
+        Returns:
+            The espressopp.integrator.Reaction object.
+        """
+        if not chem_reaction['active']:
+            return None
+        # Select reaction class.
+        reaction_type2class = {
+            REACTION_NORMAL: self._setup_reaction_normal,
+            REACTION_EXCHANGE: self._setup_reaction_exchange,
+        }
+
+        return reaction_type2class[chem_reaction['reaction_type']](chem_reaction, fpl)
 
     def _prepare_group_postprocess(self, cfg):
         """Prepare extensions for the reactions.
@@ -282,7 +337,7 @@ class SetupReactions:
             self.topol.atomsym_atomtype['FREEZE_{}'.format(final_type_id)] = final_type_id
             boxL = self.system.bc.boxL
             if cfg.get('width_type', 'static') == 'ratio':
-                width = float(cfg['width']) * boxL
+                width = float(cfg['width'])*boxL
             else:
                 width = espressopp.Real3D(float(cfg['width']))
 
@@ -312,8 +367,7 @@ class SetupReactions:
                     self.system, particle_region)
                 change_in_region.set_particle_properties(
                     target_type_id, espressopp.ParticleProperties(final_type_id))
-                change_in_region.set_flags(target_type_id, reset_velocity=True, reset_force=True,
-                                           remove_particle=remove_particles)
+                change_in_region.set_flags(target_type_id, reset_velocity=True, reset_force=True, remove_particle=remove_particles)
                 self.system.integrator.addExtension(change_in_region)
             return output_triplet(None, None, None)
 
@@ -343,7 +397,7 @@ class SetupReactions:
             target_type_id = self.topol.atomsym_atomtype[target_type]
             target_properties = self.topol.gt.atomtypes[target_type]
             print('Generate {} of dummy particles (type: {}) linked to {}'.format(
-                len(host_pids) * replicate, dummy_type_id, host_type))
+                len(host_pids)*replicate, dummy_type_id, host_type))
 
             particle_list = []
             fix_list = []
@@ -374,7 +428,7 @@ class SetupReactions:
                     self.topol.atomsym_atomtype[host_type],
                     dummy_type_id)
             else:  # do not remove fix when change of type
-                fix_distance = espressopp.integrator.FixDistances(self.system, fix_list)
+                fix_distance = espressopp.integrator.FixDistances(self.system,fix_list)
                 # Remove by post process in the reaction
                 reaction_post_process = espressopp.integrator.PostProcessReleaseParticles(fix_distance, release_count)
             self.fix_distance = fix_distance
@@ -398,10 +452,10 @@ class SetupReactions:
                 final_type_id = self.topol.atomsym_atomtype[final_type]
                 final_properties = self.topol.gt.atomtypes[final_type]
                 final_particle_properties = espressopp.ParticleProperties(
-                    final_type_id,
-                    final_properties['mass'],
-                    final_properties['charge'],
-                    1.0)
+                            final_type_id,
+                            final_properties['mass'],
+                            final_properties['charge'],
+                            1.0)
                 basic_dynamic_res.add_postprocess(
                     espressopp.integrator.PostProcessChangeProperty(
                         target_type_id, final_particle_properties))
@@ -442,12 +496,48 @@ class SetupReactions:
 
             return output_triplet(change_type, None, EXT_INTEGRATOR)
 
+        def _cfg_atrp_activator(cfg):
+            interval = int(cfg['interval'])
+            num_particles = int(cfg['num_particles'])
+            ratio_activator = float(cfg['ratio_activator'])
+            ratio_deactivator = float(cfg['ratio_deactivator'])
+            delta_catalyst = float(cfg['delta_catalyst'])
+            k_activate = float(cfg['k_activate'])
+            k_deactivate = float(['k_deactivate'])
+
+            atrp_activator = espressopp.integrator.ATRPActivator(
+                self.system, interval, num_particles, ratio_activator, ratio_deactivator,
+                delta_catalyst, k_activate, k_deactivate)
+            options = [x.split('->') for x in cfg['options'].split(';')]
+            print('Settings ATRP activator extension')
+            print('ATRPActivator.interval={} num_part={}'.format(interval, num_particles))
+            re_reactant = re.compile(r'(?P<name>\w+)\((?P<min>\d+),\s*(?P<max>\d+)\)')
+            re_product = re.compile(r'(?P<new_type>\w+)\((?P<delta>[0-9-]+)\)')
+            for to_process, after_process in options:
+                reactant = re_reactant.match(to_process).groupdict()
+                product = re_product.match(after_process).groupdict()
+                reactant_type_id = self.topol.atomsym_atomtype[reactant['name']]
+                product_type_id = self.topol.atomsym_atomtype[product['new_type']]
+                product_property = self.topol.gt.atomtypes[product['new_type']]
+                atrp_activator.add_reactive_center(
+                    type_id=reactant_type_id,
+                    min_state=int(reactant['min']),
+                    max_state=int(reactant['max']),
+                    new_property=espressopp.ParticleProperties(type=product_type_id,
+                                                               mass=product_property['mass'],
+                                                               q=product_property['charge']),
+                    delta_state=int(product['delta']))
+                print('ATRPActivator: added {}->{}'.format(to_process, after_process))
+
+            return output_triplet(atrp_activator, None, EXT_INTEGRATOR)
+
         class_to_cfg = {
             'ChangeNeighboursProperty': _cfg_post_process_change_neighbour,
             'RemoveNeighboursBonds': _cfg_post_process_remove_neighbour_bonds,
             'ReleaseMolecule': _cfg_post_process_release_molecule,
             'FreezeRegion': _cfg_post_process_freeze_region,
-            'ChangeParticleType': _cfg_change_particle_type
+            'ChangeParticleType': _cfg_change_particle_type,
+            'ATRPActivator': _cfg_atrp_activator
         }
 
         for pp_cfg in cfg.values():
@@ -474,6 +564,8 @@ class SetupReactions:
             self.tm,
             self.ar_interval)
         ar.nearest_mode = self.cfg['general']['nearest']
+        if self.cfg['general']['pair_distances_filename']:
+            ar.pair_distances_filename = self.cfg['general']['pair_distances_filename']
 
         fpls = []
         reactions = []
@@ -482,47 +574,51 @@ class SetupReactions:
         for group_name, reaction_group in self.cfg['reactions'].items():
             print('Setting reaction group {}'.format(group_name))
 
-            fpl = None
-            if 'potential' in reaction_group:
-                # Setting the interaction for the pairs created by this reaction group.
+            # Setting the interaction for the pairs created by this reaction group.
+            if self.args.t_hybrid_bond > 0:
+                fpl = espressopp.FixedPairListLambda(self.system.storage, 0.0)
+                interaction_class = eval('espressopp.interaction.FixedPairListLambda{}'.format(
+                    reaction_group['potential']))
+            else:
                 fpl = espressopp.FixedPairList(self.system.storage)
-                fpls.append(fpl)
-                pot_class = eval('espressopp.interaction.{}'.format(reaction_group['potential']))
-                # Convert if it's possible, values for float
-                pot_options = {}
-                for k, v in reaction_group['potential_options'].items():
-                    try:
-                        pot_options[k] = float(v)
-                    except ValueError:
-                        pot_options[k] = v
-                print('Setting potential for bond with class {}, options {}'.format(
-                    reaction_group['potential'], reaction_group['potential_options']))
-                potential = pot_class(**pot_options)
-                interaction = eval('espressopp.interaction.FixedPairList{}'.format(
-                    reaction_group['potential']))(self.system, fpl, potential)
-                fpl.interaction = interaction
-                self.system.addInteraction(interaction, 'fpl_{}'.format(group_name))
+                interaction_class = eval('espressopp.interaction.FixedPairList{}'.format(
+                    reaction_group['potential']))
+            fpls.append(fpl)
+            pot_class = eval('espressopp.interaction.{}'.format(reaction_group['potential']))
+            # Convert if it's possible, values for float
+            pot_options = {}
+            for k, v in reaction_group['potential_options'].items():
+                try:
+                    pot_options[k] = float(v)
+                except ValueError:
+                    pot_options[k] = v
+            print('Setting potential for bond with class {}, options {}'.format(
+                reaction_group['potential'], reaction_group['potential_options']))
+            potential = pot_class(**pot_options)
+
+            interaction = interaction_class(self.system, fpl, potential)
+            fpl.interaction = interaction
+            self.system.addInteraction(interaction, 'fpl_{}'.format(group_name))
 
             # Setting the post process extensions.
             extensions = self._prepare_group_postprocess(reaction_group['extensions'])
+            extensions_to_integrator = [x.ext for x in extensions
+                                        if x.ext_type == EXT_INTEGRATOR and x.ext is not None]
+            extensions_to_reactions = [x for x in extensions
+                                       if x.ext_type == EXT_POSTPROCESS and x.ext is not None]
 
             print('Setting chemical reactions in group')
             for chem_reaction in reaction_group['reaction_list']:
                 # Pass connectivity map from group level to reaction level
                 chem_reaction['connectivity_map'] = reaction_group['connectivity_map']
-                reaction, reaction_type = self._setup_reaction(chem_reaction, fpl)
-                if reaction is not None:
-                    for extension in extensions:
-                        if extension.ext is None:
-                            continue
-                        if extension.ext_type == EXT_INTEGRATOR:
-                            extensions_to_integrator.append(extension.ext)
-                            continue
+                r = self._setup_reaction(chem_reaction, fpl)
+                if r is not None:
+                    for extension in extensions_to_reactions:
                         if extension.ext_type:
-                            reaction.add_postprocess(extension.ext, extension.ext_type)
+                            r.add_postprocess(extension.ext, extension.ext_type)
                         else:
-                            reaction.add_postprocess(extension.ext)
-                    ar.add_reaction(reaction)
-                    reactions.append(reaction)
+                            r.add_postprocess(extension.ext)
+                    ar.add_reaction(r)
+                    reactions.append(r)
 
         return ar, fpls, reactions, extensions_to_integrator

@@ -149,7 +149,7 @@ def process_reaction(reaction):
 
     if reaction_type is None:
         raise RuntimeError('Could not parse reaction equation: {}'.format(reaction['reaction']))
-    print('Reaction_type: {}'.format(reaction_type))
+    print('Reaction_type: {}: {}'.format(reaction['reaction'], reaction_type))
 
     data['reaction_type'] = reaction_type
 
