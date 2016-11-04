@@ -632,7 +632,7 @@ class SetupReactions:
             ratio_deactivator = float(cfg['ratio_deactivator'])
             delta_catalyst = float(cfg['delta_catalyst'])
             k_activate = float(cfg['k_activate'])
-            k_deactivate = float(['k_deactivate'])
+            k_deactivate = float(cfg['k_deactivate'])
 
             atrp_activator = espressopp.integrator.ATRPActivator(
                 self.system, interval, num_particles, ratio_activator, ratio_deactivator,
