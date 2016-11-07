@@ -203,7 +203,7 @@ def process_group(cfg):
     group_cfg = {
         'reaction_list': [],
         'connectivity_map': cfg.get('connectivity_map'),
-        'extensions': []
+        'extensions': {}
     }
     if 'extensions' in cfg:
         group_cfg['extensions'] = {s.strip(): None for s in cfg['extensions'].split(',')}

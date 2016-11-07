@@ -190,8 +190,8 @@ def main():  #NOQA
         print('Found hooks.py')
         locals = {}
         execfile('hooks.py', globals(), locals)
-        hook_init_reaction = locals.get('hook_init_reaction')
-        hook_postsetup_reaction = locals.get('hook_postsetup_reaction')
+        hook_init_reaction = locals.get('hook_init_reaction', lambda *_,**__: True)
+        hook_postsetup_reaction = locals.get('hook_postsetup_reaction', lambda *_,**__: True)
 
     # Set chemical reactions, parser in reaction_parser.py
     chem_dynamic_types = set()
@@ -215,7 +215,7 @@ def main():  #NOQA
             args)
         ar, chem_fpls, reactions, extensions_integrator = sc.setup_reactions()
         chem_dynamic_types = sc.dynamic_types
-        chem_dynamic_bond_types = sc.obser_bondtypes
+        chem_dynamic_bond_types = sc.observed_bondtypes
 
         if cr_observs is None:
             cr_observs = {}
@@ -545,9 +545,6 @@ def main():  #NOQA
 
     totalTime = time.time()
     integratorLoop = 0.0
-
-    import sys
-    sys.exit(1)
 
     for k in range(sim_step):
         system_analysis.info()
