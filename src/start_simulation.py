@@ -183,6 +183,16 @@ def main():  #NOQA
     print('Set topology manager')
     topology_manager = espressopp.integrator.TopologyManager(system)
 
+    # Hooks
+    hook_init_reaction = lambda *_,**__: True
+    hook_postsetup_reaction = lambda *_,**__: True
+    if os.path.exists('hooks.py'):
+        print('Found hooks.py')
+        locals = {}
+        execfile('hooks.py', globals(), locals)
+        hook_init_reaction = locals.get('hook_init_reaction')
+        hook_postsetup_reaction = locals.get('hook_postsetup_reaction')
+
     # Set chemical reactions, parser in reaction_parser.py
     chem_dynamic_types = set()
     chem_dynamic_bond_types = set()
@@ -223,6 +233,7 @@ def main():  #NOQA
         print('Change topology collect interval to {}'.format(cr_interval))
         args.topol_collect = cr_interval
         has_reaction = True
+        hook_postsetup_reaction(system, integrator, gt, args, ar)
     else:
         cr_interval = integrator_step
 
@@ -560,6 +571,9 @@ def main():  #NOQA
             if sc.exclusions_list:
                 dynamic_exclusion_list.exclude(sc.exclusions_list)
                 print('Add {} new exclusions from restrict reactions'.format(len(sc.exclusions_list)))
+
+            if not hook_init_reaction(system, integrator, gt, args):
+                raise RuntimeError('hook_init_reaction return False')
 
         if reactions_enabled:
             for obs, stop_value in maximum_conversion:
