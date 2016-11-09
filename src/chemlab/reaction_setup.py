@@ -47,8 +47,8 @@ class SetupReactions:
         self.dynamic_types = set()  # Stores the particle types that will change during the reactions.
 
         self.use_thermal_group = False
-        self.fix_distance = None
-        self.cr_observs = None  # Observs conversion types.
+        self.fix_distances = []
+        self.cr_observs = {}  # Observs conversion types.
 
         # Bond types that will change and has to be observed by dump topology
         self.observed_bondtypes = set()
@@ -59,6 +59,7 @@ class SetupReactions:
         self.post_process_setup.dynamic_types = self.dynamic_types
         self.post_process_setup.observed_bondtypes = self.observed_bondtypes
         self.post_process_setup.cr_observs = self.cr_observs
+        self.post_process_setup.fix_distances = self.fix_distances
 
     def _setup_reaction_normal(self, chem_reaction, fpl):
         rl = chem_reaction['reactant_list']
@@ -81,7 +82,7 @@ class SetupReactions:
             max_state_2=int(rl['type_2']['max']),
             rate=float(chem_reaction['rate']),
             fpl=fpl,
-            cutoff=float(chem_reaction.get('cutoff', 0.0)))
+            cutoff=float(chem_reaction['cutoff']))
 
         self.dynamic_types.add(self.name2type[rl['type_1']['name']])
         self.dynamic_types.add(self.name2type[rl['type_2']['name']])
@@ -118,12 +119,14 @@ class SetupReactions:
             if chem_reaction.get('reaction_type') == REACTION_DISSOCATION:
                 reaction.revert = True
 
+        t1_old = self.name2type[rl['type_1']['name']]
+        t1_new = self.name2type[rl['type_1']['new_type']]
+        t2_old = self.name2type[rl['type_2']['name']]
+        t2_new = self.name2type[rl['type_2']['new_type']]
         # Change type if necessary.
         if (rl['type_1']['name'] != rl['type_1']['new_type'] or
                     rl['type_2']['name'] != rl['type_2']['new_type']):
             r_pp = espressopp.integrator.PostProcessChangeProperty()
-            t1_old = self.name2type[rl['type_1']['name']]
-            t1_new = self.name2type[rl['type_1']['new_type']]
             if t1_old != t1_new:
                 self.dynamic_types.add(t1_old)
                 self.dynamic_types.add(t1_new)
@@ -134,9 +137,6 @@ class SetupReactions:
                     espressopp.ParticleProperties(
                         t1_new, new_property['mass'],
                         new_property['charge']))
-
-            t2_old = self.name2type[rl['type_2']['name']]
-            t2_new = self.name2type[rl['type_2']['new_type']]
             if t2_old != t2_new:
                 self.dynamic_types.add(t2_old)
                 self.dynamic_types.add(t2_new)
@@ -148,9 +148,13 @@ class SetupReactions:
                         t2_new, new_property['mass'],
                         new_property['charge']))
 
-            reaction.add_postprocess(r_pp)
 
-        return reaction
+            reaction.add_postprocess(r_pp)
+        self.cr_observs[(t1_old, 2000)] = espressopp.analysis.ChemicalConversion(self.system, t1_old)
+        self.cr_observs[(t1_new, 2000)] = espressopp.analysis.ChemicalConversion(self.system, t1_new)
+        self.cr_observs[(t2_old, 2000)] = espressopp.analysis.ChemicalConversion(self.system, t2_old)
+        self.cr_observs[(t2_new, 2000)] = espressopp.analysis.ChemicalConversion(self.system, t2_new)
+        return reaction, [(t1_old, t2_old), (t1_new, t2_new)]
 
     def _setup_reaction_exchange(self, chem_reaction, fpl):
         """
@@ -184,7 +188,7 @@ class SetupReactions:
             max_state_2=int(rt3['max']),
             rate=float(chem_reaction['rate']),
             fpl=fpl,
-            cutoff=float(chem_reaction.get('cutoff', 0.0)))
+            cutoff=float(chem_reaction['cutoff']))
         reaction.is_virtual = True  # We don't mean to make a bond, only to catch the event.
 
         self.dynamic_types.add(self.name2type[rl['type_1']['name']])
@@ -201,11 +205,13 @@ class SetupReactions:
         if 'min_cutoff' in chem_reaction:
             reaction.get_reaction_cutoff().min_cutoff = float(chem_reaction['min_cutoff'])
 
+        t1_old = self.name2type[rt1['name']]
+        t1_new = self.name2type[rt1['new_type']]
+        t2_old = self.name2type[rt2['name']]
+        t2_new = self.name2type[rt2['new_type']]
         # Change type if necessary.
         if rt1['name'] != rt1['new_type'] or rt2['name'] != rt2['new_type']:
             r_pp = espressopp.integrator.PostProcessChangeProperty()
-            t1_old = self.name2type[rt1['name']]
-            t1_new = self.name2type[rt1['new_type']]
             if t1_old != t1_new:
                 self.dynamic_types.add(t1_old)
                 self.dynamic_types.add(t1_new)
@@ -216,9 +222,6 @@ class SetupReactions:
                     espressopp.ParticleProperties(
                         t1_new, new_property['mass'],
                         new_property['charge']))
-
-            t2_old = self.name2type[rt2['name']]
-            t2_new = self.name2type[rt2['new_type']]
             if t2_old != t2_new:
                 self.dynamic_types.add(t2_old)
                 self.dynamic_types.add(t2_new)
@@ -231,7 +234,12 @@ class SetupReactions:
                         new_property['charge']))
 
             reaction.add_postprocess(r_pp)
-        return reaction
+
+        self.cr_observs[(t1_old, 2000)] = espressopp.analysis.ChemicalConversion(self.system, t1_old)
+        self.cr_observs[(t1_new, 2000)] = espressopp.analysis.ChemicalConversion(self.system, t1_new)
+        self.cr_observs[(t2_old, 2000)] = espressopp.analysis.ChemicalConversion(self.system, t2_old)
+        self.cr_observs[(t2_new, 2000)] = espressopp.analysis.ChemicalConversion(self.system, t2_new)
+        return reaction, [(t1_old, t2_old), (t1_new, t2_new)]
 
 
     def _setup_reaction(self, chem_reaction, fpl):
@@ -252,6 +260,8 @@ class SetupReactions:
             REACTION_EXCHANGE: self._setup_reaction_exchange,
         }
 
+        if chem_reaction['reaction_type'] not in reaction_type2class:
+            raise RuntimeError('reaction_type {} not supported'.format(chem_reaction['reaction_type']))
         return reaction_type2class[chem_reaction['reaction_type']](chem_reaction, fpl)
 
     def _prepare_group_postprocess(self, cfg):
@@ -266,16 +276,16 @@ class SetupReactions:
             If either postprocess nor extension to integrator is added this triplet has to be (None, None, None)
         """
 
-        list_of_extensions = []
+        list_of_extensions = collections.defaultdict(list)
 
-        for pp_cfg in cfg.values():
+        for ext_name, pp_cfg in cfg.items():
             cfg_setup = self.post_process_setup.setup_post_process(pp_cfg['class'])
             post_process_obj = cfg_setup(pp_cfg['options'])
             if post_process_obj:
                 if isinstance(post_process_obj, list):
-                    list_of_extensions.extend(post_process_obj)
+                    list_of_extensions[ext_name].extend(post_process_obj)
                 else:
-                    list_of_extensions.append(post_process_obj)
+                    list_of_extensions[ext_name].append(post_process_obj)
 
         return list_of_extensions
 
@@ -302,6 +312,8 @@ class SetupReactions:
         reactions = []
         extensions_to_integrator = []
 
+        fpl_def = collections.namedtuple('FPLDef', ['fpl', 'type_list'])
+
         for group_name, reaction_group in self.cfg['reactions'].items():
             print('Setting reaction group {}'.format(group_name))
 
@@ -314,7 +326,7 @@ class SetupReactions:
                 fpl = espressopp.FixedPairList(self.system.storage)
                 interaction_class = eval('espressopp.interaction.FixedPairList{}'.format(
                     reaction_group['potential']))
-            fpls.append(fpl)
+
             pot_class = eval('espressopp.interaction.{}'.format(reaction_group['potential']))
             # Convert if it's possible, values for float
             pot_options = {}
@@ -329,27 +341,36 @@ class SetupReactions:
 
             interaction = interaction_class(self.system, fpl, potential)
             fpl.interaction = interaction
-            self.system.addInteraction(interaction, 'fpl_{}'.format(group_name))
+            self.system.addInteraction(interaction, 'chem_fpl_{}'.format(group_name))
 
             # Setting the post process extensions.
-            extensions = self._prepare_group_postprocess(reaction_group['extensions'])
-            extensions_to_integrator = [x.ext for x in extensions
+            group_extensions = self._prepare_group_postprocess(reaction_group['extensions'])
+            extensions_to_integrator = [x.ext for v in group_extensions.values()
+                                        for x in v
                                         if x.ext_type == EXT_INTEGRATOR and x.ext is not None]
-            extensions_to_reactions = [x for x in extensions
-                                       if x.ext_type == EXT_POSTPROCESS and x.ext is not None]
+            extensions_to_reactions = {k: x for k, v in group_extensions.items()
+                                       for x in v
+                                       if x.ext_type == EXT_POSTPROCESS and x.ext is not None}
 
+            reaction_type_list = []
             print('Setting chemical reactions in group')
             for chem_reaction in reaction_group['reaction_list']:
                 # Pass connectivity map from group level to reaction level
                 chem_reaction['connectivity_map'] = reaction_group['connectivity_map']
-                r = self._setup_reaction(chem_reaction, fpl)
+                r, reaction_types = self._setup_reaction(chem_reaction, fpl)
                 if r is not None:
-                    for extension in extensions_to_reactions:
-                        if extension.pp_type:
-                            r.add_postprocess(extension.ext, extension.pp_type)
+                    reaction_type_list.extend(reaction_types)
+                    for ext_name, extension in extensions_to_reactions.items():
+                        if ext_name in chem_reaction['exclude_extensions']:
+                            print('Skip extension: {} ({})'.format(ext_name, chem_reaction['equation']))
                         else:
-                            r.add_postprocess(extension.ext)
+                            print('Add extension {} to {}'.format(ext_name, chem_reaction['equation']))
+                            if extension.pp_type:
+                                r.add_postprocess(extension.ext, extension.pp_type)
+                            else:
+                                r.add_postprocess(extension.ext)
                     ar.add_reaction(r)
                     reactions.append(r)
+            fpls.append(fpl_def(fpl, set(reaction_type_list)))
 
         return ar, fpls, reactions, extensions_to_integrator

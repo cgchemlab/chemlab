@@ -261,7 +261,7 @@ def main():  #NOQA
     if args.t_hybrid_bond > 0:
         list_dynamic_resolution = espressopp.integrator.FixedListDynamicResolution(system)
         for fpl in chem_fpls:
-            list_dynamic_resolution.register_pair_list(fpl, 1.0/args.t_hybrid_bond)
+            list_dynamic_resolution.register_pair_list(fpl.fpl, 1.0/args.t_hybrid_bond)
         integrator.addExtension(list_dynamic_resolution)
 
     system.storage.decompose()
@@ -351,11 +351,11 @@ def main():  #NOQA
 
     topology_manager.initialize_topology()
 
-    #for t, p in gt.bondparams.items():
-    #    if p['func'] in dynamic_fpls:
-    #        fpl = dynamic_fpls[p['func']]
-    #        print('Register bonds for type: {}'.format(t))
-    #        topology_manager.register_tuple(fpl, *t)
+    for t, p in gt.bondparams.items():
+       if p['func'] in dynamic_fpls:
+           fpl = dynamic_fpls[p['func']]
+           print('Register bonds for type: {}'.format(t))
+           topology_manager.register_tuple(fpl, *t)
 
     # Any new bond will trigger update here.
     for t, p in gt.angleparams.items():
@@ -374,8 +374,13 @@ def main():  #NOQA
 
     # Add fpls defined by chemical reactions to exclude lists and topology_manager.
     for f in chem_fpls:
-        topology_manager.observe_tuple(f)
-        dynamic_exclusion_list.observe_tuple(f)
+        topology_manager.observe_tuple(f.fpl)
+        dynamic_exclusion_list.observe_tuple(f.fpl)
+    # Register chemistry tuples in topology_manager
+    for def_f in chem_fpls:
+        for t in def_f.type_list:
+            print('Register chem_fpl for type: {}'.format(t))
+            topology_manager.register_tuple(def_f.fpl, *t)
 
     # Define SystemMonitor that will store data from observables into a .csv file.
     energy_file = '{}_energy_{}.csv'.format(args.output_prefix, rng_seed)
@@ -404,12 +409,12 @@ def main():  #NOQA
             'cr_{}'.format(cr_type), obs)
     for fidx, f in enumerate(chem_fpls):
         system_analysis.add_observable(
-            'count_{}'.format(fidx), espressopp.analysis.NFixedPairListEntries(system, f))
+            'count_{}'.format(fidx), espressopp.analysis.NFixedPairListEntries(system, f.fpl))
 
     if args.t_hybrid_bond > 0:
         for fpl_idx, fpl in enumerate(chem_fpls):
             system_analysis.add_observable(
-                'res_fpl_{}'.format(fpl_idx), espressopp.analysis.ResolutionFixedPairList(system, fpl))
+                'res_fpl_{}'.format(fpl_idx), espressopp.analysis.ResolutionFixedPairList(system, fpl.fpl))
 
     # system_analysis.add_observable(
     #   'Fmax', espressopp.analysis.MaxForce(system))
@@ -473,7 +478,7 @@ def main():  #NOQA
     print('Set topology writer')
     dump_topol = espressopp.io.DumpTopology(system, integrator, traj_file)
     for i, f in enumerate(chem_fpls):
-        dump_topol.observe_tuple(f, 'chem_bonds_{}'.format(i))
+        dump_topol.observe_tuple(f.fpl, 'chem_bonds_{}'.format(i))
 
     bcount = 0
     for (i, observe_tuple), f in dynamic_fpls.items():
@@ -481,7 +486,7 @@ def main():  #NOQA
             print('DumpTopol: observe dynamic_bonds_{}'.format(i))
             dump_topol.observe_tuple(f, 'dynamic_bonds_{}'.format(i))
         else:
-            print('DumpTopol: observe bonds_{}'.format(i))
+            print('DumpTopol: save static list from bonds_{}'.format(i))
             dump_topol.add_static_tuple(f, 'bonds_{}'.format(bcount))
         bcount += 1
 
@@ -525,9 +530,9 @@ def main():  #NOQA
     total_velocity = espressopp.analysis.TotalVelocity(system)
     total_velocity.reset()
 
-    print('Type name  type id')
-    for at_sym in gt.used_atomtypes:
-        print('{:9}    {:8}'.format(at_sym, gt.atomsym_atomtype[at_sym]))
+    print('{:9}    {:8}'.format('Type name', 'type id'))
+    for at_sym, type_id in sorted(gt.atomsym_atomtype.items(), key=lambda x: x[1]):
+        print('{:9}    {:8}'.format(at_sym, type_id))
 
     print('Running {} steps'.format(sim_step*integrator_step))
     print('Temperature: {} ({} K)'.format(args.temperature*kb, args.temperature))
@@ -585,7 +590,7 @@ def main():  #NOQA
                     eq_run -= 1
             # Support for arrhenius law.
             if args.rate_arrhenius:
-                bonds0 = sum(f.totalSize() for f in chem_fpls)  # TODO(jakub): this is terrible.
+                bonds0 = sum(f.fpl.totalSize() for f in chem_fpls)  # TODO(jakub): this is terrible.
                 energy0 = system_analysis.potential_energy
 
             if k_stop_reactions == k:
@@ -596,7 +601,7 @@ def main():  #NOQA
         integratorLoop += (time.time() - loopTimer)
 
         if args.rate_arrhenius and reactions_enabled:
-            bonds1 = sum(f.totalSize() for f in chem_fpls)  # TODO(jakub): this is terrible.
+            bonds1 = sum(f.fpl.totalSize() for f in chem_fpls)  # TODO(jakub): this is terrible.
             delta_bonds = bonds1 - bonds0
             if delta_bonds > 0:
                 energy_delta = (system_analysis.potential_energy - energy0) / float(delta_bonds)
@@ -656,6 +661,14 @@ def main():  #NOQA
     dump_gro = espressopp.io.DumpGRO(system, integrator, filename=output_whole_gro)
     dump_gro.dump()
     print('Wrote whole configuration to: {}'.format(output_whole_gro))
+
+    # Save fix distances, this is temporary
+    import cPickle
+    all_fix_distances = []
+    for fd in sc.fix_distances:
+        all_fix_distances.extend(fd.get_all_triplets())
+    with open('all_fix_distances.pck', 'wb') as out_fd:
+        cPickle.dump(all_fix_distances, out_fd)
 
     # Saves output topology file.
     # TODO(jakub): save new bonds in GROMACS like topology file.

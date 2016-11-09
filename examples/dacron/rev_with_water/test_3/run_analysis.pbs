@@ -1,0 +1,23 @@
+#!/bin/bash -l
+#PBS -l mem=32gb
+#PBS -l walltime=24:00:00
+#PBS -o Output.job
+#PBS -j oe
+#PBS -l nodes=1:ppn=20
+#PBS -M jakub.krajniak@cs.kuleuven.be
+#PBS -A lp_polymer_goa_project
+#PBS -N dacron_water
+
+module purge
+
+cd $PBS_O_WORKDIR
+
+module load h5py
+
+for h5 in *.h5; do
+    nohup python ../../analyze_dacron.py $h5 &>> analysis.log &
+done
+
+for p in `jobs -p`; do
+    wait $p;
+done

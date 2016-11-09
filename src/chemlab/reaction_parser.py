@@ -139,7 +139,12 @@ def process_reaction(reaction):
         'intramolecular': eval(reaction.get('intramolecular', 'False')),
         'intraresidual': eval(reaction.get('intraresidual', 'False')),
         'virtual': eval(reaction.get('virtual', 'False')),
+        'exclude_extensions': [],
+        'equation': reaction['reaction']
     }
+
+    if 'exclude_extensions' in reaction:
+        data['exclude_extensions'] = {s.strip() for s in reaction['exclude_extensions'].split(',')}
 
     reaction_parsers = [parse_equation, parse_reverse_equation, parse_exchange_equation]
     reaction_type = None
@@ -155,7 +160,7 @@ def process_reaction(reaction):
 
     data['reaction_type'] = reaction_type
 
-    if reaction_type == REACTION_NORMAL:
+    if reaction_type == REACTION_NORMAL or reaction_type == REACTION_EXCHANGE:
         if 'min_cutoff' in reaction:
             data['min_cutoff'] = float(reaction['min_cutoff'])
 
@@ -166,7 +171,7 @@ def process_reaction(reaction):
         elif 'cutoff' in reaction:
             data['cutoff'] = float(reaction['cutoff'])
         else:
-            raise RuntimeError('Please define cutoff of the reaction')
+            raise RuntimeError('Please define cutoff of the reaction: {}'.format(reaction['reaction']))
     elif reaction_type == REACTION_DISSOCATION:
         if 'diss_rate' in reaction:
             if not data['reverse']:

@@ -33,12 +33,14 @@ output_triplet = collections.namedtuple('Extension', ['ext', 'pp_type', 'ext_typ
 
 class PostProcessSetup(object):
     def __init__(self, system, topol, topol_manager):
+        self.fix_distances = []
         self.system = system
         self.tm = topol_manager
         self.name2type = topol.atomsym_atomtype
         self.topol = topol
         self.dynamic_types = None
         self.observed_bondtypes = None
+        self.cr_observs = {}
 
     def setup_post_process(self, post_process_type):
         pp_type_to_cfg = {
@@ -90,6 +92,7 @@ class PostProcessSetup(object):
         bond_types = [
             x.split('->') for x in cfg['bonds_to_remove'].split(',')
             ]
+        invoke_on = cfg['invoke_on']
         # bonds_to_remove=opls_220->opls_220:opls_154:1,opls_268->opls_268:opls_270:1
         for anchor_type, pairs_to_remove in bond_types:
             anchor_type_id = self.topol.used_atomsym_atomtype[anchor_type]
@@ -102,7 +105,7 @@ class PostProcessSetup(object):
             type_pid2 = self.topol.used_atomsym_atomtype[type_name2]
             pp.add_bond_to_remove(anchor_type_id, nb_level, type_pid1, type_pid2)
             self.observed_bondtypes.add(tuple(sorted([type_pid1, type_pid2])))
-        return output_triplet(pp, None, EXT_POSTPROCESS)
+        return output_triplet(pp, invoke_on, EXT_POSTPROCESS)
     
     def _setup_post_process_freeze_region(self, cfg):
         """Setup freeze region."""
@@ -144,7 +147,8 @@ class PostProcessSetup(object):
                 self.system, particle_region)
             change_in_region.set_particle_properties(
                 target_type_id, espressopp.ParticleProperties(final_type_id))
-            change_in_region.set_flags(target_type_id, reset_velocity=True, reset_force=True, remove_particle=remove_particles)
+            change_in_region.set_flags(target_type_id, reset_velocity=True, reset_force=True,
+                                       remove_particle=remove_particles)
             self.system.integrator.addExtension(change_in_region)
         return output_triplet(None, None, None)
     
@@ -208,7 +212,7 @@ class PostProcessSetup(object):
             fix_distance = espressopp.integrator.FixDistances(self.system,fix_list)
             # Remove by post process in the reaction
             reaction_post_process = espressopp.integrator.PostProcessReleaseParticles(fix_distance, release_count)
-        self.fix_distance = fix_distance
+        self.fix_distances.append(fix_distance)
     
         fxd_post_process = espressopp.integrator.PostProcessChangeProperty()
         fxd_post_process.add_change_property(
@@ -249,12 +253,11 @@ class PostProcessSetup(object):
         if self.cr_observs is None:
             self.cr_observs = {}
     
-        self.cr_observs[(final_type_id, len(particle_list))] = espressopp.analysis.ChemicalConversion(
-            self.system, final_type_id, len(particle_list))
-        self.cr_observs[(dummy_type_id, len(particle_list))] = espressopp.analysis.ChemicalConversion(
-            self.system, dummy_type_id, len(particle_list))
-        self.cr_observs[(target_type_id, len(particle_list))] = espressopp.analysis.ChemicalConversion(
-            self.system, target_type_id, len(particle_list))
+        self.cr_observs[(final_type_id, 1)] = espressopp.analysis.ChemicalConversion(self.system, final_type_id)
+        self.cr_observs[(dummy_type_id, 1)] = espressopp.analysis.ChemicalConversion(
+            self.system, dummy_type_id)
+        self.cr_observs[(target_type_id, 1)] = espressopp.analysis.ChemicalConversion(
+            self.system, target_type_id)
     
         return output_triplet(reaction_post_process, release_host, EXT_POSTPROCESS)
 
@@ -271,8 +274,11 @@ class PostProcessSetup(object):
 
         dummy_type_id = max(self.topol.atomsym_atomtype.values()) + 1
         self.topol.atomsym_atomtype['DUMMY_{}'.format(dummy_type_id)] = dummy_type_id
+        print('PostProcessJoinMolecule: create dummy type DUMMY_{}'.format(dummy_type_id))
 
         fd = espressopp.integrator.FixDistances(self.system, [], host_type_id, dummy_type_id)
+        self.fix_distances.append(fd)
+
         pp_join_particles = espressopp.integrator.PostProcessJoinParticles(fd, eq_length)
         self.system.integrator.addExtension(fd)
         dummy_pp = espressopp.integrator.PostProcessChangeProperty()
@@ -289,6 +295,10 @@ class PostProcessSetup(object):
                 lambda_adr=init_res))
         fd.add_postprocess(fxd_post_process)
         self.system.integrator.addExtension(fd)
+
+        self.use_thermal_group = True
+
+        self.cr_observs[(dummy_type_id, 2000)] = espressopp.analysis.ChemicalConversion(self.system, dummy_type_id)
 
         return [
             output_triplet(pp_join_particles, 'type_1', EXT_POSTPROCESS),

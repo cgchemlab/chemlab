@@ -738,7 +738,7 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
                 potential=potential_class(**convert_params(func, params['params'])))
         system.addInteraction(interaction, 'dyn_{}_{}'.format(name, bond_count))
         bond_count += 1
-        dynamics_fpls[(func, observe_list)] = fpl
+        dynamics_fpls[collections.namedtuple('dfpls', ['func', 'is_observe_list'])(func, observe_list)] = fpl
 
     # Set first static bonds, those one that has explicitly the parameters
     for func in bonds_by_func:
