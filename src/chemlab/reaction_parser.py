@@ -630,10 +630,12 @@ class SetupReactions:
             delta_catalyst = float(cfg['delta_catalyst'])
             k_activate = float(cfg['k_activate'])
             k_deactivate = float(cfg['k_deactivate'])
+            stats_file = cfg.get('stats_file', 'atrp_stats.dat')
 
             atrp_activator = espressopp.integrator.ATRPActivator(
                 self.system, interval, num_particles, ratio_activator, ratio_deactivator,
                 delta_catalyst, k_activate, k_deactivate)
+            atrp_activator.stats_filename = stats_file
             options = [x.split('->') for x in cfg['options'].split(';')]
             print('Settings ATRP activator extension')
             print('ATRPActivator.interval={} num_part={}'.format(interval, num_particles))
