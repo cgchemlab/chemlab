@@ -650,7 +650,7 @@ class SetupReactions:
                 atrp_activator.add_reactive_center(
                     type_id=reactant_type_id,
                     state=int(reactant['state']),
-                    is_activator=reactant['flag'] == 'A',
+                    is_activator=reactant['flag'] == 'DA',
                     new_property=espressopp.ParticleProperties(type=product_type_id,
                                                                mass=product_property['mass'],
                                                                q=product_property['charge']),
