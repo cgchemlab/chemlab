@@ -421,6 +421,12 @@ def main():  #NOQA
                 'qcount_{}'.format(bcount), espressopp.analysis.NFixedQuadrupleListEntries(system, fql))
             bcount += 1
 
+    if args.count_types:
+        for at_sym in gt.atomsym_atomtype:
+            print('Observer {:9} ({:8})'.format(at_sym, gt.atomsym_atomtype[at_sym]))
+            obs_type_id = gt.atomsym_atomtype[at_sym]
+            chem_conver_obs = espressopp.analysis.ChemicalConversion(system, obs_type_id)
+            system_analysis.add_observable('num_type_{}_{}'.format(at_sym, obs_type_id), chem_conver_obs)
 
     ext_analysis = espressopp.integrator.ExtAnalyze(system_analysis, cr_interval)
     integrator.addExtension(ext_analysis)
@@ -502,8 +508,8 @@ def main():  #NOQA
     total_velocity = espressopp.analysis.TotalVelocity(system)
     total_velocity.reset()
 
-    print('Type name  type id')
-    for at_sym in gt.used_atomtypes:
+    print('{:9}    {:8}'.format('Type name', 'type id'))
+    for at_sym in gt.atomsym_atomtype:
         print('{:9}    {:8}'.format(at_sym, gt.atomsym_atomtype[at_sym]))
 
     print('Running {} steps'.format(sim_step*integrator_step))
@@ -528,7 +534,6 @@ def main():  #NOQA
     if os.path.exists('hooks.py'):
         locals = {}
         execfile('hooks.py', globals(), locals)
-        hook_list = [x for x in locals if x.startswith('hook_')]
         hook_init_reaction = locals.get('hook_init_reaction')
         print('Found hooks')
 

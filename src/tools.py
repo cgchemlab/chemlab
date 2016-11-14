@@ -168,6 +168,7 @@ def _args():
                         type=ast.literal_eval)
     parser.add_argument('--exclusion_list', default=None, help='Read exclusion list from external file')
     parser.add_argument('--count_tuples', default=False, type=ast.literal_eval, help='Count tuples')
+    parser.add_argument('--count_types', default=False, type=ast.literal_eval, help='Count change of particle types')
     parser.add_argument('--benchmark_data', default=None, help='Store time measurment in the file')
 
     return parser
