@@ -655,15 +655,29 @@ def main():  #NOQA
 
     total_time = time.time() - time0
 
+    topol_timers = collections.defaultdict(list)
+    for kv in topology_manager.get_timers():
+        for k, v in kv:
+            topol_timers[k].append(v)
+    for k in topol_timers:
+        if len(topol_timers[k]) > 0:
+            topol_timers[k] = sum(topol_timers[k]) / float(len(topol_timers[k]))
     print('Topology manager timers:')
-    for k, v in topology_manager.get_timers():
+    for k, v in topol_timers.items():
         print('\t{}: {}'.format(k, v))
 
-    traj_timers = reduce(lambda x, y: collections.Counter(x) + collections.Counter(y), traj_file.getTimers())
+    print('DumpH5MD timers:')
+    traj_timers = collections.defaultdict(list)
+    for kv in traj_file.getTimers():
+        for k, v in kv.items():
+            traj_timers[k].append(v)
+    for k in traj_timers:
+        if len(traj_timers[k]) > 0:
+            traj_timers[k] = sum(traj_timers[k]) / float(len(traj_timers[k]))
     for k, v in traj_timers.items():
         print('\t{}: {}'.format(k, v))
 
-    print('Final time analysis:')
+    print('Final time analysis (per CPUs - {}) [s]:'.format(MPI.COMM_WORLD.size))
     espressopp.tools.analyse.final_info(system, integrator, verletlist, time0, time.time())
 
     print('Total time: {}'.format(total_time))
