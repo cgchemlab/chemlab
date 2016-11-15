@@ -428,6 +428,16 @@ def main():  #NOQA
             chem_conver_obs = espressopp.analysis.ChemicalConversion(system, obs_type_id)
             system_analysis.add_observable('num_type_{}_{}'.format(at_sym, obs_type_id), chem_conver_obs)
 
+    if args.count_types_state is not None:
+        types_state = args.count_types_state.split(',')
+        for ts in types_state:
+            type_name, state = ts.split(':')
+            type_id = gt.atomsym_atomtype[type_name]
+            state = int(state)
+            system_analysis.add_observable(
+                'st_{}_{}'.format(type_name, state),
+                espressopp.analysis.ChemicalConversionTypeState(system, type_id, state))
+
     ext_analysis = espressopp.integrator.ExtAnalyze(system_analysis, cr_interval)
     integrator.addExtension(ext_analysis)
     print('Configured system analysis, collect data every {} steps'.format(cr_interval))
