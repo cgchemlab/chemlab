@@ -328,29 +328,37 @@ class PostProcessSetup(object):
         delta_catalyst = float(cfg['delta_catalyst'])
         k_activate = float(cfg['k_activate'])
         k_deactivate = float(cfg['k_deactivate'])
-    
+        stats_file = cfg.get('stats_file', 'atrp_stats.dat')
+
         atrp_activator = espressopp.integrator.ATRPActivator(
             self.system, interval, num_particles, ratio_activator, ratio_deactivator,
             delta_catalyst, k_activate, k_deactivate)
+        atrp_activator.stats_filename = stats_file
         options = [x.split('->') for x in cfg['options'].split(';')]
         print('Settings ATRP activator extension')
         print('ATRPActivator.interval={} num_part={}'.format(interval, num_particles))
-        re_reactant = re.compile(r'(?P<name>\w+)\((?P<min>\d+),\s*(?P<max>\d+)\)')
+        re_reactant = re.compile(r'(?P<name>\w+)\((?P<state>\d+),\s*(?P<flag>[AD]{1,2})\)')
         re_product = re.compile(r'(?P<new_type>\w+)\((?P<delta>[0-9-]+)\)')
         for to_process, after_process in options:
             reactant = re_reactant.match(to_process).groupdict()
             product = re_product.match(after_process).groupdict()
             reactant_type_id = self.topol.atomsym_atomtype[reactant['name']]
+            reactant_state = int(reactant['state'])
+            reactant_flag = reactant['flag'] == 'DA'
+            delta_state = int(product['delta'])
             product_type_id = self.topol.atomsym_atomtype[product['new_type']]
             product_property = self.topol.gt.atomtypes[product['new_type']]
+            if reactant['flag'] not in ['A', 'DA']:
+                raise RuntimeError('Flag {} not "A" or "DA"'.format(reactant['flag']))
             atrp_activator.add_reactive_center(
                 type_id=reactant_type_id,
-                min_state=int(reactant['min']),
-                max_state=int(reactant['max']),
+                state=reactant_state,
+                is_activator=reactant_flag,
                 new_property=espressopp.ParticleProperties(type=product_type_id,
                                                            mass=product_property['mass'],
                                                            q=product_property['charge']),
-                delta_state=int(product['delta']))
-            print('ATRPActivator: added {}->{}'.format(to_process, after_process))
-    
+                delta_state=delta_state)
+            print('ATRPActivator: added {}->{} state={} is_activator={} delta_state={}'.format(
+                to_process, after_process, reactant_state, reactant_flag, delta_state))
+
         return output_triplet(atrp_activator, None, EXT_INTEGRATOR)
