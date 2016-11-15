@@ -253,12 +253,6 @@ class PostProcessSetup(object):
         if self.cr_observs is None:
             self.cr_observs = {}
     
-        self.cr_observs[(final_type_id, 1)] = espressopp.analysis.ChemicalConversion(self.system, final_type_id)
-        self.cr_observs[(dummy_type_id, 1)] = espressopp.analysis.ChemicalConversion(
-            self.system, dummy_type_id)
-        self.cr_observs[(target_type_id, 1)] = espressopp.analysis.ChemicalConversion(
-            self.system, target_type_id)
-    
         return output_triplet(reaction_post_process, release_host, EXT_POSTPROCESS)
 
     def _setup_post_process_join_molecule(self, cfg):
@@ -297,8 +291,6 @@ class PostProcessSetup(object):
         self.system.integrator.addExtension(fd)
 
         self.use_thermal_group = True
-
-        self.cr_observs[(dummy_type_id, 2000)] = espressopp.analysis.ChemicalConversion(self.system, dummy_type_id)
 
         return [
             output_triplet(pp_join_particles, 'type_1', EXT_POSTPROCESS),

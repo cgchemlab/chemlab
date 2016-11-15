@@ -278,6 +278,9 @@ def main():  #NOQA
         system, gt, args, chem_dynamic_types)
     chemlab.gromacs_topology.set_coulomb_interactions(system, gt, args)
 
+    thermal_groups = map(gt.atomsym_atomtype.get, args.table_groups)
+    print('Thermal groups: {} ({})'.format(args.table_groups, thermal_groups))
+
     # Add cap force
     if args.max_force > -1:
         cap_force = espressopp.integrator.CapForce(system, args.max_force)
@@ -292,8 +295,8 @@ def main():  #NOQA
         thermostat.temperature = temperature
         thermostat.gamma = args.thermostat_gamma
         if has_reaction and sc and sc.use_thermal_group:
-            print('Running thermostat on thermal groups: {}'.format(gt.used_atomsym_atomtype))
-            thermostat.add_valid_types(gt.used_atomsym_atomtype.values())
+            print('Running thermostat on thermal groups: {}'.format(thermal_groups))
+            thermostat.add_valid_types(thermal_groups)
     elif args.thermostat == 'vr':
         thermostat = espressopp.integrator.StochasticVelocityRescaling(system)
         thermostat.temperature = temperature
@@ -391,7 +394,7 @@ def main():  #NOQA
         espressopp.analysis.SystemMonitorOutputCSV(energy_file))
     temp_comp = espressopp.analysis.Temperature(system)
     if has_reaction and sc and sc.use_thermal_group:
-        for t_id in gt.used_atomsym_atomtype.values():
+        for t_id in thermal_groups:
             temp_comp.add_type(t_id)
 
     system_analysis.add_observable('T', temp_comp)
@@ -449,6 +452,12 @@ def main():  #NOQA
                 'qcount_{}'.format(bcount), espressopp.analysis.NFixedQuadrupleListEntries(system, fql))
             bcount += 1
 
+    if args.count_types:
+        for at_sym in gt.atomsym_atomtype:
+            print('Observer {:9} ({:8})'.format(at_sym, gt.atomsym_atomtype[at_sym]))
+            obs_type_id = gt.atomsym_atomtype[at_sym]
+            chem_conver_obs = espressopp.analysis.ChemicalConversion(system, obs_type_id)
+            system_analysis.add_observable('num_type_{}_{}'.format(at_sym, obs_type_id), chem_conver_obs)
 
     ext_analysis = espressopp.integrator.ExtAnalyze(system_analysis, min([cr_interval, args.energy_collect]))
     integrator.addExtension(ext_analysis)
@@ -676,15 +685,29 @@ def main():  #NOQA
 
     total_time = time.time() - time0
 
+    topol_timers = collections.defaultdict(list)
+    for kv in topology_manager.get_timers():
+        for k, v in kv:
+            topol_timers[k].append(v)
+    for k in topol_timers:
+        if len(topol_timers[k]) > 0:
+            topol_timers[k] = sum(topol_timers[k]) / float(len(topol_timers[k]))
     print('Topology manager timers:')
-    for k, v in topology_manager.get_timers():
+    for k, v in topol_timers.items():
         print('\t{}: {}'.format(k, v))
 
-    traj_timers = reduce(lambda x, y: collections.Counter(x) + collections.Counter(y), traj_file.getTimers())
+    print('DumpH5MD timers:')
+    traj_timers = collections.defaultdict(list)
+    for kv in traj_file.getTimers():
+        for k, v in kv.items():
+            traj_timers[k].append(v)
+    for k in traj_timers:
+        if len(traj_timers[k]) > 0:
+            traj_timers[k] = sum(traj_timers[k]) / float(len(traj_timers[k]))
     for k, v in traj_timers.items():
         print('\t{}: {}'.format(k, v))
 
-    print('Final time analysis:')
+    print('Final time analysis (per CPUs - {}) [s]:'.format(MPI.COMM_WORLD.size))
     espressopp.tools.analyse.final_info(system, integrator, verletlist, time0, time.time())
 
     print('Total time: {}'.format(total_time))

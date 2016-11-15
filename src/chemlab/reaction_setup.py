@@ -150,10 +150,6 @@ class SetupReactions:
 
 
             reaction.add_postprocess(r_pp)
-        self.cr_observs[(t1_old, 2000)] = espressopp.analysis.ChemicalConversion(self.system, t1_old)
-        self.cr_observs[(t1_new, 2000)] = espressopp.analysis.ChemicalConversion(self.system, t1_new)
-        self.cr_observs[(t2_old, 2000)] = espressopp.analysis.ChemicalConversion(self.system, t2_old)
-        self.cr_observs[(t2_new, 2000)] = espressopp.analysis.ChemicalConversion(self.system, t2_new)
         return reaction, [(t1_old, t2_old), (t1_new, t2_new)]
 
     def _setup_reaction_exchange(self, chem_reaction, fpl):
@@ -235,10 +231,6 @@ class SetupReactions:
 
             reaction.add_postprocess(r_pp)
 
-        self.cr_observs[(t1_old, 2000)] = espressopp.analysis.ChemicalConversion(self.system, t1_old)
-        self.cr_observs[(t1_new, 2000)] = espressopp.analysis.ChemicalConversion(self.system, t1_new)
-        self.cr_observs[(t2_old, 2000)] = espressopp.analysis.ChemicalConversion(self.system, t2_old)
-        self.cr_observs[(t2_new, 2000)] = espressopp.analysis.ChemicalConversion(self.system, t2_new)
         return reaction, [(t1_old, t2_old), (t1_new, t2_new)]
 
 
