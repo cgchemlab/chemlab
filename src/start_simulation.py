@@ -623,6 +623,8 @@ def main():  #NOQA
     dump_topol.update()
     traj_file.flush()
     traj_file.close()
+    print('Closing file...')
+    time.sleep(20)
 
     # Write some parameters of the simulation.
     h5 = h5py.File(h5md_output_file, 'r+')

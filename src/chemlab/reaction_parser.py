@@ -411,8 +411,7 @@ class SetupReactions:
                 old_type, nb_level = old_type.split(':')
                 nb_level = int(nb_level)
                 if old_type != new_type:
-                    print('Change property {}->{} nb={} and {}'.format(
-                        old_type, new_type, nb_level, nb_level + 1))
+                    print('Change property {}->{} nb={}'.format(old_type, new_type, nb_level))
                     t1_old = self.name2type[old_type]
                     t1_new = self.name2type[new_type]
                     self.dynamic_types.add(t1_old)
@@ -423,12 +422,6 @@ class SetupReactions:
                         espressopp.ParticleProperties(
                             t1_new, new_property['mass'], new_property['charge']),
                         nb_level
-                    )
-                    pp.add_change_property(
-                        t1_old,
-                        espressopp.ParticleProperties(
-                            t1_new, new_property['mass'], new_property['charge']),
-                        nb_level + 1
                     )
             return output_triplet(pp, None, EXT_POSTPROCESS)
 
