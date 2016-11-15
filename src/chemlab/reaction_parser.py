@@ -15,6 +15,8 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
 import collections
 import espressopp
 import ConfigParser
@@ -24,10 +26,11 @@ import warnings
 
 __doc__ = """This is a reaction parser."""
 
-# Constant
+# Constants
 REACTION_NORMAL = 'normal'
 REACTION_DISSOCATION = 'diss'
 REACTION_EXCHANGE = 'exchange'
+REACTION_RESTRICT = 'restricted'
 EXT_POSTPROCESS = 'PP'
 EXT_INTEGRATOR = 'Integrator'
 

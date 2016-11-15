@@ -233,6 +233,7 @@ def main():  #NOQA
         print('Change topology collect interval to {}'.format(cr_interval))
         args.topol_collect = cr_interval
         has_reaction = True
+        hook_postsetup_reaction(system, integrator, gt, args, ar)
     else:
         cr_interval = integrator_step
 
