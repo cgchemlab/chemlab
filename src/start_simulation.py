@@ -233,7 +233,6 @@ def main():  #NOQA
         print('Change topology collect interval to {}'.format(cr_interval))
         args.topol_collect = cr_interval
         has_reaction = True
-        hook_postsetup_reaction(system, integrator, gt, args, ar)
     else:
         cr_interval = integrator_step
 
@@ -462,6 +461,16 @@ def main():  #NOQA
             chem_conver_obs = espressopp.analysis.ChemicalConversion(system, obs_type_id)
             system_analysis.add_observable('num_type_{}_{}'.format(at_sym, obs_type_id), chem_conver_obs)
 
+    if args.count_types_state is not None:
+        types_state = args.count_types_state.split(',')
+        for ts in types_state:
+            type_name, state = ts.split(':')
+            type_id = gt.atomsym_atomtype[type_name]
+            state = int(state)
+            system_analysis.add_observable(
+                'st_{}_{}'.format(type_name, state),
+                espressopp.analysis.ChemicalConversionTypeState(system, type_id, state))
+
     ext_analysis = espressopp.integrator.ExtAnalyze(system_analysis, min([cr_interval, args.energy_collect]))
     integrator.addExtension(ext_analysis)
     print('Configured system analysis, collect data every {} steps'.format(min([cr_interval, args.energy_collect])))
@@ -638,6 +647,8 @@ def main():  #NOQA
     dump_topol.update()
     traj_file.flush()
     traj_file.close()
+    print('Closing file...')
+    time.sleep(20)
 
     # Write some parameters of the simulation.
     h5 = h5py.File(h5md_output_file, 'r+')

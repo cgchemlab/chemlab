@@ -177,6 +177,7 @@ def _args():
     args_counters = parser.add_argument_group('Counters')
     args_counters.add_argument('--count_types', default=False, type=ast.literal_eval, help='Count particles of type')
     args_counters.add_argument('--count_tuples', default=False, type=ast.literal_eval, help='Count tuples')
+    args_counters.add_argument('--count_types_state', default=None, help='List of particle types, state; eq. A:3,B:4')
 
     args_hybrid_bonds = parser.add_argument_group('Hybrid bonds')
     args_hybrid_bonds.add_argument('--t_hybrid_bond', default=0, type=int)
