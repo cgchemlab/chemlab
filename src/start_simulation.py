@@ -278,8 +278,11 @@ def main():  #NOQA
         system, gt, args, chem_dynamic_types)
     chemlab.gromacs_topology.set_coulomb_interactions(system, gt, args)
 
-    thermal_groups = map(gt.atomsym_atomtype.get, args.table_groups)
-    print('Thermal groups: {} ({})'.format(args.table_groups, thermal_groups))
+    if args.table_groups:
+        thermal_groups = map(gt.atomsym_atomtype.get, args.table_groups.split(','))
+        print('Thermal groups: {} ({})'.format(args.table_groups, thermal_groups))
+    else:
+        thermal_groups = []
 
     # Add cap force
     if args.max_force > -1:
