@@ -473,6 +473,9 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
     cr_mix_tab = collections.defaultdict(list)
     dynamic_interactions = collections.defaultdict(dict)
 
+    Func10 = collections.namedtuple('Func10', ['cr_observers', 'tab1', 'tab2'])
+    Func12 = collections.namedtuple('Func12', ['mix_value', 'tab1', 'tab2'])
+
     print('Number of non-bonded type pairs: {}'.format(len(type_pairs)))
     defined_types = set()
     all_type_pairs = set()
@@ -524,10 +527,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                     cr_observs[(cr_type, cr_total)] = espressopp.analysis.ChemicalConversion(
                         system, cr_type, cr_total
                     )
-                cr_mix_tab[(t1, t2)].append([
-                    cr_observs[(cr_type, cr_total)],
-                    tab1,
-                    tab2])
+                cr_mix_tab[(t1, t2)].append(Func10(cr_observs[(cr_type, cr_total)], tab1, tab2))
             elif func == 11:  # Special case, dynamic interactions with tables
                 max_force = -1
                 if param['params']:
@@ -538,6 +538,12 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                     tn = 'table_{}_{}.xvg'.format(type_1, type_2)
                 sig, eps = 0.0, 0.0
                 dynamic_interactions[func][(t1, t2)] = (tn, max_force)
+            elif func == 12:  # MixedTabulated with static x
+                tab1 = param['params'][0]
+                tab2 = param['params'][1]
+                mix_value = float(param['params'][2])
+                cr_mix_tab[(t1, t2)].append(Func12(mix_value, tab1, tab2))
+                print t1, t2, param
         elif type_1 in tables and type_2 in tables:
             table_name = 'table_{}_{}.xvg'.format(type_1, type_2)
         else:
@@ -587,7 +593,8 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
     if cr_mix_tab:
         mixed_tab_interaction = espressopp.interaction.VerletListMixedTabulated(vl)
         for (mt1, mt2), data in cr_mix_tab.items():
-            for cr_obs, tab1, tab2 in data:
+            for mix_func_data in data:
+                cr_obs, tab1, tab2 = mix_func_data
                 espp_tab1_name = '{}.pot'.format(tab1.replace('.xvg', ''))
                 if not os.path.exists(espp_tab1_name):
                     print('Convert {} to {}'.format(tab1, espp_tab1_name))
@@ -596,13 +603,23 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 if not os.path.exists(espp_tab2_name):
                     print('Convert {} to {}'.format(tab2, espp_tab2_name))
                     espressopp.tools.convert.gromacs.convertTable((tab2, espp_tab2_name))
-                print('Set mixed tabulated potential {}-{}'.format(mt1, mt2))
-                mixed_tab_interaction.setPotential(
-                    type1=mt1,
-                    type2=mt2,
-                    potential=espressopp.interaction.MixedTabulated(
-                        2, espp_tab1_name, espp_tab2_name, cr_obs, cutoff=tab_cutoff
-                    ))
+                if isinstance(mix_func_data, Func10):
+                    print('Set mixed tabulated potential {}-{} with conversion observable'.format(mt1, mt2))
+                    mixed_tab_interaction.setPotential(
+                        type1=mt1,
+                        type2=mt2,
+                        potential=espressopp.interaction.MixedTabulated(
+                            2, espp_tab1_name, espp_tab2_name, cr_obs, cutoff=tab_cutoff
+                        ))
+                elif isinstance(mix_func_data, Func12):
+                    print('Set mixed tabulated potential {}-{} with static scaling x={}'.format(mt1, mt2, cr_obs))
+                    mixed_tab_interaction.setPotential(
+                        type1=mt1,
+                        type2=mt2,
+                        potential=espressopp.interaction.MixedTabulated(
+                            2, espp_tab1_name, espp_tab2_name, mix_value=cr_obs))
+                else:
+                    raise RuntimeError('Wrong type of data: {}'.format(type(data)))
                 defined_types.add((mt1, mt2))
         system.addInteraction(mixed_tab_interaction, 'lj-mix_tab')
 

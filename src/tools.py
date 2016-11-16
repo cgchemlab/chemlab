@@ -177,7 +177,7 @@ def _args():
                         help='Write data in single precision format')
 
     args_counters = parser.add_argument_group('Counters')
-    args_counters.add_argument('--count_types', default=False, type=ast.literal_eval, help='Count particles of type')
+    args_counters.add_argument('--count_types', default=None, help='List of particle types to count; eq. A,B')
     args_counters.add_argument('--count_tuples', default=False, type=ast.literal_eval, help='Count tuples')
     args_counters.add_argument('--count_types_state', default=None, help='List of particle types, state; eq. A:3,B:4')
 
