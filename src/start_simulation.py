@@ -453,15 +453,16 @@ def main():  #NOQA
         author='XXX',
         email='xxx',
         store_species=args.store_species,
-        store_res_id=False,
+        store_res_id=args.store_res_id,
         store_charge=args.store_charge,
         store_position=args.store_position,
         store_state=args.store_state,
         store_lambda=args.store_lambda,
         store_force=args.store_force,
         store_velocity=args.store_velocity,
+        store_mass=args.store_mass,
         is_single_prec=args.store_single_precision,
-        chunk_size=int(NPart/MPI.COMM_WORLD.size))
+        chunk_size=128) #int(NPart/MPI.COMM_WORLD.size))
 
     print('Set topology writer')
     dump_topol = espressopp.io.DumpTopology(system, integrator, traj_file)
@@ -623,8 +624,6 @@ def main():  #NOQA
     dump_topol.update()
     traj_file.flush()
     traj_file.close()
-    print('Closing file...')
-    time.sleep(20)
 
     # Write some parameters of the simulation.
     h5 = h5py.File(h5md_output_file, 'r+')
@@ -649,6 +648,7 @@ def main():  #NOQA
         g_params.attrs[k] = v
     tools.save_forcefield(h5, gt)
     h5.close()
+    print('Closing {} ...'.format(h5md_output_file))
 
     # Saves coordinate output file.
     output_gro_file = '{}_{}_confout.gro'.format(args.output_prefix, rng_seed)

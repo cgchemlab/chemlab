@@ -151,6 +151,10 @@ def _args():
                         help='Store velocity')
     parser.add_argument('--store_charge', default=False, type=ast.literal_eval,
                         help='Store charge')
+    parser.add_argument('--store_mass', default=True, type=ast.literal_eval,
+                        help='Store mass')
+    parser.add_argument('--store_res_id', default=True, type=ast.literal_eval,
+                        help='Store res_id')
     parser.add_argument('--store_pressure', default=False, type=ast.literal_eval,
                         help='Compute and store pressure')
     parser.add_argument('--store_single_precision', default=True, type=ast.literal_eval,
