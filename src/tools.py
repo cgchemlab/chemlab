@@ -169,6 +169,8 @@ def _args():
                         help='Store velocity')
     args_storing_options.add_argument('--store_charge', default=False, type=ast.literal_eval,
                         help='Store charge')
+    args_storing_options.add_argument('--store_mass', default=True, type=ast.literal_eval, help='Store mass')
+    args_storing_options.add_argument('--store_res_id', default=True, type=ast.literal_eval, help='Store res_id')
     args_storing_options.add_argument('--store_pressure', default=False, type=ast.literal_eval,
                         help='Compute and store pressure')
     args_storing_options.add_argument('--store_single_precision', default=True, type=ast.literal_eval,
