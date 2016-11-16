@@ -422,7 +422,7 @@ def main():  #NOQA
             bcount += 1
 
     if args.count_types:
-        for at_sym in gt.atomsym_atomtype:
+        for at_sym in args.count_types.split(','):
             print('Observer {:9} ({:8})'.format(at_sym, gt.atomsym_atomtype[at_sym]))
             obs_type_id = gt.atomsym_atomtype[at_sym]
             chem_conver_obs = espressopp.analysis.ChemicalConversion(system, obs_type_id)
