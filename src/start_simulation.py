@@ -190,8 +190,8 @@ def main():  #NOQA
         print('Found hooks.py')
         locals = {}
         execfile('hooks.py', globals(), locals)
-        hook_init_reaction = locals.get('hook_init_reaction')
-        hook_postsetup_reaction = locals.get('hook_postsetup_reaction')
+        hook_init_reaction = locals.get('hook_init_reaction', hook_init_reaction)
+        hook_postsetup_reaction = locals.get('hook_postsetup_reaction', hook_postsetup_reaction)
 
     # Set chemical reactions, parser in reaction_parser.py
     chem_dynamic_types = set()
