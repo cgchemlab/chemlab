@@ -83,6 +83,13 @@ def _args():
     parser.add_argument('--node_grid')
     parser.add_argument('--skin', type=float, default=0.16,
                         help='Skin value for Verlet list')
+    parser.add_argument('--kb', type=float, default=0.0083144621, help='Boltzmann constant, default kJ/mol')
+    parser.add_argument('--mass_factor', type=float, default=1.6605402, help='Mass units, default a.u.')
+    parser.add_argument('--run', type=int, default=10000,
+                        help='Number of simulation steps')
+    parser.add_argument('--int_step', default=1000, type=int, help='Steps in integrator')
+    parser.add_argument('--rng_seed', type=int, help='Seed for RNG', required=False,
+                        default=random.randint(1000, 10000))
     parser.add_argument('--output_prefix',
                         default='sim', type=str,
                         help='Prefix for output files')

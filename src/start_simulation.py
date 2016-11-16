@@ -444,6 +444,23 @@ def main():  #NOQA
                 'qcount_{}'.format(bcount), espressopp.analysis.NFixedQuadrupleListEntries(system, fql))
             bcount += 1
 
+    if args.count_types:
+        for at_sym in args.count_types.split(','):
+            print('Observer {:9} ({:8})'.format(at_sym, gt.atomsym_atomtype[at_sym]))
+            obs_type_id = gt.atomsym_atomtype[at_sym]
+            chem_conver_obs = espressopp.analysis.ChemicalConversion(system, obs_type_id)
+            system_analysis.add_observable('num_type_{}_{}'.format(at_sym, obs_type_id), chem_conver_obs)
+
+    if args.count_types_state is not None:
+        types_state = args.count_types_state.split(',')
+        for ts in types_state:
+            type_name, state = ts.split(':')
+            type_id = gt.atomsym_atomtype[type_name]
+            state = int(state)
+            system_analysis.add_observable(
+                'st_{}_{}'.format(type_name, state),
+                espressopp.analysis.ChemicalConversionTypeState(system, type_id, state))
+
 
     ext_analysis = espressopp.integrator.ExtAnalyze(system_analysis, min([cr_interval, args.energy_collect]))
     integrator.addExtension(ext_analysis)
@@ -460,15 +477,16 @@ def main():  #NOQA
         author='XXX',
         email='xxx',
         store_species=args.store_species,
-        store_res_id=False,
+        store_res_id=args.store_res_id,
         store_charge=args.store_charge,
         store_position=args.store_position,
         store_state=args.store_state,
         store_lambda=args.store_lambda,
         store_force=args.store_force,
         store_velocity=args.store_velocity,
+        store_mass=args.store_mass,
         is_single_prec=args.store_single_precision,
-        chunk_size=int(NPart/MPI.COMM_WORLD.size))
+        chunk_size=128) #int(NPart/MPI.COMM_WORLD.size))
 
     print('Set topology writer')
     dump_topol = espressopp.io.DumpTopology(system, integrator, traj_file)
@@ -525,8 +543,8 @@ def main():  #NOQA
     total_velocity = espressopp.analysis.TotalVelocity(system)
     total_velocity.reset()
 
-    print('Type name  type id')
-    for at_sym in gt.used_atomtypes:
+    print('{:9}    {:8}'.format('Type name', 'type id'))
+    for at_sym in gt.atomsym_atomtype:
         print('{:9}    {:8}'.format(at_sym, gt.atomsym_atomtype[at_sym]))
 
     print('Running {} steps'.format(sim_step*integrator_step))
@@ -645,6 +663,7 @@ def main():  #NOQA
         g_params.attrs[k] = v
     tools.save_forcefield(h5, gt)
     h5.close()
+    print('Closing {} ...'.format(h5md_output_file))
 
     # Saves coordinate output file.
     output_gro_file = '{}_{}_confout.gro'.format(args.output_prefix, rng_seed)
@@ -663,15 +682,29 @@ def main():  #NOQA
 
     total_time = time.time() - time0
 
+    topol_timers = collections.defaultdict(list)
+    for kv in topology_manager.get_timers():
+        for k, v in kv:
+            topol_timers[k].append(v)
+    for k in topol_timers:
+        if len(topol_timers[k]) > 0:
+            topol_timers[k] = sum(topol_timers[k]) / float(len(topol_timers[k]))
     print('Topology manager timers:')
-    for k, v in topology_manager.get_timers():
+    for k, v in topol_timers.items():
         print('\t{}: {}'.format(k, v))
 
-    traj_timers = reduce(lambda x, y: collections.Counter(x) + collections.Counter(y), traj_file.getTimers())
+    print('DumpH5MD timers:')
+    traj_timers = collections.defaultdict(list)
+    for kv in traj_file.getTimers():
+        for k, v in kv.items():
+            traj_timers[k].append(v)
+    for k in traj_timers:
+        if len(traj_timers[k]) > 0:
+            traj_timers[k] = sum(traj_timers[k]) / float(len(traj_timers[k]))
     for k, v in traj_timers.items():
         print('\t{}: {}'.format(k, v))
 
-    print('Final time analysis:')
+    print('Final time analysis (per CPUs - {}) [s]:'.format(MPI.COMM_WORLD.size))
     espressopp.tools.analyse.final_info(system, integrator, verletlist, time0, time.time())
 
     print('Total time: {}'.format(total_time))

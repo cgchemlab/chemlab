@@ -385,7 +385,6 @@ class SetupReactions:
                     espressopp.ParticleProperties(
                         t2_new, new_property['mass'],
                         new_property['charge']))
-
             r.add_postprocess(r_pp)
 
         return r
@@ -415,8 +414,7 @@ class SetupReactions:
                 old_type, nb_level = old_type.split(':')
                 nb_level = int(nb_level)
                 if old_type != new_type:
-                    print('Change property {}->{} nb={} and {}'.format(
-                        old_type, new_type, nb_level, nb_level + 1))
+                    print('Change property {}->{} nb={}'.format(old_type, new_type, nb_level))
                     t1_old = self.name2type[old_type]
                     t1_new = self.name2type[new_type]
                     self.dynamic_types.add(t1_old)
@@ -427,12 +425,6 @@ class SetupReactions:
                         espressopp.ParticleProperties(
                             t1_new, new_property['mass'], new_property['charge']),
                         nb_level
-                    )
-                    pp.add_change_property(
-                        t1_old,
-                        espressopp.ParticleProperties(
-                            t1_new, new_property['mass'], new_property['charge']),
-                        nb_level + 1
                     )
             return output_triplet(pp, None, EXT_POSTPROCESS)
 
@@ -633,10 +625,12 @@ class SetupReactions:
             delta_catalyst = float(cfg['delta_catalyst'])
             k_activate = float(cfg['k_activate'])
             k_deactivate = float(cfg['k_deactivate'])
+            stats_file = cfg.get('stats_file', 'atrp_stats.dat')
 
             atrp_activator = espressopp.integrator.ATRPActivator(
                 self.system, interval, num_particles, ratio_activator, ratio_deactivator,
                 delta_catalyst, k_activate, k_deactivate)
+            atrp_activator.stats_filename = stats_file
             options = [x.split('->') for x in cfg['options'].split(';')]
             print('Settings ATRP activator extension')
             print('ATRPActivator.interval={} num_part={}'.format(interval, num_particles))
@@ -646,19 +640,23 @@ class SetupReactions:
                 reactant = re_reactant.match(to_process).groupdict()
                 product = re_product.match(after_process).groupdict()
                 reactant_type_id = self.topol.atomsym_atomtype[reactant['name']]
+                reactant_state = int(reactant['state'])
+                reactant_flag = reactant['flag'] == 'DA'
+                delta_state = int(product['delta'])
                 product_type_id = self.topol.atomsym_atomtype[product['new_type']]
                 product_property = self.topol.gt.atomtypes[product['new_type']]
                 if reactant['flag'] not in ['A', 'DA']:
                     raise RuntimeError('Flag {} not "A" or "DA"'.format(reactant['flag']))
                 atrp_activator.add_reactive_center(
                     type_id=reactant_type_id,
-                    state=int(reactant['state']),
-                    is_activator=reactant['flag'] == 'A',
+                    state=reactant_state,
+                    is_activator=reactant_flag,
                     new_property=espressopp.ParticleProperties(type=product_type_id,
                                                                mass=product_property['mass'],
                                                                q=product_property['charge']),
-                    delta_state=int(product['delta']))
-                print('ATRPActivator: added {}->{}'.format(to_process, after_process))
+                    delta_state=delta_state)
+                print('ATRPActivator: added {}->{} state={} is_activator={} delta_state={}'.format(
+                    to_process, after_process, reactant_state, reactant_flag, delta_state))
 
             return output_triplet(atrp_activator, None, EXT_INTEGRATOR)
 
@@ -733,6 +731,10 @@ class SetupReactions:
 
             # Setting the post process extensions.
             extensions = self._prepare_group_postprocess(reaction_group['extensions'])
+            extensions_to_integrator = [ext.ext for ext in extensions
+                                        if ext.ext is not None and ext.ext_type == EXT_INTEGRATOR]
+            extensions_to_reactions = [ext for ext in extensions
+                                       if ext.ext is not None and ext.ext_type == EXT_POSTPROCESS]
 
             print('Setting chemical reactions in group')
             for chem_reaction in reaction_group['reaction_list']:
@@ -740,12 +742,7 @@ class SetupReactions:
                 chem_reaction['connectivity_map'] = reaction_group['connectivity_map']
                 r = self._setup_reaction(chem_reaction, fpl)
                 if r is not None:
-                    for extension in extensions:
-                        if extension.ext is None:
-                            continue
-                        if extension.ext_type == EXT_INTEGRATOR:
-                            extensions_to_integrator.append(extension.ext)
-                            continue
+                    for extension in extensions_to_reactions:
                         if extension.pp_type:
                             r.add_postprocess(extension.ext, extension.pp_type)
                         else:
