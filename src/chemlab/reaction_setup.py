@@ -245,7 +245,8 @@ class SetupReactions:
             The espressopp.integrator.Reaction object.
         """
         if not chem_reaction['active']:
-            return None
+            return None, None
+
         # Select reaction class.
         reaction_type2class = {
             REACTION_NORMAL: self._setup_reaction_normal,

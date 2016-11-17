@@ -92,17 +92,18 @@ class PostProcessSetup(object):
         bond_types = [
             x.split('->') for x in cfg['bonds_to_remove'].split(',')
             ]
-        invoke_on = cfg['invoke_on']
+        invoke_on = cfg.get('invoke_on', 'both')
         # bonds_to_remove=opls_220->opls_220:opls_154:1,opls_268->opls_268:opls_270:1
         for anchor_type, pairs_to_remove in bond_types:
             anchor_type_id = self.topol.used_atomsym_atomtype[anchor_type]
             type_name1, type_name2, nb_level = pairs_to_remove.split(':')
-            print('Remove bond anchored to {} at distance {} between {}-{}'.format(
-                anchor_type, nb_level, type_name1, type_name2
+            print('Remove bond anchored to {} at distance {} between {}-{} invoke_on={}'.format(
+                anchor_type, nb_level, type_name1, type_name2, invoke_on
             ))
             nb_level = int(nb_level)
             type_pid1 = self.topol.used_atomsym_atomtype[type_name1]
             type_pid2 = self.topol.used_atomsym_atomtype[type_name2]
+            print((anchor_type_id, nb_level, type_pid1, type_pid2))
             pp.add_bond_to_remove(anchor_type_id, nb_level, type_pid1, type_pid2)
             self.observed_bondtypes.add(tuple(sorted([type_pid1, type_pid2])))
         return output_triplet(pp, invoke_on, EXT_POSTPROCESS)

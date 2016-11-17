@@ -82,8 +82,7 @@ def _args():
     general_options.add_argument('--top', '--topology', required=True, help='Topology file',
                         dest='top')
     general_options.add_argument('--node_grid')
-    general_options.add_argument('--skin', type=float, default=0.16,
-                        help='Skin value for Verlet list')
+    general_options.add_argument('--skin', default=0.16, help='Skin value for Verlet list')
     general_options.add_argument('--output_prefix',
                         default='sim', type=str,
                         help='Prefix for output files')

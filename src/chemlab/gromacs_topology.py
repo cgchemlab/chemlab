@@ -562,7 +562,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
             tab_interaction.setPotential(
                 type1=t1, type2=t2,
                 potential=espressopp.interaction.Tabulated(
-                    itype=2, filename=espp_tab_name, cutoff=tab_cutoff))
+                    itype=1, filename=espp_tab_name, cutoff=tab_cutoff))
             defined_types.add((t1, t2))
         elif sig > 0.0:
             print('Set LJ potential {}-{}, eps={}, sig={}'.format(type_1, type_2, eps, sig))
@@ -582,7 +582,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 if not os.path.exists(espp_tab_name):
                     print('Convert {} to {}'.format(tab_name, espp_tab_name))
                     espressopp.tools.convert.gromacs.convertTable(tab_name, espp_tab_name)
-                mp_tab.register_table(espp_tab_name, 2, cr_obs, cr_min, cr_max, cr_default)
+                mp_tab.register_table(espp_tab_name, 1, cr_obs, cr_min, cr_max, cr_default)
             print('Set multi tabulated potential {}-{}'.format(mt1, mt2))
             multi_tab_interaction.setPotential(
                 type1=mt1, type2=mt2, potential=mp_tab)
@@ -609,7 +609,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                         type1=mt1,
                         type2=mt2,
                         potential=espressopp.interaction.MixedTabulated(
-                            2, espp_tab1_name, espp_tab2_name, cr_obs, cutoff=tab_cutoff
+                            1, espp_tab1_name, espp_tab2_name, cr_obs, cutoff=tab_cutoff
                         ))
                 elif isinstance(mix_func_data, Func12):
                     print('Set mixed tabulated potential {}-{} with static scaling x={}'.format(mt1, mt2, cr_obs))
@@ -617,7 +617,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                         type1=mt1,
                         type2=mt2,
                         potential=espressopp.interaction.MixedTabulated(
-                            2, espp_tab1_name, espp_tab2_name, mix_value=cr_obs))
+                            1, espp_tab1_name, espp_tab2_name, mix_value=cr_obs))
                 else:
                     raise RuntimeError('Wrong type of data: {}'.format(type(data)))
                 defined_types.add((mt1, mt2))
@@ -644,7 +644,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                         interDynamicTab.setPotential(
                             type1=t1,
                             type2=t2,
-                            potential=espressopp.interaction.Tabulated(2, espp_tab_name, cutoff=tab_cutoff))
+                            potential=espressopp.interaction.Tabulated(1, espp_tab_name, cutoff=tab_cutoff))
                     if max_force != -1:
                         interDynamicTab.setMaxForce(max_force)
                     system.addInteraction(interDynamicTab, 'tab-dynamic_{}'.format(bn))
@@ -684,7 +684,7 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
             if not os.path.exists(espp_tab_name):
                 print('Convert {} to {}'.format(tab_name, espp_tab_name))
                 espressopp.tools.convert.gromacs.convertTable(tab_name, espp_tab_name)
-            return {'itype': 2, 'filename': espp_tab_name}
+            return {'itype': 1, 'filename': espp_tab_name}
         else:
             raise RuntimeError('Unknown func type {}'.format(func))
 
@@ -784,7 +784,7 @@ def set_angle_interactions(system, gt, dynamic_type_ids, name='angles'):
             if not os.path.exists(espp_tab_name):
                 print('Convert {} to {}'.format(tab_name, espp_tab_name))
                 espressopp.tools.convert.gromacs.convertTable(tab_name, espp_tab_name)
-            return {'itype': 2, 'filename': espp_tab_name}
+            return {'itype': 1, 'filename': espp_tab_name}
         else:
             raise RuntimeError('Unknown func type')
 
@@ -878,7 +878,7 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, name='dihedrals'):
             if not os.path.exists(espp_tab_name):
                 print('Convert {} to {}'.format(tab_name, espp_tab_name))
                 espressopp.tools.convert.gromacs.convertTable(tab_name, espp_tab_name)
-            return {'itype': 2, 'filename': espp_tab_name}
+            return {'itype': 1, 'filename': espp_tab_name}
         else:
             raise RuntimeError('Unknown func type')
 

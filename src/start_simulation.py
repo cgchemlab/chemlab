@@ -85,8 +85,10 @@ def main():  #NOQA
     integrator_step = min([args.int_step, args.trj_collect])
     sim_step = args.run / integrator_step
 
-    if args.skin:
-        skin = args.skin
+    if args.skin == 'auto':
+        skin = 0.16
+    else:
+        skin = float(args.skin)
 
     # Seed for RNG
     rng_seed = args.rng_seed
@@ -472,6 +474,7 @@ def main():  #NOQA
                 'st_{}_{}'.format(type_name, state),
                 espressopp.analysis.ChemicalConversionTypeState(system, type_id, state))
 
+    cr_interval = min([cr_interval, args.energy_collect])
     ext_analysis = espressopp.integrator.ExtAnalyze(system_analysis, min([cr_interval, args.energy_collect]))
     integrator.addExtension(ext_analysis)
     print('Configured system analysis, collect data every {} steps'.format(min([cr_interval, args.energy_collect])))
@@ -570,6 +573,13 @@ def main():  #NOQA
     rate_file = None
     if args.rate_arrhenius:
         rate_file = open('{}_{}_new_rates.csv'.format(args.output_prefix, rng_seed), 'w')
+
+    if args.skin == 'auto':
+        print('Tunning skin parameter.')
+        skin = espressopp.tools.decomp.tuneSkin(
+            system, integrator, minSkin=0.1, maxSkin=1.5, precision=0.0001, printInfo=True)
+        print('Found skin: {}'.format(skin))
+        integrator.step = 0
 
     totalTime = time.time()
     integratorLoop = 0.0
