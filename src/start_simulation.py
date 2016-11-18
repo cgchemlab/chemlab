@@ -749,7 +749,6 @@ def main():  #NOQA
                 ext_name = '{}_{}'.format(re.match(r'\<(.*) object', ext_name).groups()[0], id(ext))
                 benchmark_data['extension_timers'][ext_name] = tools.average_timers(ext.get_timers())
         benchmark_data['verlet_list'] = tools.average_timers(verletlist.get_timers())
-        print benchmark_data
         cPickle.dump(benchmark_data, benchmark_file)
 
     print('Final time analysis (per CPUs - {}) [s]:'.format(MPI.COMM_WORLD.size))
