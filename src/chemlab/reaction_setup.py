@@ -46,7 +46,6 @@ class SetupReactions:
         self.name2type = topol.atomsym_atomtype
         self.dynamic_types = set()  # Stores the particle types that will change during the reactions.
 
-        self.use_thermal_group = False
         self.fix_distances = []
         self.cr_observs = {}  # Observs conversion types.
 
@@ -60,6 +59,10 @@ class SetupReactions:
         self.post_process_setup.observed_bondtypes = self.observed_bondtypes
         self.post_process_setup.cr_observs = self.cr_observs
         self.post_process_setup.fix_distances = self.fix_distances
+
+    @property
+    def use_thermal_group(self):
+        return self.post_process_setup.use_thermal_group
 
     def _setup_reaction_normal(self, chem_reaction, fpl):
         rl = chem_reaction['reactant_list']

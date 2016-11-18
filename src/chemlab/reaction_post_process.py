@@ -1,5 +1,6 @@
 #  Copyright (C) 2016
 #      Jakub Krajniak (jkrajniak at gmail.com)
+#      Zidan Zhang (zidan.zhang at kuleuven.be)
 #
 #  This file is part of ChemLab.
 #
@@ -15,6 +16,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 
 import collections
 import espressopp
