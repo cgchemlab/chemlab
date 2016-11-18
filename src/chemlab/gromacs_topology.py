@@ -467,6 +467,8 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
     lj_interaction = espressopp.interaction.VerletListLennardJones(vl)
     has_tab_interaction = False
     tab_interaction = espressopp.interaction.VerletListTabulated(vl)
+    has_tab_capped_interaction = False
+    tab_capped_interaction = espressopp.interaction.VerletListTabulatedCapped(vl)
 
     # Special case for MultiTabulated
     cr_multi = collections.defaultdict(list)
@@ -485,10 +487,11 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
         all_type_pairs.add((t1, t2))
         param = gt.gt.nonbond_params.get((type_1, type_2))
         table_name = None
+        table_cap = None
         sig, eps = -1, -1
         if param:
             func = param['func']
-            print('Using defined non-bonded cross params {} {}'.format(func, param['params']))
+            #print('Using defined non-bonded cross params {} {}'.format(func, param['params']))
             if func == 1:
                 if param['params']:
                     sig = float(param['params'][0])
@@ -544,6 +547,10 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 mix_value = float(param['params'][2])
                 cr_mix_tab[(t1, t2)].append(Func12(mix_value, tab1, tab2))
                 print t1, t2, param
+            elif func == 13:
+                table_name = param['params'][0]
+                table_cap = float(param['params'][1])
+
         elif type_1 in tables and type_2 in tables:
             table_name = 'table_{}_{}.xvg'.format(type_1, type_2)
         else:
@@ -552,7 +559,19 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
             sig, eps = combination(sig_1, eps_1, sig_2, eps_2, combinationrule)
 
         # Standard interaction.
-        if table_name is not None:
+        if table_name is not None and table_cap is not None:
+            print('Set tab potential {}-{}: {} caprad={}'.format(type_1, type_2, table_name, table_cap))
+            espp_tab_name = '{}.pot'.format(table_name.replace('.xvg', ''))
+            if not os.path.exists(espp_tab_name):
+                print('Convert {} to {}'.format(table_name, espp_tab_name))
+                espressopp.tools.convert.gromacs.convertTable(table_name, espp_tab_name)
+            has_tab_capped_interaction = True
+            tab_capped_interaction.setPotential(
+                type1=t1, type2=t2,
+                potential=espressopp.interaction.TabulatedCapped(
+                    itype=1, filename=espp_tab_name, cutoff=tab_cutoff, caprad=table_cap))
+            defined_types.add((t1, t2))
+        elif table_name is not None:
             print('Set tab potential {}-{}: {}'.format(type_1, type_2, table_name))
             espp_tab_name = '{}.pot'.format(table_name.replace('.xvg', ''))
             if not os.path.exists(espp_tab_name):
@@ -658,6 +677,10 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
     if has_tab_interaction:
         print('Adding lj-tab interaction')
         system.addInteraction(tab_interaction, 'lj-tab')
+
+    if has_tab_capped_interaction:
+        print('Adding lj-tab_cap interaction')
+        system.addInteraction(tab_capped_interaction, 'lj-tab_cap')
 
     return cr_observs
 

@@ -31,8 +31,8 @@ B C E C 8 1 1.0
 A A 8 table_A_A.xvg
 A B 8 table_A_B.xvg
 A C 8 table_A_C.xvg
-A D 8 table_A_D.xvg
-A E 8 table_A_E.xvg
+A D 13 table_A_D.xvg 0.29
+A E 13 table_A_E.xvg 0.29
 B B 8 table_B_B.xvg
 B C 8 table_B_C.xvg
 B D 8 table_B_D.xvg
