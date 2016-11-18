@@ -105,7 +105,7 @@ def main():  #NOQA
 
     particle_ids = [x[0] for x in particle_list]
 
-    density = sum(x[3] for x in particle_list)*mass_factor/ (box[0] * box[1] * box[2])
+    density = sum(x[3] for x in particle_list) * mass_factor / (box[0] * box[1] * box[2])
     print('Density: {} kg/m^3'.format(density))
     print('Box: {} nm'.format(box))
 
@@ -114,11 +114,11 @@ def main():  #NOQA
         raise RuntimeError('Temperature not defined!')
     temperature = args.temperature * kb
     print('Generating velocities from Maxwell-Boltzmann distribution T={} ({})'.format(
-        args.temperature, args.temperature*kb))
+        args.temperature, args.temperature * kb))
     vx, vy, vz = espressopp.tools.velocities.gaussian(
         args.temperature,
         len(particle_list),
-        [x[3]*mass_factor for x in particle_list],
+        [x[3] * mass_factor for x in particle_list],
         kb=kb)
     part_prop.append('v')
     for i, p in enumerate(particle_list):
@@ -149,7 +149,7 @@ def main():  #NOQA
 
     system.storage.decompose()
 
-# Dynamic exclude list, depends on the new create bonds as well.
+    # Dynamic exclude list, depends on the new create bonds as well.
     if has_exclusions:
         exclusion_file = open(args.exclusion_list, 'r')
         exclusions = [map(int, x.split()) for x in exclusion_file.readlines()]
@@ -164,14 +164,14 @@ def main():  #NOQA
     dynamic_exclusion_list = espressopp.DynamicExcludeList(integrator, gt.exclusions)
     print('Excluded pairs from LJ interaction: {}'.format(len(gt.exclusions)))
 
-# Exclude all bonded interaction from the lennard jones
+    # Exclude all bonded interaction from the lennard jones
     verletlist = espressopp.VerletList(
         system,
         cutoff=max_cutoff,
         exclusionlist=dynamic_exclusion_list
-        )
+    )
 
-# define the potential, interaction_id = 0
+    # define the potential, interaction_id = 0
     print('Bonds: {}'.format(len(gt.bonds)))
     print('Angles: {}'.format(len(gt.angles)))
     print('Dihedrals: {}'.format(len(gt.dihedrals)))
@@ -186,14 +186,14 @@ def main():  #NOQA
     topology_manager = espressopp.integrator.TopologyManager(system)
 
     # Hooks
-    hook_init_reaction = lambda *_,**__: True
-    hook_postsetup_reaction = lambda *_,**__: True
+    hook_init_reaction = lambda *_, **__: True
+    hook_postsetup_reaction = lambda *_, **__: True
     if os.path.exists('hooks.py'):
         print('Found hooks.py')
         locals = {}
         execfile('hooks.py', globals(), locals)
-        hook_init_reaction = locals.get('hook_init_reaction', lambda *_,**__: True)
-        hook_postsetup_reaction = locals.get('hook_postsetup_reaction', lambda *_,**__: True)
+        hook_init_reaction = locals.get('hook_init_reaction', hook_init_reaction)
+        hook_postsetup_reaction = locals.get('hook_postsetup_reaction', hook_postsetup_reaction)
 
     # Set chemical reactions, parser in reaction_parser.py
     chem_dynamic_types = set()
@@ -499,7 +499,7 @@ def main():  #NOQA
         store_velocity=args.store_velocity,
         store_mass=args.store_mass,
         is_single_prec=args.store_single_precision,
-        chunk_size=128) #int(NPart/MPI.COMM_WORLD.size))
+        chunk_size=128)  # int(NPart/MPI.COMM_WORLD.size))
 
     print('Set topology writer')
     dump_topol = espressopp.io.DumpTopology(system, integrator, traj_file)
@@ -557,11 +557,11 @@ def main():  #NOQA
     total_velocity.reset()
 
     print('{:9}    {:8}'.format('Type name', 'type id'))
-    for at_sym, type_id in sorted(gt.atomsym_atomtype.items(), key=lambda x: x[1]):
-        print('{:9}    {:8}'.format(at_sym, type_id))
+    for at_sym in gt.atomsym_atomtype:
+        print('{:9}    {:8}'.format(at_sym, gt.atomsym_atomtype[at_sym]))
 
-    print('Running {} steps'.format(sim_step*integrator_step))
-    print('Temperature: {} ({} K)'.format(args.temperature*kb, args.temperature))
+    print('Running {} steps'.format(sim_step * integrator_step))
+    print('Temperature: {} ({} K)'.format(args.temperature * kb, args.temperature))
     print('Number of particles: {}'.format(NPart))
     system_analysis.dump()
 
@@ -587,10 +587,10 @@ def main():  #NOQA
     for k in range(sim_step):
         system_analysis.info()
         if k % k_trj_collect == 0:
-            traj_file.dump(k*integrator_step, k*integrator_step*args.dt)
+            traj_file.dump(k * integrator_step, k * integrator_step * args.dt)
         if k % k_trj_flush == 0:
             dump_topol.update()
-            traj_file.flush()   # Write HDF5 to disk.
+            traj_file.flush()  # Write HDF5 to disk.
         if k_enable_reactions == k:
             print('Enabling chemical reactions')
             integrator.addExtension(ar)
@@ -638,9 +638,11 @@ def main():  #NOQA
             delta_bonds = bonds1 - bonds0
             if delta_bonds > 0:
                 energy_delta = (system_analysis.potential_energy - energy0) / float(delta_bonds)
-                new_rate = math.exp(-energy_delta/temperature)
-                print('{}\tChange reaction rate, delta_E={}, new_k={}, delta_bonds={}'.format(k*integrator_step, energy_delta, new_rate, delta_bonds))
-                rate_file.write('{} {:e}\n'.format(k*integrator_step, new_rate))
+                new_rate = math.exp(-energy_delta / temperature)
+                print('{}\tChange reaction rate, delta_E={}, new_k={}, delta_bonds={}'.format(k * integrator_step,
+                                                                                              energy_delta, new_rate,
+                                                                                              delta_bonds))
+                rate_file.write('{} {:e}\n'.format(k * integrator_step, new_rate))
                 for r in reactions:
                     r.rate = new_rate
     totalTime = time.time() - totalTime
@@ -654,7 +656,7 @@ def main():  #NOQA
         rate_file.close()
 
     system_analysis.info()
-    traj_file.dump(sim_step*integrator_step, sim_step*integrator_step*args.dt)
+    traj_file.dump(sim_step * integrator_step, sim_step * integrator_step * args.dt)
     dump_topol.dump()
     dump_topol.update()
     traj_file.flush()
@@ -672,8 +674,8 @@ def main():  #NOQA
         'kb': kb,
         'barostat': args.barostat if args.pressure else 'no',
         'pressure': pressure,
-        'total_steps': sim_step*integrator_step,
-        'total_time': sim_step*integrator_step*args.dt,
+        'total_steps': sim_step * integrator_step,
+        'total_time': sim_step * integrator_step * args.dt,
         'integrator_step': integrator_step,
         'start_reaction': args.start_ar,
         'topology_collect': args.topol_collect,
@@ -737,6 +739,7 @@ def main():  #NOQA
 
     print('Total time: {}'.format(total_time))
     print('Finished! Thanks!')
+
 
 if __name__ == '__main__':
     main()
