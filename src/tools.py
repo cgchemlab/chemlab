@@ -19,6 +19,7 @@
 
 import argparse
 import ast
+import collections
 import numpy as np
 import random
 
@@ -186,3 +187,36 @@ def _args():
     args_hybrid_bonds.add_argument('--t_hybrid_dihedral', default=0, type=int)
 
     return parser
+
+
+def get_integrator_timers(alltimers, system):
+    skip_timers = ['timeRun']
+    nprocs = len(alltimers)
+    timers = {k: 0.0 for k, _ in alltimers[0]}
+    alltimers = [{k: float(v) for k, v in ntimer if k not in skip_timers} for ntimer in alltimers]
+    for ntimer in alltimers:
+        for k, v in ntimer.items():
+            timers[k] += v
+    total_t = 0.0
+    for k in timers:
+        total_t += timers[k]
+        timers[k] /= nprocs
+
+    for k, v in sorted(timers.items()):
+        if k.startswith('f'):
+            lbl = system.getNameOfInteraction(int(k.replace('f', '')))
+            timers[lbl] = v
+            del timers[k]
+
+    return timers
+
+def average_timers(timer_list):
+    avg_timers = collections.defaultdict(list)
+    for cpu_list in timer_list:
+        for k, v in cpu_list:
+            avg_timers[k].append(v)
+    for k in avg_timers:
+        if len(avg_timers[k]) > 0:
+            avg_timers[k] = sum(avg_timers[k]) / float(len(avg_timers[k]))
+
+    return avg_timers

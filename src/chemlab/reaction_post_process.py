@@ -223,8 +223,7 @@ class PostProcessSetup(object):
             espressopp.ParticleProperties(
                 target_type_id,
                 target_properties['mass'],
-                0.0
-            ))
+                0.0))
         fix_distance.add_postprocess(fxd_post_process)
         self.system.integrator.addExtension(fix_distance)
     
@@ -277,7 +276,6 @@ class PostProcessSetup(object):
         self.fix_distances.append(fd)
 
         pp_join_particles = espressopp.integrator.PostProcessJoinParticles(fd, eq_length)
-        self.system.integrator.addExtension(fd)
         dummy_pp = espressopp.integrator.PostProcessChangeProperty()
         dummy_pp.add_change_property(
             final_type_id,

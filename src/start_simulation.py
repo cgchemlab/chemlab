@@ -28,6 +28,7 @@ import collections
 import time
 import logging
 import random
+import re
 import shutil
 
 import chemlab
@@ -459,7 +460,7 @@ def main():  #NOQA
 
     if args.count_types:
         for at_sym in args.count_types.split(','):
-            print('Observer {:9} ({:8})'.format(at_sym, gt.atomsym_atomtype[at_sym]))
+            print('Observer {:9} ({})'.format(at_sym, gt.atomsym_atomtype[at_sym]))
             obs_type_id = gt.atomsym_atomtype[at_sym]
             chem_conver_obs = espressopp.analysis.ChemicalConversion(system, obs_type_id)
             system_analysis.add_observable('num_type_{}_{}'.format(at_sym, obs_type_id), chem_conver_obs)
@@ -557,8 +558,8 @@ def main():  #NOQA
     total_velocity.reset()
 
     print('{:9}    {:8}'.format('Type name', 'type id'))
-    for at_sym in gt.atomsym_atomtype:
-        print('{:9}    {:8}'.format(at_sym, gt.atomsym_atomtype[at_sym]))
+    for at_sym, type_id in sorted(gt.atomsym_atomtype.items(), key=lambda x: x[1]):
+        print('{:9}    {:8}'.format(at_sym, type_id))
 
     print('Running {} steps'.format(sim_step * integrator_step))
     print('Temperature: {} ({} K)'.format(args.temperature * kb, args.temperature))
@@ -733,6 +734,23 @@ def main():  #NOQA
             traj_timers[k] = sum(traj_timers[k]) / float(len(traj_timers[k]))
     for k, v in traj_timers.items():
         print('\t{}: {}'.format(k, v))
+
+    with open('{}_{}_benchmark.pck'.format(args.output_prefix, args.rng_seed), 'wb') as benchmark_file:
+        benchmark_data = {}
+        benchmark_data['traj_timers'] = traj_timers
+        benchmark_data['topol_timers'] = topol_timers
+        benchmark_data['integrator_timers'] = tools.get_integrator_timers(integrator.getTimers(), system)
+        benchmark_data['extension_timers'] = {}
+        for ext_id in range(integrator.getNumberOfExtensions()):
+            ext = integrator.getExtension(ext_id)
+            ext_timers = tools.average_timers(ext.get_timers())
+            if ext_timers:
+                ext_name = str(ext)
+                ext_name = '{}_{}'.format(re.match(r'\<(.*) object', ext_name).groups()[0], id(ext))
+                benchmark_data['extension_timers'][ext_name] = tools.average_timers(ext.get_timers())
+        benchmark_data['verlet_list'] = tools.average_timers(verletlist.get_timers())
+        print benchmark_data
+        cPickle.dump(benchmark_data, benchmark_file)
 
     print('Final time analysis (per CPUs - {}) [s]:'.format(MPI.COMM_WORLD.size))
     espressopp.tools.analyse.final_info(system, integrator, verletlist, time0, time.time())
