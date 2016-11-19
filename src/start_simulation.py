@@ -370,13 +370,13 @@ def main():  #NOQA
     for t, p in gt.angleparams.items():
         if p['func'] in dynamic_ftls:
             ftl = dynamic_ftls[p['func']]
-            print('Register angles for type: {}'.format(t))
+            print('Register angles for type: {} ({})'.format(t, ftl))
             topology_manager.register_triplet(ftl, *t)
 
     for t, p in gt.dihedralparams.items():
         if p['func'] in dynamic_fqls:
             fql = dynamic_fqls[p['func']]
-            print('Register dihedral for type: {}'.format(t))
+            print('Register dihedral for type: {} ({})'.format(t, fql))
             topology_manager.register_quadruplet(fql, *t)
 
     integrator.addExtension(topology_manager)
@@ -388,7 +388,7 @@ def main():  #NOQA
     # Register chemistry tuples in topology_manager
     for def_f in chem_fpls:
         for t in def_f.type_list:
-            print('Register chem_fpl for type: {}'.format(t))
+            print('Register chem_fpl for type: {} ({})'.format(t, def_f.fpl))
             topology_manager.register_tuple(def_f.fpl, *t)
 
     # Define SystemMonitor that will store data from observables into a .csv file.
