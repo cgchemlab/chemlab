@@ -193,7 +193,7 @@ class SetupReactions:
         self.dynamic_types.add(self.name2type[rl['type_1']['name']])
         self.dynamic_types.add(self.name2type[rl['type_2']['name']])
         self.dynamic_types.add(self.name2type[rl['type_3']['name']])
-        print('Setup reaction: {}({})-{}({})'.format(
+        print('Setup exchange reaction: {}({})-{}({})'.format(
             rt1['name'], self.name2type[rt1['name']], rt3['name'], self.name2type[rt3['name']]))
 
         reaction.intraresidual = bool(chem_reaction['intraresidual'])
@@ -209,30 +209,29 @@ class SetupReactions:
         t2_old = self.name2type[rt2['name']]
         t2_new = self.name2type[rt2['new_type']]
         # Change type if necessary.
-        if rt1['name'] != rt1['new_type'] or rt2['name'] != rt2['new_type']:
-            r_pp = espressopp.integrator.PostProcessChangeProperty()
-            if t1_old != t1_new:
-                self.dynamic_types.add(t1_old)
-                self.dynamic_types.add(t1_new)
-                print('Reaction: {}-{}, change type {}->{}'.format(rt1['name'], rt2['name'], t1_old, t1_new))
-                new_property = self.topol.gt.atomtypes[rt1['new_type']]
-                r_pp.add_change_property(
-                    t1_old,
-                    espressopp.ParticleProperties(
-                        t1_new, new_property['mass'],
-                        new_property['charge']))
-            if t2_old != t2_new:
-                self.dynamic_types.add(t2_old)
-                self.dynamic_types.add(t2_new)
-                print('Reaction: {}-{}, change type {}->{}'.format(rt1['name'], rt2['name'], t2_old, t2_new))
-                new_property = self.topol.gt.atomtypes[rl['type_2']['new_type']]
-                r_pp.add_change_property(
-                    t2_old,
-                    espressopp.ParticleProperties(
-                        t2_new, new_property['mass'],
-                        new_property['charge']))
+        if t1_old != t1_new:
+            r_pp = espressopp.integrator.PostProcessChangePropertyByTopologyManager(self.tm)
+            self.dynamic_types.add(t1_old)
+            self.dynamic_types.add(t1_new)
+            print('Exchange reaction: {}-{}, change type {}->{}'.format(rt1['name'], rt2['name'], t1_old, t1_new))
+            new_property = self.topol.gt.atomtypes[rt1['new_type']]
+            r_pp.add_change_property(
+                t1_old,
+                espressopp.ParticleProperties(
+                    t1_new, new_property['mass'],
+                    new_property['charge']))
+            reaction.add_postprocess(r_pp, 'type_1')
 
-            reaction.add_postprocess(r_pp)
+        if t2_old != t2_new:
+            self.dynamic_types.add(t2_old)
+            self.dynamic_types.add(t2_new)
+            print('Exchange reaction: {}-{}, change type {}->{}'.format(rt1['name'], rt2['name'], t2_old, t2_new))
+            new_property = self.topol.gt.atomtypes[rl['type_2']['new_type']]
+
+            pp = espressopp.integrator.PostProcessChangeNeighboursProperty(self.tm)
+            pp.add_change_property(
+                t2_old, espressopp.ParticleProperties( t2_new, new_property['mass'], new_property['charge']), 0)
+            reaction.add_postprocess(r_pp, 'type_1')
 
         return reaction, [(t1_old, t2_old), (t1_new, t2_new)]
 
