@@ -198,9 +198,10 @@ class PostProcessSetup(object):
                     dummy_pos,
                     target_properties['mass'],
                     dummy_idx,
-                    init_res))
+                    init_res,
+                    target_properties.get('state', 0)))
                 dummy_idx += 1
-        props = ['id', 'type', 'pos', 'mass', 'res_id', 'lambda_adr']
+        props = ['id', 'type', 'pos', 'mass', 'res_id', 'lambda_adr', 'state']
         self.system.storage.addParticles(particle_list, *props)
         self.system.storage.decompose()
     
