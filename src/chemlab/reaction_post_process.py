@@ -273,14 +273,6 @@ class PostProcessSetup(object):
         print('PostProcessJoinMolecule: create dummy type DUMMY_{}'.format(dummy_type_id))
 
         fd = espressopp.integrator.FixDistances(self.system, [], host_type_id, dummy_type_id)
-        self.fix_distances.append(fd)
-
-        pp_join_particles = espressopp.integrator.PostProcessJoinParticles(fd, eq_length)
-        dummy_pp = espressopp.integrator.PostProcessChangeProperty()
-        dummy_pp.add_change_property(
-            final_type_id,
-            espressopp.ParticleProperties(dummy_type_id, lambda_adr=init_res))
-
         fxd_post_process = espressopp.integrator.PostProcessChangeProperty()
         fxd_post_process.add_change_property(
             dummy_type_id,
@@ -290,6 +282,13 @@ class PostProcessSetup(object):
                 lambda_adr=init_res))
         fd.add_postprocess(fxd_post_process)
         self.system.integrator.addExtension(fd)
+        self.fix_distances.append(fd)
+
+        pp_join_particles = espressopp.integrator.PostProcessJoinParticles(fd, eq_length)
+        dummy_pp = espressopp.integrator.PostProcessChangeProperty()
+        dummy_pp.add_change_property(
+            final_type_id,
+            espressopp.ParticleProperties(dummy_type_id, lambda_adr=init_res))
 
         self.use_thermal_group = True
 

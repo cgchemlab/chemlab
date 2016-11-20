@@ -32,3 +32,5 @@ topol_collect=1000
 trj_collect=1000
 table_groups=A,B,C,D,E,W
 exclusion_list=exclusion_topol.list
+count_fix_distances=True
+count_types=Z,W,DUMMY_7,DUMMY_8
