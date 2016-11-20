@@ -213,7 +213,7 @@ class SetupReactions:
             r_pp = espressopp.integrator.PostProcessChangePropertyByTopologyManager(self.tm)
             self.dynamic_types.add(t1_old)
             self.dynamic_types.add(t1_new)
-            print('Exchange reaction: {}-{}, change type {}->{}'.format(rt1['name'], rt2['name'], t1_old, t1_new))
+            print('Exchange reaction: {}-{}, change type {}->{} by TM'.format(rt1['name'], rt2['name'], t1_old, t1_new))
             new_property = self.topol.gt.atomtypes[rt1['new_type']]
             r_pp.add_change_property(
                 t1_old,
@@ -225,13 +225,13 @@ class SetupReactions:
         if t2_old != t2_new:
             self.dynamic_types.add(t2_old)
             self.dynamic_types.add(t2_new)
-            print('Exchange reaction: {}-{}, change type {}->{}'.format(rt1['name'], rt2['name'], t2_old, t2_new))
+            print('Exchange reaction: {}-{}, change type {}->{} NB'.format(rt1['name'], rt2['name'], t2_old, t2_new))
             new_property = self.topol.gt.atomtypes[rl['type_2']['new_type']]
 
             pp = espressopp.integrator.PostProcessChangeNeighboursProperty(self.tm)
             pp.add_change_property(
                 t2_old, espressopp.ParticleProperties( t2_new, new_property['mass'], new_property['charge']), 0)
-            reaction.add_postprocess(r_pp, 'type_1')
+            reaction.add_postprocess(pp, 'type_1')
 
         return reaction, [(t1_old, t2_old), (t1_new, t2_new)]
 
@@ -340,12 +340,17 @@ class SetupReactions:
 
             # Setting the post process extensions.
             group_extensions = self._prepare_group_postprocess(reaction_group['extensions'])
-            extensions_to_integrator = [x.ext for v in group_extensions.values()
-                                        for x in v
-                                        if x.ext_type == EXT_INTEGRATOR and x.ext is not None]
-            extensions_to_reactions = {k: x for k, v in group_extensions.items()
-                                       for x in v
-                                       if x.ext_type == EXT_POSTPROCESS and x.ext is not None}
+            extensions_to_integrator = []
+            extensions_to_reactions = collections.defaultdict(list)
+            for k, v in group_extensions.items():
+                for x in v:
+                    if x.ext is not None:
+                        if x.ext_type == EXT_INTEGRATOR:
+                            extensions_to_integrator.append(x.ext)
+                        elif x.ext_type == EXT_POSTPROCESS:
+                            extensions_to_reactions[k].append(x)
+                        else:
+                            raise RuntimeError('Wrong ext_type={}'.format(x.ext_type))
 
             reaction_type_list = []
             print('Setting chemical reactions in group')
@@ -355,15 +360,16 @@ class SetupReactions:
                 r, reaction_types = self._setup_reaction(chem_reaction, fpl)
                 if r is not None:
                     reaction_type_list.extend(reaction_types)
-                    for ext_name, extension in extensions_to_reactions.items():
+                    for ext_name, extensions in extensions_to_reactions.items():
                         if ext_name in chem_reaction['exclude_extensions']:
                             print('Skip extension: {} ({})'.format(ext_name, chem_reaction['equation']))
                         else:
-                            print('Add extension {} to {}'.format(ext_name, chem_reaction['equation']))
-                            if extension.pp_type:
-                                r.add_postprocess(extension.ext, extension.pp_type)
-                            else:
-                                r.add_postprocess(extension.ext)
+                            for extension in extensions:
+                                print('Add extension {} to {}'.format(ext_name, chem_reaction['equation']))
+                                if extension.pp_type:
+                                    r.add_postprocess(extension.ext, extension.pp_type)
+                                else:
+                                    r.add_postprocess(extension.ext)
                     ar.add_reaction(r)
                     reactions.append(r)
             fpls.append(fpl_def(fpl, set(reaction_type_list)))
