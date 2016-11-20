@@ -475,6 +475,10 @@ def main():  #NOQA
                 'st_{}_{}'.format(type_name, state),
                 espressopp.analysis.ChemicalConversionTypeState(system, type_id, state))
 
+    if args.count_fix_distances:
+        for fd_idx, fd in enumerate(sc.fix_distances):
+            system_analysis.add_observable('fd_{}'.format(fd_idx), espressopp.analysis.NumFixDistances(system, fd))
+
     cr_interval = min([cr_interval, args.energy_collect])
     ext_analysis = espressopp.integrator.ExtAnalyze(system_analysis, min([cr_interval, args.energy_collect]))
     integrator.addExtension(ext_analysis)
