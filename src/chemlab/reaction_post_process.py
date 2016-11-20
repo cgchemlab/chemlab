@@ -182,7 +182,8 @@ class PostProcessSetup(object):
         target_properties = self.topol.gt.atomtypes[target_type]
         print('Generate {} of dummy particles (type: {}) linked to {}'.format(
             len(host_pids)*replicate, dummy_type_id, host_type))
-    
+
+        # Creates list of dummy particles.
         particle_list = []
         fix_list = []
         dummy_idx = max_pid + 1
