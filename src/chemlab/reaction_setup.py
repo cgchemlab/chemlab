@@ -230,7 +230,10 @@ class SetupReactions:
 
             pp = espressopp.integrator.PostProcessChangeNeighboursProperty(self.tm)
             pp.add_change_property(
-                t2_old, espressopp.ParticleProperties( t2_new, new_property['mass'], new_property['charge']), 0)
+                t2_old,
+                espressopp.ParticleProperties(
+                    type=t2_new, mass=new_property['mass'], q=new_property['charge'], incr_state=int(rt2['delta'])),
+                0)
             reaction.add_postprocess(pp, 'type_1')
 
         return reaction, [(t1_old, t2_old), (t1_new, t2_new)]
