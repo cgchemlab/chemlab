@@ -63,30 +63,31 @@ class PostProcessSetup(object):
         pp = espressopp.integrator.PostProcessChangeNeighboursProperty(self.tm)
         type_transfers = [
             x.split('->') for x in cfg['type_transfers'].split(',')]
+        re_opt = re.compile(r'(?P<type_name>\w+)\(?(?P<options>[a-zA-Z0-9_=,]*)\)?')
+        invoke_on = cfg.get('invoke_on')
+
         for old_type, new_type in type_transfers:
             old_type, nb_level = old_type.split(':')
             nb_level = int(nb_level)
-            if old_type != new_type:
-                print('Change property {}->{} nb={} and {}'.format(
-                    old_type, new_type, nb_level, nb_level + 1))
-                t1_old = self.name2type[old_type]
+            opt_match = re_opt.match(new_type)
+            t1_old = self.name2type[old_type]
+            if opt_match:
+                new_type, options = opt_match.groups()
                 t1_new = self.name2type[new_type]
+                if options:
+                    new_properties_args = {'type': t1_new}
+                    exec(options, {}, new_properties_args)
+                    new_property = espressopp.ParticleProperties(**new_properties_args)
+                else:
+                    new_property_def = self.topol.gt.atomtypes[new_type]
+                    new_property = espressopp.ParticleProperties(
+                        t1_new, mass=new_property_def['mass'], q=new_property_def['charge'])
+
                 self.dynamic_types.add(t1_old)
                 self.dynamic_types.add(t1_new)
-                new_property = self.topol.gt.atomtypes[new_type]
-                pp.add_change_property(
-                    t1_old,
-                    espressopp.ParticleProperties(
-                        t1_new, new_property['mass'], new_property['charge']),
-                    nb_level
-                )
-                pp.add_change_property(
-                    t1_old,
-                    espressopp.ParticleProperties(
-                        t1_new, new_property['mass'], new_property['charge']),
-                    nb_level + 1
-                )
-        return output_triplet(pp, None, EXT_POSTPROCESS)
+                pp.add_change_property(t1_old, new_property, nb_level)
+
+        return output_triplet(pp, invoke_on, EXT_POSTPROCESS)
     
     def _setup_post_process_remove_neighbour_bonds(self, cfg):
         """Setup PostProcessRemoveNeighbourBonds"""
