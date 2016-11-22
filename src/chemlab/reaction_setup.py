@@ -233,7 +233,7 @@ class SetupReactions:
                 t2_old,
                 espressopp.ParticleProperties(
                     type=t2_new, mass=new_property['mass'], q=new_property['charge'], incr_state=int(rt2['delta'])),
-                0)
+                1)
             reaction.add_postprocess(pp, 'type_1')
 
         return reaction, [(t1_old, t2_old), (t1_new, t2_new)]
