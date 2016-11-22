@@ -226,7 +226,9 @@ class SetupReactions:
             self.dynamic_types.add(t2_old)
             self.dynamic_types.add(t2_new)
             print('Exchange reaction: {}-{}, change type {}->{} NB'.format(rt1['name'], rt2['name'], t2_old, t2_new))
+
             new_property = self.topol.gt.atomtypes[rl['type_2']['new_type']]
+            print('Change type {}->{} property={}'.format(t2_old, t2_new. new_property))
 
             pp = espressopp.integrator.PostProcessChangeNeighboursProperty(self.tm)
             pp.add_change_property(
@@ -234,6 +236,11 @@ class SetupReactions:
                 espressopp.ParticleProperties(
                     type=t2_new, mass=new_property['mass'], q=new_property['charge'], incr_state=int(rt2['delta'])),
                 1)
+            pp.add_change_property(
+                t2_old,
+                espressopp.ParticleProperties(
+                    type=t2_new, mass=new_property['mass'], q=new_property['charge'], incr_state=int(rt2['delta'])),
+                0)
             reaction.add_postprocess(pp, 'type_1')
 
         return reaction, [(t1_old, t2_old), (t1_new, t2_new)]
