@@ -65,7 +65,7 @@ class PostProcessSetup(object):
             x.split('->') for x in cfg['type_transfers'].split(',')]
         re_opt = re.compile(r'(?P<type_name>\w+)\(?(?P<options>[a-zA-Z0-9_=,]*)\)?')
         invoke_on = cfg.get('invoke_on')
-
+        print('Setup PostProcessChangeNeighbourProperties, {}'.format(cfg['type_transfers']))
         for old_type, new_type in type_transfers:
             old_type, nb_level = old_type.split(':')
             nb_level = int(nb_level)
@@ -85,6 +85,7 @@ class PostProcessSetup(object):
 
                 self.dynamic_types.add(t1_old)
                 self.dynamic_types.add(t1_new)
+                print('PostProcessChangeNeighbourProperties: {}->{}: {} at {}'.format(t1_old, t1_new, pp, nb_level))
                 pp.add_change_property(t1_old, new_property, nb_level)
 
         return output_triplet(pp, invoke_on, EXT_POSTPROCESS)
