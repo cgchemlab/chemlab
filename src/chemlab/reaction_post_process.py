@@ -43,6 +43,7 @@ class PostProcessSetup(object):
         self.dynamic_types = None
         self.observed_bondtypes = None
         self.cr_observs = {}
+        self.use_thermal_group = False
 
     def setup_post_process(self, post_process_type):
         pp_type_to_cfg = {

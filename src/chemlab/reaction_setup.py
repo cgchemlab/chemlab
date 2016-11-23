@@ -225,23 +225,23 @@ class SetupReactions:
         if t2_old != t2_new:
             self.dynamic_types.add(t2_old)
             self.dynamic_types.add(t2_new)
-            print('Exchange reaction: {}-{}, change type {}->{} NB'.format(rt1['name'], rt2['name'], t2_old, t2_new))
+            #print('Exchange reaction: {}-{}, change type {}->{} NB'.format(rt1['name'], rt2['name'], t2_old, t2_new))
 
-            new_property = self.topol.gt.atomtypes[rl['type_2']['new_type']]
-            print('Change type {}->{} property={}'.format(t2_old, t2_new. new_property))
+            #new_property = self.topol.gt.atomtypes[rl['type_2']['new_type']]
+            #print('Change type {}->{} property={}'.format(t2_old, t2_new, new_property))
 
-            pp = espressopp.integrator.PostProcessChangeNeighboursProperty(self.tm)
-            pp.add_change_property(
-                t2_old,
-                espressopp.ParticleProperties(
-                    type=t2_new, mass=new_property['mass'], q=new_property['charge'], incr_state=int(rt2['delta'])),
-                1)
-            pp.add_change_property(
-                t2_old,
-                espressopp.ParticleProperties(
-                    type=t2_new, mass=new_property['mass'], q=new_property['charge'], incr_state=int(rt2['delta'])),
-                0)
-            reaction.add_postprocess(pp, 'type_1')
+            #pp = espressopp.integrator.PostProcessChangeNeighboursProperty(self.tm)
+            #pp.add_change_property(
+            #    t2_old,
+            #    espressopp.ParticleProperties(
+            #        type=t2_new, mass=new_property['mass'], q=new_property['charge'], incr_state=int(rt2['delta'])),
+            #    1)
+            #pp.add_change_property(
+            #    t2_old,
+            #    espressopp.ParticleProperties(
+            #        type=t2_new, mass=new_property['mass'], q=new_property['charge'], incr_state=int(rt2['delta'])),
+            #    0)
+            #reaction.add_postprocess(pp, 'type_1')
 
         return reaction, [(t1_old, t2_old), (t1_new, t2_new)]
 
@@ -375,7 +375,7 @@ class SetupReactions:
                             print('Skip extension: {} ({})'.format(ext_name, chem_reaction['equation']))
                         else:
                             for extension in extensions:
-                                print('Add extension {} to {}'.format(ext_name, chem_reaction['equation']))
+                                print('Add extension {} to {} ({}): {}'.format(ext_name, chem_reaction['equation'], extension.pp_type, extension.ext))
                                 if extension.pp_type:
                                     r.add_postprocess(extension.ext, extension.pp_type)
                                 else:
