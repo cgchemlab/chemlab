@@ -191,7 +191,7 @@ class SetupReactions:
         reaction.is_virtual = True  # We don't mean to make a bond, only to catch the event.
 
         reaction.add_constraint(espressopp.integrator.ReactionConstraintNeighbourState(
-            self.name2type[rt2['name']], int(rt2['min']), int(rt2['max'])))
+            self.name2type[rt2['name']], int(rt2['min']), int(rt2['max'])), 'type_1')
 
         self.dynamic_types.add(self.name2type[rl['type_1']['name']])
         self.dynamic_types.add(self.name2type[rl['type_2']['name']])
