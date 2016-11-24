@@ -242,6 +242,7 @@ class PostProcessSetup(object):
                 type=final_type_id,
                 mass=final_properties['mass'],
                 q=final_properties['charge'],
+                state=final_properties.get('state', 0),
                 lambda_adr=1.0)
             basic_dynamic_res.add_postprocess(
                 espressopp.integrator.PostProcessChangeProperty(
@@ -283,6 +284,7 @@ class PostProcessSetup(object):
             espressopp.integrator.TopologyParticleProperties(
                 type=target_type_id,
                 mass=target_properties['mass'],
+                state=target_properties.get('state', 0),
                 lambda_adr=init_res))
         fd.add_postprocess(fxd_post_process)
         self.system.integrator.addExtension(fd)
