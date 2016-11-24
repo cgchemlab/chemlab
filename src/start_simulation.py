@@ -651,7 +651,7 @@ def main():  #NOQA
         integrator.run(integrator_step)
         integratorLoop += (time.time() - loopTimer)
 
-        hook_at_step(system, integrator, ar, gt, args, k)
+        hook_at_step(system, integrator, ar, gt, args, k*integrator_step)
 
         if args.rate_arrhenius and reactions_enabled:
             bonds1 = sum(f.fpl.totalSize() for f in chem_fpls)  # TODO(jakub): this is terrible.
