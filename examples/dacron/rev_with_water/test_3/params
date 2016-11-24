@@ -33,4 +33,4 @@ trj_collect=1000
 table_groups=A,B,C,D,E,W
 exclusion_list=exclusion_topol.list
 count_fix_distances=True
-count_types=A,C,D,E,Z,W,DUMMY_7,DUMMY_8
+count_types_state=A:1,C:0,D:0,D:1,D:2,E:0,E:1,E:2,Z:0,W:0,DUMMY_7:0,DUMMY_8:0

@@ -28,7 +28,6 @@ PP_TYPE_1 = 'type_1'
 PP_TYPE_2 = 'type_2'
 PP_BOTH = 'both'
 
-
 # Belows are the sub-functions to create PostProcess objects.
 output_triplet = collections.namedtuple('Extension', ['ext', 'pp_type', 'ext_type'])
 
@@ -77,11 +76,11 @@ class PostProcessSetup(object):
                 t1_new = self.name2type[new_type]
                 if options:
                     new_properties_args = {'type': t1_new}
-                    exec(options, {}, new_properties_args)
-                    new_property = espressopp.ParticleProperties(**new_properties_args)
+                    exec (options, {}, new_properties_args)
+                    new_property = espressopp.integrator.TopologyParticleProperties(**new_properties_args)
                 else:
                     new_property_def = self.topol.gt.atomtypes[new_type]
-                    new_property = espressopp.ParticleProperties(
+                    new_property = espressopp.integrator.TopologyParticleProperties(
                         t1_new, mass=new_property_def['mass'], q=new_property_def['charge'])
 
                 self.dynamic_types.add(t1_old)
@@ -90,7 +89,7 @@ class PostProcessSetup(object):
                 pp.add_change_property(t1_old, new_property, nb_level)
 
         return output_triplet(pp, invoke_on, EXT_POSTPROCESS)
-    
+
     def _setup_post_process_remove_neighbour_bonds(self, cfg):
         """Setup PostProcessRemoveNeighbourBonds"""
         pp = espressopp.integrator.PostProcessRemoveNeighbourBond(self.tm)
@@ -112,7 +111,7 @@ class PostProcessSetup(object):
             pp.add_bond_to_remove(anchor_type_id, nb_level, type_pid1, type_pid2)
             self.observed_bondtypes.add(tuple(sorted([type_pid1, type_pid2])))
         return output_triplet(pp, invoke_on, EXT_POSTPROCESS)
-    
+
     def _setup_post_process_freeze_region(self, cfg):
         """Setup freeze region."""
         directions = cfg.get('directions', '-x,x,-y,y,-z,z').split(',')
@@ -123,12 +122,12 @@ class PostProcessSetup(object):
         self.topol.atomsym_atomtype['FREEZE_{}'.format(final_type_id)] = final_type_id
         boxL = self.system.bc.boxL
         if cfg.get('width_type', 'static') == 'ratio':
-            width = float(cfg['width'])*boxL
+            width = float(cfg['width']) * boxL
         else:
             width = espressopp.Real3D(float(cfg['width']))
-    
+
         remove_particles = eval(cfg.get('remove_particles', 'False'))
-    
+
         dir_to_region = {
             '-x': (espressopp.Real3D(0.0), espressopp.Real3D(width[0], boxL[1], boxL[2])),
             '-y': (espressopp.Real3D(0.0), espressopp.Real3D(boxL[0], width[1], boxL[2])),
@@ -136,7 +135,7 @@ class PostProcessSetup(object):
             'x': (espressopp.Real3D(boxL[0] - width[0], 0, 0), boxL),
             'y': (espressopp.Real3D(0, boxL[1] - width[1], 0), boxL),
             'z': (espressopp.Real3D(0, 0, boxL[2] - width[2]), boxL)}
-    
+
         for d in directions:
             print('Define region {}: {}-{} with type: {}'.format(
                 d,
@@ -152,12 +151,12 @@ class PostProcessSetup(object):
             change_in_region = espressopp.integrator.ChangeInRegion(
                 self.system, particle_region)
             change_in_region.set_particle_properties(
-                target_type_id, espressopp.ParticleProperties(final_type_id))
+                target_type_id, espressopp.integrator.TopologyParticleProperties(final_type_id))
             change_in_region.set_flags(target_type_id, reset_velocity=True, reset_force=True,
                                        remove_particle=remove_particles)
             self.system.integrator.addExtension(change_in_region)
         return output_triplet(None, None, None)
-    
+
     def _setup_post_process_release_molecule(self, cfg):
         """Setup release molecules."""
         host_type = cfg['host_type']
@@ -166,7 +165,7 @@ class PostProcessSetup(object):
         alpha = float(cfg['alpha'])
         init_res = float(cfg['init_res'])
         final_type = cfg.get('final_type', target_type)
-    
+
         replicate = int(cfg.get('replicate', 1))
         release_on = cfg.get('release_on', 'type')  # bond or type
         if release_on not in ['bond', 'type']:
@@ -175,7 +174,7 @@ class PostProcessSetup(object):
         release_host = cfg.get('release_host', 'both')
         if release_host not in ['type_1', 'type_2', 'both']:
             raise RuntimeError('Wrong keyword release_host {}, only left, right, both'.format(release_host))
-    
+
         # Generate dummy molecules
         max_pid = max(self.topol.atoms)
         dummy_type_id = max(self.topol.atomsym_atomtype.values()) + 1
@@ -184,7 +183,7 @@ class PostProcessSetup(object):
         target_type_id = self.topol.atomsym_atomtype[target_type]
         target_properties = self.topol.gt.atomtypes[target_type]
         print('Generate {} of dummy particles (type: {}) linked to {}'.format(
-            len(host_pids)*replicate, dummy_type_id, host_type))
+            len(host_pids) * replicate, dummy_type_id, host_type))
 
         # Creates list of dummy particles.
         particle_list = []
@@ -207,9 +206,9 @@ class PostProcessSetup(object):
         props = ['id', 'type', 'pos', 'mass', 'res_id', 'lambda_adr', 'state']
         self.system.storage.addParticles(particle_list, *props)
         self.system.storage.decompose()
-    
+
         reaction_post_process = None
-    
+
         if release_on == 'type':
             fix_distance = espressopp.integrator.FixDistances(
                 self.system,
@@ -217,21 +216,21 @@ class PostProcessSetup(object):
                 self.topol.atomsym_atomtype[host_type],
                 dummy_type_id)
         else:  # do not remove fix when change of type
-            fix_distance = espressopp.integrator.FixDistances(self.system,fix_list)
+            fix_distance = espressopp.integrator.FixDistances(self.system, fix_list)
             # Remove by post process in the reaction
             reaction_post_process = espressopp.integrator.PostProcessReleaseParticles(fix_distance, release_count)
         self.fix_distances.append(fix_distance)
-    
+
         fxd_post_process = espressopp.integrator.PostProcessChangeProperty()
         fxd_post_process.add_change_property(
             dummy_type_id,
-            espressopp.ParticleProperties(
+            espressopp.integrator.TopologyParticleProperties(
                 target_type_id,
                 target_properties['mass'],
                 0.0))
         fix_distance.add_postprocess(fxd_post_process)
         self.system.integrator.addExtension(fix_distance)
-    
+
         basic_dynamic_res = espressopp.integrator.BasicDynamicResolution(self.system, {target_type_id: alpha})
         # If the final_type != target_type then we have to change the type of molecules after resolution reaches
         # 1.0
@@ -239,27 +238,27 @@ class PostProcessSetup(object):
         if target_type != final_type:
             final_type_id = self.topol.atomsym_atomtype[final_type]
             final_properties = self.topol.gt.atomtypes[final_type]
-            final_particle_properties = espressopp.ParticleProperties(
-                        final_type_id,
-                        final_properties['mass'],
-                        final_properties['charge'],
-                        1.0)
+            final_particle_properties = espressopp.integrator.TopologyParticleProperties(
+                final_type_id,
+                final_properties['mass'],
+                final_properties['charge'],
+                1.0)
             basic_dynamic_res.add_postprocess(
                 espressopp.integrator.PostProcessChangeProperty(
                     target_type_id, final_particle_properties))
             print('Change property of final type {}->{} whenever resolution reaches 1.0'.format(
                 target_type_id, final_type_id))
-    
+
         self.system.integrator.addExtension(basic_dynamic_res)
-    
+
         # Because of the dummy particle, we have to use thermal group for thermostat to not
         # thermoset the dummy particle
         self.use_thermal_group = True
-    
+
         # Observ progress of generating that molecule by checking the total number of target type_id
         if self.cr_observs is None:
             self.cr_observs = {}
-    
+
         return output_triplet(reaction_post_process, release_host, EXT_POSTPROCESS)
 
     def _setup_post_process_join_molecule(self, cfg):
@@ -281,7 +280,7 @@ class PostProcessSetup(object):
         fxd_post_process = espressopp.integrator.PostProcessChangeProperty()
         fxd_post_process.add_change_property(
             dummy_type_id,
-            espressopp.ParticleProperties(
+            espressopp.integrator.TopologyParticleProperties(
                 target_type_id,
                 target_properties['mass'],
                 lambda_adr=init_res))
@@ -293,7 +292,7 @@ class PostProcessSetup(object):
         dummy_pp = espressopp.integrator.PostProcessChangeProperty()
         dummy_pp.add_change_property(
             final_type_id,
-            espressopp.ParticleProperties(dummy_type_id, lambda_adr=init_res))
+            espressopp.integrator.TopologyParticleProperties(dummy_type_id, lambda_adr=init_res))
 
         self.use_thermal_group = True
 
@@ -301,22 +300,21 @@ class PostProcessSetup(object):
             output_triplet(pp_join_particles, 'type_1', EXT_POSTPROCESS),
             output_triplet(dummy_pp, 'type_2', EXT_POSTPROCESS)]
 
-
     def _setup_change_particle_type(self, cfg):
         interval = int(cfg['interval'])
         old_type_id = int(cfg['type_id'])
         new_type_id = int(cfg['new_type_id'])
         num_particles = int(cfg['num_particles'])
-    
+
         change_type = espressopp.integrator.ChangeParticleType(
             self.system,
             interval,
             num_particles,
             old_type_id,
             new_type_id)
-    
+
         return output_triplet(change_type, None, EXT_INTEGRATOR)
-    
+
     def _setup_atrp_activator(self, cfg):
         interval = int(cfg['interval'])
         num_particles = int(cfg['num_particles'])
@@ -351,9 +349,9 @@ class PostProcessSetup(object):
                 type_id=reactant_type_id,
                 state=reactant_state,
                 is_activator=reactant_flag,
-                new_property=espressopp.ParticleProperties(type=product_type_id,
-                                                           mass=product_property['mass'],
-                                                           q=product_property['charge']),
+                new_property=espressopp.integrator.TopologyParticleProperties(type=product_type_id,
+                                                                              mass=product_property['mass'],
+                                                                              q=product_property['charge']),
                 delta_state=delta_state)
             print('ATRPActivator: added {}->{} state={} is_activator={} delta_state={}'.format(
                 to_process, after_process, reactant_state, reactant_flag, delta_state))
