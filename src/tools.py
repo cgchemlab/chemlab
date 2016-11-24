@@ -110,6 +110,8 @@ def _args():
                                  type=ast.literal_eval)
     general_options.add_argument('--exclusion_list', default=None, help='Read exclusion list from external file')
     general_options.add_argument('--benchmark_data', default=None, help='Store time measurement in the file')
+    general_options.add_argument('--system_monitor_filter', default=None,
+                                 help='Print all (empty) or only selected elements in SystemMonitor')
 
     args_simulation_options = parser.add_argument_group('Simulation parameters')
     args_simulation_options.add_argument('--kb', type=float, default=0.0083144621,

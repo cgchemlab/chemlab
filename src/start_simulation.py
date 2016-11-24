@@ -403,6 +403,10 @@ def main():  #NOQA
         for t_id in thermal_groups:
             temp_comp.add_type(t_id)
 
+    system_monitor_filter = None
+    if args.system_monitor_filter:
+        system_monitor_filter = args.system_monitor_filter.split(',')
+
     system_analysis.add_observable('T', temp_comp)
     system_analysis.add_observable(
         'Ekin', espressopp.analysis.KineticEnergy(
@@ -411,8 +415,14 @@ def main():  #NOQA
         system_analysis.add_observable('P', pressure_comp)
     for label, interaction in sorted(system.getAllInteractions().items()):
         print('System analysis: adding {}'.format(label))
+        show_in_system_info = True
+        if system_monitor_filter:
+            for v in system_monitor_filter:
+                if v in label:
+                    show_in_system_info = True
+                    break
         system_analysis.add_observable(
-            label, espressopp.analysis.PotentialEnergy(system, interaction))
+            label, espressopp.analysis.PotentialEnergy(system, interaction), show_in_system_info)
     for (cr_type, _), obs in cr_observs.items():
         system_analysis.add_observable(
             'cr_{}'.format(cr_type), obs)
