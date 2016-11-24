@@ -417,6 +417,7 @@ def main():  #NOQA
         print('System analysis: adding {}'.format(label))
         show_in_system_info = True
         if system_monitor_filter:
+            show_in_system_info = False
             for v in system_monitor_filter:
                 if v in label:
                     show_in_system_info = True
