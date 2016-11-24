@@ -189,12 +189,14 @@ def main():  #NOQA
     # Hooks
     hook_init_reaction = lambda *_, **__: True
     hook_postsetup_reaction = lambda *_, **__: True
+    hook_at_step = lambda *_, **__: True
     if os.path.exists('hooks.py'):
         print('Found hooks.py')
         locals = {}
         execfile('hooks.py', globals(), locals)
         hook_init_reaction = locals.get('hook_init_reaction', hook_init_reaction)
         hook_postsetup_reaction = locals.get('hook_postsetup_reaction', hook_postsetup_reaction)
+        hook_at_step = locals.get('hook_at_step', hook_at_step)
 
     # Set chemical reactions, parser in reaction_parser.py
     chem_dynamic_types = set()
@@ -622,7 +624,7 @@ def main():  #NOQA
                 dynamic_exclusion_list.exclude(sc.exclusions_list)
                 print('Add {} new exclusions from restrict reactions'.format(len(sc.exclusions_list)))
 
-            if not hook_init_reaction(system, integrator, gt, args):
+            if not hook_init_reaction(system, integrator, ar, gt, args):
                 raise RuntimeError('hook_init_reaction return False')
 
         if reactions_enabled:
@@ -647,6 +649,8 @@ def main():  #NOQA
         loopTimer = time.time()
         integrator.run(integrator_step)
         integratorLoop += (time.time() - loopTimer)
+
+        hook_at_step(system, integrator, ar, gt, args, k)
 
         if args.rate_arrhenius and reactions_enabled:
             bonds1 = sum(f.fpl.totalSize() for f in chem_fpls)  # TODO(jakub): this is terrible.
