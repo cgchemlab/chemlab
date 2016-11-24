@@ -294,7 +294,8 @@ class PostProcessSetup(object):
         dummy_pp = espressopp.integrator.PostProcessChangeProperty()
         dummy_pp.add_change_property(
             final_type_id,
-            espressopp.integrator.TopologyParticleProperties(type=dummy_type_id, lambda_adr=init_res))
+            espressopp.integrator.TopologyParticleProperties(
+                type=dummy_type_id, lambda_adr=init_res, state=target_properties.get('state', 0)))
 
         self.use_thermal_group = True
 
