@@ -191,7 +191,7 @@ class SetupReactions:
         reaction.is_virtual = True  # We don't mean to make a bond, only to catch the event.
 
         print('Exchange reaction: {}-{}, restricted when {} in state [{},{})'.format(
-            rt1['name'], rt2['name'], int(rt2['min']), int(rt2['max'])))
+            rt1['name'], rt3['name'], rt2['name'], int(rt2['min']), int(rt2['max'])))
 
         reaction.add_constraint(espressopp.integrator.ReactionConstraintNeighbourState(
             self.name2type[rt2['name']], int(rt2['min']), int(rt2['max']), 'type_1'))
