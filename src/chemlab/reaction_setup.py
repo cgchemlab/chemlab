@@ -219,7 +219,7 @@ class SetupReactions:
             r_pp = espressopp.integrator.PostProcessChangePropertyByTopologyManager(self.tm)
             self.dynamic_types.add(t1_old)
             self.dynamic_types.add(t1_new)
-            print('Exchange reaction: {}-{}, change type {}->{} by TM'.format(rt1['name'], rt2['name'], t1_old, t1_new))
+            print('Exchange reaction: {}-{}, change type {}->{} by TM'.format(rt1['name'], rt3['name'], t1_old, t1_new))
             new_property = self.topol.gt.atomtypes[rt1['new_type']]
             r_pp.add_change_property(
                 t1_old,
