@@ -81,7 +81,7 @@ class PostProcessSetup(object):
                 else:
                     new_property_def = self.topol.gt.atomtypes[new_type]
                     new_property = espressopp.integrator.TopologyParticleProperties(
-                        t1_new, mass=new_property_def['mass'], q=new_property_def['charge'])
+                        type=t1_new, mass=new_property_def['mass'], q=new_property_def['charge'])
 
                 self.dynamic_types.add(t1_old)
                 self.dynamic_types.add(t1_new)
@@ -151,7 +151,7 @@ class PostProcessSetup(object):
             change_in_region = espressopp.integrator.ChangeInRegion(
                 self.system, particle_region)
             change_in_region.set_particle_properties(
-                target_type_id, espressopp.integrator.TopologyParticleProperties(final_type_id))
+                target_type_id, espressopp.integrator.TopologyParticleProperties(type=final_type_id))
             change_in_region.set_flags(target_type_id, reset_velocity=True, reset_force=True,
                                        remove_particle=remove_particles)
             self.system.integrator.addExtension(change_in_region)
@@ -225,9 +225,9 @@ class PostProcessSetup(object):
         fxd_post_process.add_change_property(
             dummy_type_id,
             espressopp.integrator.TopologyParticleProperties(
-                target_type_id,
-                target_properties['mass'],
-                0.0))
+                type=target_type_id,
+                mass=target_properties['mass'],
+                lambda_adr=0.0))
         fix_distance.add_postprocess(fxd_post_process)
         self.system.integrator.addExtension(fix_distance)
 
@@ -239,10 +239,10 @@ class PostProcessSetup(object):
             final_type_id = self.topol.atomsym_atomtype[final_type]
             final_properties = self.topol.gt.atomtypes[final_type]
             final_particle_properties = espressopp.integrator.TopologyParticleProperties(
-                final_type_id,
-                final_properties['mass'],
-                final_properties['charge'],
-                1.0)
+                type=final_type_id,
+                mass=final_properties['mass'],
+                q=final_properties['charge'],
+                lambda_adr=1.0)
             basic_dynamic_res.add_postprocess(
                 espressopp.integrator.PostProcessChangeProperty(
                     target_type_id, final_particle_properties))
@@ -281,8 +281,8 @@ class PostProcessSetup(object):
         fxd_post_process.add_change_property(
             dummy_type_id,
             espressopp.integrator.TopologyParticleProperties(
-                target_type_id,
-                target_properties['mass'],
+                type=target_type_id,
+                mass=target_properties['mass'],
                 lambda_adr=init_res))
         fd.add_postprocess(fxd_post_process)
         self.system.integrator.addExtension(fd)
@@ -292,7 +292,7 @@ class PostProcessSetup(object):
         dummy_pp = espressopp.integrator.PostProcessChangeProperty()
         dummy_pp.add_change_property(
             final_type_id,
-            espressopp.integrator.TopologyParticleProperties(dummy_type_id, lambda_adr=init_res))
+            espressopp.integrator.TopologyParticleProperties(type=dummy_type_id, lambda_adr=init_res))
 
         self.use_thermal_group = True
 

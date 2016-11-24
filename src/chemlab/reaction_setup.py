@@ -138,8 +138,8 @@ class SetupReactions:
                 r_pp.add_change_property(
                     t1_old,
                     espressopp.integrator.TopologyParticleProperties(
-                        t1_new, new_property['mass'],
-                        new_property['charge']))
+                        type=t1_new, mass=new_property['mass'],
+                        q=new_property['charge']))
             if t2_old != t2_new:
                 self.dynamic_types.add(t2_old)
                 self.dynamic_types.add(t2_new)
@@ -148,8 +148,8 @@ class SetupReactions:
                 r_pp.add_change_property(
                     t2_old,
                     espressopp.integrator.TopologyParticleProperties(
-                        t2_new, new_property['mass'],
-                        new_property['charge']))
+                        type=t2_new, mass=new_property['mass'],
+                        q=new_property['charge']))
 
 
             reaction.add_postprocess(r_pp)
@@ -190,6 +190,9 @@ class SetupReactions:
             cutoff=float(chem_reaction['cutoff']))
         reaction.is_virtual = True  # We don't mean to make a bond, only to catch the event.
 
+        reaction.add_constraint(espressopp.integrator.ReactionConstraintNeighbourState(
+            self.name2type[rt2['name']], int(rt2['min'], int(rt2['max']))))
+
         self.dynamic_types.add(self.name2type[rl['type_1']['name']])
         self.dynamic_types.add(self.name2type[rl['type_2']['name']])
         self.dynamic_types.add(self.name2type[rl['type_3']['name']])
@@ -218,8 +221,8 @@ class SetupReactions:
             r_pp.add_change_property(
                 t1_old,
                 espressopp.integrator.TopologyParticleProperties(
-                    t1_new, new_property['mass'],
-                    new_property['charge']))
+                    type=t1_new, mass=new_property['mass'],
+                    q=new_property['charge']))
             reaction.add_postprocess(r_pp, 'type_1')
 
         self.dynamic_types.add(t2_old)
