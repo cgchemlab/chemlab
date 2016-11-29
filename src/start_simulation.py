@@ -25,6 +25,7 @@ try:
 except ImportError:
     from mpi4py import MPI
 import collections
+import cPickle
 import time
 import logging
 import random
@@ -83,7 +84,9 @@ def main():  #NOQA
     print('Setup simulation...')
 
     # Tune simulation parameter according to arguments
-    integrator_step = min([args.int_step, args.trj_collect])
+    integrator_step = args.int_step
+    if args.trj_collect > 0:
+        integrator_step = min([args.int_step, args.trj_collect])
     sim_step = args.run / integrator_step
 
     if args.skin == 'auto':
@@ -236,7 +239,7 @@ def main():  #NOQA
         print('Change integrator step to {}'.format(integrator_step))
         sim_step = args.run / integrator_step
         print('Change topology collect interval to {}'.format(cr_interval))
-        args.topol_collect = cr_interval
+        args.topol_collect = min([cr_interval, args.topol_collect])
         has_reaction = True
         hook_postsetup_reaction(system, integrator, gt, args, ar)
     else:
@@ -493,9 +496,10 @@ def main():  #NOQA
             system_analysis.add_observable('fd_{}'.format(fd_idx), espressopp.analysis.NumFixDistances(system, fd))
 
     cr_interval = min([cr_interval, args.energy_collect])
-    ext_analysis = espressopp.integrator.ExtAnalyze(system_analysis, min([cr_interval, args.energy_collect]))
-    integrator.addExtension(ext_analysis)
-    print('Configured system analysis, collect data every {} steps'.format(min([cr_interval, args.energy_collect])))
+    if args.energy_collect > 0:
+        ext_analysis = espressopp.integrator.ExtAnalyze(system_analysis, min([cr_interval, args.energy_collect]))
+        integrator.addExtension(ext_analysis)
+        print('Configured system analysis, collect data every {} steps'.format(min([cr_interval, args.energy_collect])))
 
     print('Configure H5MD trajectory writer')
     NPart = espressopp.analysis.NPart(system).compute()
@@ -517,7 +521,7 @@ def main():  #NOQA
         store_velocity=args.store_velocity,
         store_mass=args.store_mass,
         is_single_prec=args.store_single_precision,
-        chunk_size=128)  # int(NPart/MPI.COMM_WORLD.size))
+        chunk_size=256)  # int(NPart/MPI.COMM_WORLD.size))
 
     print('Set topology writer')
     dump_topol = espressopp.io.DumpTopology(system, integrator, traj_file)
@@ -548,10 +552,10 @@ def main():  #NOQA
 
     trj_collect = min([args.trj_collect, cr_interval]) if cr_interval > 0 else args.trj_collect
     k_trj_collect = int(math.ceil(trj_collect/float(integrator_step)))
-    k_trj_flush = 25 if 25 < k_trj_collect else k_trj_collect
+    k_trj_flush = 25 if 25 < 10*k_trj_collect else 10*k_trj_collect
     print('Collect trajectory every {} steps'.format(trj_collect))
-
     print('Collect energy data everey {} steps'.format(cr_interval))
+    print('Flush trajectory and topology to disk every {} steps'.format(k_trj_flush*integrator_step))
 
     if args.start_ar >= 0 and has_reaction:
         k_enable_reactions = int(math.ceil(args.start_ar/float(integrator_step)))
@@ -604,9 +608,9 @@ def main():  #NOQA
 
     for k in range(sim_step):
         system_analysis.info()
-        if k % k_trj_collect == 0:
+        if k_trj_collect > 0 and k % k_trj_collect == 0:
             traj_file.dump(k * integrator_step, k * integrator_step * args.dt)
-        if k % k_trj_flush == 0:
+        if k_trj_flush > 0 and k % k_trj_flush == 0:
             dump_topol.update()
             traj_file.flush()  # Write HDF5 to disk.
         if k_enable_reactions == k:
@@ -665,6 +669,7 @@ def main():  #NOQA
                 rate_file.write('{} {:e}\n'.format(k * integrator_step, new_rate))
                 for r in reactions:
                     r.rate = new_rate
+        print('Finished step {}'.format(k*integrator_step))
     totalTime = time.time() - totalTime
     ##### END of main integrator loop ###########
 
@@ -719,12 +724,12 @@ def main():  #NOQA
     print('Wrote whole configuration to: {}'.format(output_whole_gro))
 
     # Save fix distances, this is temporary
-    import cPickle
-    all_fix_distances = []
-    for fd in sc.fix_distances:
-        all_fix_distances.extend(fd.get_all_triplets())
-    with open('all_fix_distances.pck', 'wb') as out_fd:
-        cPickle.dump(all_fix_distances, out_fd)
+    if sc is not None and sc.fix_distances:
+        all_fix_distances = []
+        for fd in sc.fix_distances:
+            all_fix_distances.extend(fd.get_all_triplets())
+        with open('all_fix_distances.pck', 'wb') as out_fd:
+            cPickle.dump(all_fix_distances, out_fd)
 
     # Saves output topology file.
     # TODO(jakub): save new bonds in GROMACS like topology file.
