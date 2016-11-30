@@ -669,9 +669,46 @@ def main():  #NOQA
                 rate_file.write('{} {:e}\n'.format(k * integrator_step, new_rate))
                 for r in reactions:
                     r.rate = new_rate
-        print('Finished step {}'.format(k*integrator_step))
     totalTime = time.time() - totalTime
     ##### END of main integrator loop ###########
+
+    # Save tuples.
+    bcount = 0
+    with open('{}_{}_bonds.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
+        bond_lists = []
+        for fpl in static_fpls:
+            for p in fpl.getAllBonds():
+                bond_lists.append([p[0], p[1], '; static'])
+        for func, fpl in dynamic_fpls.items():
+            for p in fpl.getAllBonds():
+                bond_lists.append([p[0], p[1], func.func, '; dynamic'])
+        for def_f in chem_fpls:
+            for p in def_f.fpl.getAllBonds():
+                bond_lists.append([p[0], p[1], '; chem'])
+        for b in bond_lists:
+            of.write('{}\n'.format(' '.join(map(str, b))))
+
+    with open('{}_{}_angles.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
+        angle_lists = []
+        for ftl in static_ftls:
+            for p in ftl.getAllTriples():
+                angle_lists.append(list(p) + ['; static'])
+        for func, ftl in dynamic_ftls.items():
+            for p in ftl.getAllTriples():
+                angle_lists.append(list(p) + [func, '; dynamic'])
+        for a in angle_lists:
+            of.write('{}\n'.format(' '.join(map(str, a))))
+
+    with open('{}_{}_dihedrals.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
+        dih_lists = []
+        for fql in static_fqls:
+            for p in fql.getAllQuadruples():
+                dih_lists.append(list(p) + ['; static'])
+        for func, fql in dynamic_fqls.items():
+            for p in fql.getAllQuadruples():
+                dih_lists.append(list(p) + [func, '; dynamic'])
+        for d in dih_lists:
+            of.write('{}\n'.format(' '.join(map(str, d))))
 
     with open('{}_{}_benchmark.csv'.format(args.output_prefix, args.rng_seed), 'a+') as benchmark_file:
         benchmark_file.write('{} {} {} {}\n'.format(MPI.COMM_WORLD.size, NPart, totalTime, integratorLoop))
