@@ -20,6 +20,9 @@
 import espressopp  # NOQA
 import h5py
 import math  # NOQA
+
+from src.chemlab import files_io
+
 try:
     import MPI
 except ImportError:
@@ -672,8 +675,28 @@ def main():  #NOQA
     totalTime = time.time() - totalTime
     ##### END of main integrator loop ###########
 
-    # Save tuples.
-    bcount = 0
+    # Save topology
+    out_topol = gt.topol
+    max_pid = espressopp.analysis.MaxPID(system).compute()
+    for at_pid in xrange(max_pid):
+        p = system.storage.getParticle(at_pid)
+        if p:
+            if at_pid in out_topol.atoms:
+                out_topol.atoms[at_pid].atom_type = gt.atomtype_atomsym[p.type]
+                out_topol.atoms[at_pid].mass = p.mass
+                out_topol.atoms[at_pid].chain_idx = p.res_id
+                out_topol.atoms[at_pid].charge = p.q
+            else:
+                out_topol.atoms[at_pid] = files_io.TopoAtom(
+                    atom_id=at_pid,
+                    atom_type=gt.atomtype_atomsym[p.type],
+                    chain_idx=p.res_id,
+                    chain_name='CH{}'.format(gt.atomtype_atomsym[p.type]),
+                    name='X{}'.format(p.type),
+                    cgnr=at_pid,
+                    charge=p.q,
+                    mass=p.mass)
+
     with open('{}_{}_bonds.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
         bond_lists = []
         for fpl in static_fpls:
@@ -687,6 +710,7 @@ def main():  #NOQA
                 bond_lists.append([p[0], p[1], '; chem'])
         for b in bond_lists:
             of.write('{}\n'.format(' '.join(map(str, b))))
+            out_topol.new_data['bonds'][(b[0], b[1])] = b[2:]
 
     with open('{}_{}_angles.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
         angle_lists = []
@@ -698,6 +722,7 @@ def main():  #NOQA
                 angle_lists.append(list(p) + [func, '; dynamic'])
         for a in angle_lists:
             of.write('{}\n'.format(' '.join(map(str, a))))
+            out_topol.new_data['angles'][(b[0], b[1])] = b[2:]
 
     with open('{}_{}_dihedrals.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
         dih_lists = []
@@ -709,6 +734,12 @@ def main():  #NOQA
                 dih_lists.append(list(p) + [func, '; dynamic'])
         for d in dih_lists:
             of.write('{}\n'.format(' '.join(map(str, d))))
+            out_topol.new_data['dihedrals'][(b[0], b[1])] = b[2:]
+
+    output_topol_filename = '{}_{}_output_topol.top'.format(args.output_prefix, args.rng_seed)
+    print('Write output topology: {}'.format(output_topol_filename))
+    out_topol.write(output_topol_filename)
+    # End save tuples.
 
     with open('{}_{}_benchmark.csv'.format(args.output_prefix, args.rng_seed), 'a+') as benchmark_file:
         benchmark_file.write('{} {} {} {}\n'.format(MPI.COMM_WORLD.size, NPart, totalTime, integratorLoop))
@@ -768,9 +799,6 @@ def main():  #NOQA
         with open('all_fix_distances.pck', 'wb') as out_fd:
             cPickle.dump(all_fix_distances, out_fd)
 
-    # Saves output topology file.
-    # TODO(jakub): save new bonds in GROMACS like topology file.
-    # output_topol_file = 'output_{}_{}_toopol.top'.format(args.output_prefix, rng_seed)
 
     total_time = time.time() - time0
 

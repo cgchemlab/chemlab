@@ -39,7 +39,7 @@ B D 8 table_B_D.xvg
 B E 8 table_B_E.xvg
 C C 8 table_C_C.xvg
 C D 8 table_C_D.xvg
-C E 8 table_C_E.xvg
+C E 8 table_C_E.xvg 0.29
 D D 8 table_D_D.xvg
 D E 8 table_D_E.xvg
 E E 8 table_E_E.xvg
@@ -63,6 +63,8 @@ B 0
 C 0
 D 2
 E 0
+W 0
+Z 0
 
 #include "./diol_cg.itp"
 #include "./ter_cg.itp"

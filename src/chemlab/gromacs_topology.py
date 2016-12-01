@@ -127,6 +127,7 @@ class GromacsTopology:
         self.data = {}
 
         self.atomsym_atomtype = {}
+        self.atomtype_atomsym = {}
 
         self.atoms = {}
 
@@ -158,6 +159,19 @@ class GromacsTopology:
         #    raise RuntimeError('Multiple molecules are not supported')
         print('Preparing topology data for simulation...')
         self._prepare_data()
+
+    def add_new_atomtype(self, atype_id, atype_name, is_used=False):
+        """Adds new atomtype to the data structures.
+
+        Args:
+            atype_id: Atom type id.
+            atype_name: Atom type name.
+            is_used: Is used in simulation?
+        """
+        self.atomtype_atomsym[atype_id] = atype_name
+        self.atomsym_atomtype[atype_name] = atype_id
+        if is_used:
+            self.used_atomsym_atomtype[atype_name] = atype_id
 
     def _prepare_data(self):
         # Generate atom types from atom symbols.
@@ -236,6 +250,8 @@ class GromacsTopology:
                 self.atomsym_atomtype[at_name] = atype_id
                 atype_id += 1
             self.used_atomsym_atomtype[at_name] = self.atomsym_atomtype[at_name]
+
+        self.atomtype_atomsym = {v: k for k, v in self.atomsym_atomtype.items()}
 
         self._prepare_bondedparams()
         self._prepare_bondedlists()
