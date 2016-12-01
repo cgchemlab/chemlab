@@ -464,9 +464,11 @@ class GROMACSTopologyFile(TopologyFile):
         Args:
           pdbfile: The pdb file.
         """
-        logger.info('Update position from file %s', pdbfile.file_name)
-        for k, v in pdbfile.atoms.iteritems():
-            self.atoms[k].position = v.position
+        raise NotImplemented('method not implemented')
+
+        # logger.info('Update position from file %s', pdbfile.file_name)
+        # for k, v in pdbfile.atoms.iteritems():
+        #     self.atoms[k].position = v.position
 
     def read(self):
         """Reads the topology file."""
@@ -785,8 +787,12 @@ class GROMACSTopologyFile(TopologyFile):
     # Writers
     def _write_atoms(self):
         return_data = []
-        for atom_id in sorted(self.atoms):
-            x = self.atoms[atom_id]
+        atoms = {}
+        for mol_data in self.molecules_data.values():
+            atoms.update(mol_data['atoms'])
+
+        for atom_id in sorted(atoms):
+            x = atoms[atom_id]
             return_data.append('%s %s %s %s %s %s %s %s' % (
                                x.atom_id,
                                x.atom_type,
@@ -801,47 +807,55 @@ class GROMACSTopologyFile(TopologyFile):
 
     def _write_atomtypes(self):
         return_data = []
-        for atom_type, values in self.atomtypes.iteritems():
+        for atom_type, values in self.atomtypes.items():
             return_data.append('{name} {mass} {charge} {type} {sigma} {epsilon}'.format(
                 **values))
         return return_data
 
     def _write_bonds(self):  # pylint:disable=R0201
         return_data = []
-        return_data.extend(self._write_default(self.bonds))
-        return_data.extend(self._write_default(self.new_data['bonds'], self.bonds))
+        total_bonds = {}
+        for mol_data in self.molecules_data.values():
+            return_data.extend(self._write_default(mol_data.get('bonds', {})))
+            total_bonds.update(mol_data.get('bonds', {}))
+        return_data.extend(self._write_default(self.new_data['bonds'], total_bonds))
         return return_data
 
     def _write_pairs(self):  # pylint:disable=R0201
         return_data = []
-        return_data.extend(self._write_default(self.pairs))
-        return_data.extend(
-            self._write_default(self.new_data['pairs'], self.pairs)
-            )
+        total_pairs = {}
+        for mol_data in self.molecules_data.values():
+            return_data.extend(self._write_default(mol_data.get('pairs', {})))
+            total_pairs.update(mol_data.get('pairs', {}))
+        return_data.extend(self._write_default(self.new_data['pairs'], total_pairs))
         return return_data
 
     def _write_angles(self):
         return_data = []
-        return_data.extend(self._write_default(self.angles))
-        return_data.extend(
-            self._write_default(self.new_data['angles'], self.angles)
-            )
+        total_angles = {}
+        for mol_data in self.molecules_data.values():
+            return_data.extend(self._write_default(mol_data.get('angles', {})))
+            total_angles.update(mol_data.get('angles', {}))
+        return_data.extend(self._write_default(self.new_data['angles'], total_angles))
         return return_data
 
     def _write_dihedrals(self):
         return_data = []
-        return_data.extend(self._write_default(self.dihedrals))
-        return_data.extend(
-            self._write_default(self.new_data['dihedrals'], self.dihedrals)
-            )
+        total_dihedrals = {}
+        for mol_data in self.molecules_data.values():
+            return_data.extend(self._write_default(mol_data.get('dihedrals', {})))
+            total_dihedrals.update(mol_data.get('dihedrals', {}))
+        return_data.extend(self._write_default(self.new_data['dihedrals'], total_dihedrals))
         return return_data
 
     def _write_improper_dihedrals(self):
         return_data = []
-        return_data.extend(self._write_default(self.improper_dihedrals))
-        return_data.extend(
-            self._write_default(self.new_data['improper_dihedrals'], self.improper_dihedrals)
-            )
+        total_impropers = {}
+        for mol_data in self.molecules_data.values():
+            return_data.extend(self._write_default(mol_data.get('improper_dihedrals', {})))
+            total_impropers.update(mol_data.get('improper_dihedrals', {}))
+
+        return_data.extend(self._write_default(self.new_data['improper_dihedrals'], total_impropers))
         return return_data
 
     def _write_defaults(self):
@@ -856,7 +870,7 @@ class GROMACSTopologyFile(TopologyFile):
         return [self.system_name]
 
     def _write_molecules(self):
-        return ['{} {}'.format(*self.molecules.items()[0])]
+        return ['{} {}'.format(*x) for x in self.molecules]
 
     def _write_default(self, datas=None, check_in=None):  # pylint:disable=R0201
         if check_in is None:
