@@ -20,6 +20,7 @@
 import espressopp  # NOQA
 import h5py
 import math  # NOQA
+import numpy
 
 try:
     import MPI
@@ -161,7 +162,8 @@ def main():  #NOQA
         print('Read exclusion list from {} (total: {})'.format(args.exclusion_list, len(exclusions)))
         gt.exclusions = exclusions
 
-    output_filename = 'exclusion_{}.list'.format(args.top.split('.')[0])
+    topol_file = os.path.basename(args.top)
+    output_filename = 'exclusion_{}.list'.format(topol_file.split('.')[0])
     out_file = open(output_filename, 'w')
     out_file.writelines('\n'.join(['{} {}'.format(*d) for d in sorted(gt.exclusions)]))
     out_file.close()
@@ -265,7 +267,8 @@ def main():  #NOQA
                 cr_observs[(type_id_symbol, tot_number)] = espressopp.analysis.ChemicalConversion(
                     system, type_id_symbol, tot_number)
             maximum_conversion.append((cr_observs[(type_id_symbol, tot_number)], stop_value))
-        eq_run = int(args.eq_steps / sim_step)
+        if args.eq_steps > 0:
+            eq_run = int(args.eq_steps / sim_step)
 
     if args.t_hybrid_bond > 0:
         list_dynamic_resolution = espressopp.integrator.FixedListDynamicResolution(system)
@@ -673,80 +676,6 @@ def main():  #NOQA
     totalTime = time.time() - totalTime
     ##### END of main integrator loop ###########
 
-    # Save topology
-    out_topol = gt.topol
-    max_pid = espressopp.analysis.MaxPID(system).compute()
-    print(max_pid)
-    for at_pid in xrange(int(max_pid)):
-        p = system.storage.getParticle(at_pid)
-        if p:
-            if at_pid in out_topol.atoms:
-                out_topol.atoms[at_pid].atom_type = gt.atomtype_atomsym[p.type]
-                out_topol.atoms[at_pid].mass = p.mass
-                out_topol.atoms[at_pid].chain_idx = p.res_id
-                out_topol.atoms[at_pid].charge = p.q
-            else:
-                out_topol.atoms[at_pid] = chemlab.files_io.TopoAtom(
-                    atom_id=at_pid,
-                    atom_type=gt.atomtype_atomsym[p.type],
-                    chain_idx=p.res_id,
-                    chain_name='CH{}'.format(gt.atomtype_atomsym[p.type]),
-                    name='X{}'.format(p.type),
-                    cgnr=at_pid,
-                    charge=p.q,
-                    mass=p.mass)
-
-    with open('{}_{}_bonds.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
-        bond_lists = []
-        for fpl in static_fpls:
-            for p in fpl.getAllBonds():
-                bond_lists.append([p[0], p[1], '; static'])
-        for func, fpl in dynamic_fpls.items():
-            for p in fpl.getAllBonds():
-                bond_lists.append([p[0], p[1], func.func, '; dynamic'])
-        for def_f in chem_fpls:
-            for p in def_f.fpl.getAllBonds():
-                bond_lists.append([p[0], p[1], '; chem'])
-        for b in bond_lists:
-            of.write('{}\n'.format(' '.join(map(str, b))))
-            out_topol.new_data['bonds'][(b[0], b[1])] = b[2:]
-
-    with open('{}_{}_angles.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
-        angle_lists = []
-        for ftl in static_ftls:
-            for p in ftl.getAllTriples():
-                angle_lists.append(list(p) + ['; static'])
-        for func, ftl in dynamic_ftls.items():
-            for p in ftl.getAllTriples():
-                angle_lists.append(list(p) + [func, '; dynamic'])
-        for a in angle_lists:
-            of.write('{}\n'.format(' '.join(map(str, a))))
-            out_topol.new_data['angles'][(b[0], b[1])] = b[2:]
-
-    with open('{}_{}_dihedrals.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
-        dih_lists = []
-        for fql in static_fqls:
-            for p in fql.getAllQuadruples():
-                dih_lists.append(list(p) + ['; static'])
-        for func, fql in dynamic_fqls.items():
-            for p in fql.getAllQuadruples():
-                dih_lists.append(list(p) + [func, '; dynamic'])
-        for d in dih_lists:
-            of.write('{}\n'.format(' '.join(map(str, d))))
-            out_topol.new_data['dihedrals'][(b[0], b[1])] = b[2:]
-
-    output_topol_filename = '{}_{}_output_topol.top'.format(args.output_prefix, args.rng_seed)
-    print('Write output topology: {}'.format(output_topol_filename))
-    out_topol.write(output_topol_filename)
-    # End save tuples.
-
-    with open('{}_{}_benchmark.csv'.format(args.output_prefix, args.rng_seed), 'a+') as benchmark_file:
-        benchmark_file.write('{} {} {} {}\n'.format(MPI.COMM_WORLD.size, NPart, totalTime, integratorLoop))
-
-    if args.rate_arrhenius:
-        print('Changes in reaction rates written to {}'.format(rate_file.name))
-        rate_file.close()
-
     system_analysis.info()
     traj_file.dump(sim_step * integrator_step, sim_step * integrator_step * args.dt)
     dump_topol.dump()
@@ -777,7 +706,118 @@ def main():  #NOQA
         g_params.attrs[k] = v
     tools.save_forcefield(h5, gt)
     h5.close()
-    print('Closing {} ...'.format(h5md_output_file))
+    print('Closing HDF5 {} '.format(h5md_output_file))
+
+    # Save topology
+    max_pid = espressopp.analysis.MaxPID(system).compute()
+    output_topol_filename = '{}_{}_output_topol.top'.format(args.output_prefix, args.rng_seed)
+    out_topol = chemlab.files_io.GROMACSTopologyFile(output_topol_filename)
+    out_topol.atomtypes = gt.topol.atomtypes
+    out_topol.bondtypes = gt.topol.bondtypes
+    out_topol.angletypes = gt.topol.angletypes
+    out_topol.dihedraltypes = gt.topol.dihedraltypes
+    out_topol.nonbond_params = gt.topol.nonbond_params
+    out_topol.atomstate = gt.topol.atomstate
+    out_topol.defaults = gt.topol.defaults
+    out_topol.system_name = gt.topol.system_name
+    out_topol.moleculetype = {'name': 'MOL', 'nrexcl': 3}
+    out_topol.molecules = [('MOL', int(max_pid))]
+    out_topol.content = None
+
+    valid_type_ids = None
+    if args.table_groups:
+        valid_type_ids = map(gt.atomsym_atomtype.get, args.table_groups.split(','))
+
+    print(max_pid)
+    for at_pid in xrange(1, int(max_pid)):
+        p = system.storage.getParticle(at_pid)
+        if p:
+            if valid_type_ids and p.type not in valid_type_ids:
+                continue
+            if at_pid in gt.atoms:
+                at_data = gt.atoms[at_pid]
+                mol_name = at_data['molecule_name']
+                if mol_name not in out_topol.molecules_data:
+                    out_topol.molecules_data[mol_name] = {'atoms': {}}
+
+                topo_atom = out_topol.molecules_data[mol_name]['atoms'].setdefault(at_pid, chemlab.files_io.TopoAtom())
+                topo_atom.atom_id = at_pid
+                topo_atom.name = at_data['name']
+                topo_atom.atom_type = gt.atomtype_atomsym[p.type]
+                topo_atom.mass = p.mass
+                topo_atom.chain_idx = p.res_id
+                topo_atom.chain_name = at_data['chain_name']
+                topo_atom.charge = p.q
+                topo_atom.cgnr = at_pid
+            else:
+                if 'MOLX' not in out_topol.molecules_data:
+                    out_topol.molecules_data['MOLX'] = {'atoms': {}}
+
+                out_topol.molecules_data['MOLX']['atoms'][at_pid] = chemlab.files_io.TopoAtom(
+                    atom_id=at_pid,
+                    atom_type=gt.atomtype_atomsym[p.type],
+                    chain_idx=p.res_id,
+                    chain_name='CH{}'.format(p.res_id),
+                    name='X{}'.format(p.type),
+                    cgnr=at_pid,
+                    charge=p.q,
+                    mass=p.mass)
+                # Extend also input_conf
+                input_conf.atoms[at_pid] = chemlab.files_io.Atom(
+                    atom_id=at_pid,
+                    name='X{}'.format(p.type),
+                    chain_idx=p.res_id,
+                    chain_name='C{}'.format(p.type),
+                    position=numpy.zeros(3))
+
+    with open('{}_{}_bonds.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
+        bond_lists = []
+        for fpl in static_fpls:
+            for p in fpl.getAllBonds():
+                bond_lists.append([p[0], p[1], '; static'])
+        for func, fpl in dynamic_fpls.items():
+            for p in fpl.getAllBonds():
+                bond_lists.append([p[0], p[1], func.func, '; dynamic'])
+        for def_f in chem_fpls:
+            for p in def_f.fpl.getAllBonds():
+                bond_lists.append([p[0], p[1], '; chem'])
+        for b in bond_lists:
+            of.write('{}\n'.format(' '.join(map(str, b))))
+            out_topol.new_data['bonds'][(b[0], b[1])] = b[2:]
+
+    with open('{}_{}_angles.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
+        angle_lists = []
+        for ftl in static_ftls:
+            for p in ftl.getAllTriples():
+                angle_lists.append(list(p) + ['; static'])
+        for func, ftl in dynamic_ftls.items():
+            for p in ftl.getAllTriples():
+                angle_lists.append(list(p) + [func, '; dynamic'])
+        for a in angle_lists:
+            of.write('{}\n'.format(' '.join(map(str, a))))
+            out_topol.new_data['angles'][tuple(a[:3])] = a[3:]
+
+    with open('{}_{}_dihedrals.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
+        dih_lists = []
+        for fql in static_fqls:
+            for p in fql.getAllQuadruples():
+                dih_lists.append(list(p) + ['; static'])
+        for func, fql in dynamic_fqls.items():
+            for p in fql.getAllQuadruples():
+                dih_lists.append(list(p) + [func, '; dynamic'])
+        for d in dih_lists:
+            of.write('{}\n'.format(' '.join(map(str, d))))
+            out_topol.new_data['dihedrals'][tuple(d[:3])] = d[3:]
+    print('Write output topology: {}'.format(output_topol_filename))
+    out_topol.write(output_topol_filename)
+    # End save tuples.
+
+    with open('{}_{}_benchmark.csv'.format(args.output_prefix, args.rng_seed), 'a+') as benchmark_file:
+        benchmark_file.write('{} {} {} {}\n'.format(MPI.COMM_WORLD.size, NPart, totalTime, integratorLoop))
+
+    if args.rate_arrhenius:
+        print('Changes in reaction rates written to {}'.format(rate_file.name))
+        rate_file.close()
 
     # Saves coordinate output file.
     output_gro_file = '{}_{}_confout.gro'.format(args.output_prefix, rng_seed)

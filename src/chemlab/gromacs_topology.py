@@ -203,7 +203,15 @@ class GromacsTopology:
                     'sig': at_type['sigma'],
                     'eps': at_type['epsilon'],
                     'type_id': self.atomsym_atomtype[at_data.atom_type],
-                    'state': at_type.get('state', 0)
+                    'state': at_type.get('state', 0),
+                    'charge': 0.0,
+                    'mass': 0.0,
+                    'molecule_name': at_data.molecule_name,
+                    'name': at_data.name,
+                    'cgnr': at_data.cgnr,
+                    'chain_idx': at_data.chain_idx,
+                    'chain_name': at_data.chain_name,
+
                 }
                 self.used_atomtypes.add(at_data.atom_type)
                 self.used_atomnr.add(self.gt.atom_name2atomnr[at_data.atom_type])

@@ -56,7 +56,7 @@ class TopoAtom(object):
         self.chain_idx = chain_idx
         self.chain_name = chain_name
         self.name = name
-        self.chnr = cgnr
+        self.cgnr = cgnr
         self.charge = charge
         self.mass = mass
         self.active_site = active_site
@@ -411,6 +411,10 @@ class GROMACSTopologyFile(TopologyFile):
             'system': self._write_system,
             'molecules': self._write_molecules,
             'atomtypes': self._write_atomtypes,
+            'atomstate': self._write_atomstate,
+            'bondtypes': self._write_bondtypes,
+            'angletypes': self._write_angletypes,
+            'dihedraltypes': self._write_dihedraltypes,
             'atoms': self._write_atoms,
             'bonds': self._write_bonds,
             'angles': self._write_angles,
@@ -529,6 +533,17 @@ class GROMACSTopologyFile(TopologyFile):
                 sections.append('defaults')
             if self.atomtypes:
                 sections.append('atomtypes')
+            if self.bondtypes:
+                sections.append('bondtypes')
+            if self.angletypes:
+                sections.append('angletypes')
+            if self.dihedraltypes:
+                sections.append('dihedraltypes')
+            if self.nonbond_params:
+                sections.append('nonbond_params')
+            if self.atomstate:
+                sections.append('atomstate')
+
             sections.extend([
                 'moleculetype',
                 'atoms',
@@ -718,6 +733,7 @@ class GROMACSTopologyFile(TopologyFile):
         at.chain_name = raw_data[3]
         at.name = raw_data[4]
         at.cgnr = int(raw_data[5])
+        at.molecule_name = self.current_molecule
 
         if len(raw_data) > 6:
             at.charge = float(raw_data[6])
@@ -727,9 +743,6 @@ class GROMACSTopologyFile(TopologyFile):
         if 'atoms' not in self.molecules_data[self.current_molecule]:
             self.molecules_data[self.current_molecule]['atoms'] = {}
         self.molecules_data[self.current_molecule]['atoms'][at.atom_id] = at
-        if at.atom_id in self.atoms:
-            raise RuntimeError('Atom {} already in the system!'.format(at.atom_id))
-        self.atoms[at.atom_id] = at
 
     def _parse_bonds(self, raw_data):
         atom_tuple = tuple(map(int, raw_data[0:2]))
@@ -817,6 +830,38 @@ class GROMACSTopologyFile(TopologyFile):
                 **values))
         return return_data
 
+    def _write_atomstate(self):
+        return_data = []
+        for val in self.atomstate.items():
+            return_data.append('{} {}'.format(*val))
+        return return_data
+
+    def _write_bondtypes(self):
+        return_data = []
+        for i in self.bondtypes:
+            for j, params in self.bondtypes[i].items():
+                return_data.append('{} {} {} {}'.format(i, j, params['func'], ' '.join(params['params'])))
+        return return_data
+
+    def _write_angletypes(self):
+        return_data = []
+        for i in self.angletypes:
+            for j in self.angletypes[i]:
+                for k, params in self.angletypes[i][j].items():
+                    return_data.append('{} {} {} {} {}'.format(
+                        i, j, k, params['func'], ' '.join(params['params'])))
+        return return_data
+
+    def _write_dihedraltypes(self):
+        return_data = []
+        for i in self.dihedraltypes:
+            for j in self.dihedraltypes[i]:
+                for k in self.dihedraltypes[i][j]:
+                    for l, params in self.dihedraltypes[i][j][k].items():
+                        return_data.append('{} {} {} {} {} {}'.format(
+                            i, j, k, l, params['func'], ' '.join(params['params'])))
+        return return_data
+
     def _write_bonds(self):  # pylint:disable=R0201
         return_data = []
         total_bonds = {}
@@ -865,7 +910,9 @@ class GROMACSTopologyFile(TopologyFile):
 
     def _write_defaults(self):
         if self.defaults:
-            return ['{nbfunc} {combinationrule} {gen-pairs} {fudgeLJ} {fudgeQQ}'.format(**self.defaults)]
+            defaults = self.defaults.copy()
+            defaults['gen-pairs'] = 'yes' if defaults['gen-pairs'] else 'no'
+            return ['{nbfunc} {combinationrule} {gen-pairs} {fudgeLJ} {fudgeQQ}'.format(**defaults)]
         return []
 
     def _write_moleculetype(self):
