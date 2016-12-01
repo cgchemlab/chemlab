@@ -721,7 +721,7 @@ def main():  #NOQA
     out_topol.defaults = gt.topol.defaults
     out_topol.system_name = gt.topol.system_name
     out_topol.moleculetype = {'name': 'MOL', 'nrexcl': 3}
-    out_topol.molecules = [('MOL', int(max_pid))]
+    out_topol.molecules = [('MOL', 1)]
     out_topol.content = None
 
     valid_type_ids = None
