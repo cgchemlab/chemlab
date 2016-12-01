@@ -385,6 +385,7 @@ class GROMACSTopologyFile(TopologyFile):
 
     def __init__(self, file_name):
         super(GROMACSTopologyFile, self).__init__(file_name)
+
         self.parsers = {
             'defaults': self._parse_defaults,
             'atomtypes': self._parse_atomtypes,
@@ -439,6 +440,7 @@ class GROMACSTopologyFile(TopologyFile):
         self.molecules = []
         self.system_name = None
 
+        self.atoms = {}
         # Store bond, angle, dihedral, pairs list by the moleculetype.
         self.current_molecule = None
         self.molecules_data = collections.defaultdict(dict)
@@ -725,6 +727,9 @@ class GROMACSTopologyFile(TopologyFile):
         if 'atoms' not in self.molecules_data[self.current_molecule]:
             self.molecules_data[self.current_molecule]['atoms'] = {}
         self.molecules_data[self.current_molecule]['atoms'][at.atom_id] = at
+        if at.atom_id in self.atoms:
+            raise RuntimeError('Atom {} already in the system!'.format(at.atom_id))
+        self.atoms[at.atom_id] = at
 
     def _parse_bonds(self, raw_data):
         atom_tuple = tuple(map(int, raw_data[0:2]))
