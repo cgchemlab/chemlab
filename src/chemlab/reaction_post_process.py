@@ -178,7 +178,7 @@ class PostProcessSetup(object):
         # Generate dummy molecules
         max_pid = max(self.topol.atoms)
         dummy_type_id = max(self.topol.atomsym_atomtype.values()) + 1
-        self.topol.add_new_atomtype(dummy_type_id, 'DUMMY_{}'.format(dummy_type_id), True)
+        self.topol.add_new_atomtype(dummy_type_id, 'DUMMY_{}'.format(dummy_type_id), False)
         host_pids = sorted([x for x, v in self.topol.atoms.items() if v['type'] == host_type])
         target_type_id = self.topol.atomsym_atomtype[target_type]
         target_properties = self.topol.gt.atomtypes[target_type]
@@ -274,7 +274,7 @@ class PostProcessSetup(object):
         final_type_id = self.topol.atomsym_atomtype[final_type]
 
         dummy_type_id = max(self.topol.atomsym_atomtype.values()) + 1
-        self.topol.add_new_atomtype(dummy_type_id, 'DUMMY_{}'.format(dummy_type_id), True)
+        self.topol.add_new_atomtype(dummy_type_id, 'DUMMY_{}'.format(dummy_type_id), False)
         print('PostProcessJoinMolecule: create dummy type DUMMY_{}'.format(dummy_type_id))
 
         fd = espressopp.integrator.FixDistances(self.system, [], host_type_id, dummy_type_id)

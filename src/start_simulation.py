@@ -21,8 +21,6 @@ import espressopp  # NOQA
 import h5py
 import math  # NOQA
 
-from src.chemlab import files_io
-
 try:
     import MPI
 except ImportError:
@@ -678,7 +676,8 @@ def main():  #NOQA
     # Save topology
     out_topol = gt.topol
     max_pid = espressopp.analysis.MaxPID(system).compute()
-    for at_pid in xrange(max_pid):
+    print(max_pid)
+    for at_pid in xrange(int(max_pid)):
         p = system.storage.getParticle(at_pid)
         if p:
             if at_pid in out_topol.atoms:
@@ -687,7 +686,7 @@ def main():  #NOQA
                 out_topol.atoms[at_pid].chain_idx = p.res_id
                 out_topol.atoms[at_pid].charge = p.q
             else:
-                out_topol.atoms[at_pid] = files_io.TopoAtom(
+                out_topol.atoms[at_pid] = chemlab.files_io.TopoAtom(
                     atom_id=at_pid,
                     atom_type=gt.atomtype_atomsym[p.type],
                     chain_idx=p.res_id,
