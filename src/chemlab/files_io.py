@@ -415,6 +415,7 @@ class GROMACSTopologyFile(TopologyFile):
             'bondtypes': self._write_bondtypes,
             'angletypes': self._write_angletypes,
             'dihedraltypes': self._write_dihedraltypes,
+            'nonbond_params': self._write_nonbondparams,
             'atoms': self._write_atoms,
             'bonds': self._write_bonds,
             'angles': self._write_angles,
@@ -828,6 +829,14 @@ class GROMACSTopologyFile(TopologyFile):
         for atom_type, values in self.atomtypes.items():
             return_data.append('{name} {mass} {charge} {type} {sigma} {epsilon}'.format(
                 **values))
+        return return_data
+
+    def _write_nonbondparams(self):
+        return_data = []
+        for types, params in self.nonbond_params.items():
+            return_data.append('{} {} {} {}'.format(
+                types[0], types[1], params['func'], ' '.join(map(str, params['params']))))
+
         return return_data
 
     def _write_atomstate(self):
