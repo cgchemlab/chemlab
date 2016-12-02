@@ -210,9 +210,7 @@ class GromacsTopology:
                     'name': at_data.name,
                     'cgnr': at_data.cgnr,
                     'chain_idx': at_data.chain_idx,
-                    'chain_name': at_data.chain_name,
-
-                }
+                    'chain_name': at_data.chain_name}
                 self.used_atomtypes.add(at_data.atom_type)
                 self.used_atomnr.add(self.gt.atom_name2atomnr[at_data.atom_type])
                 self.used_atomnr2atom_type[self.gt.atom_name2atomnr[at_data.atom_type]].add(at_data.atom_type)
@@ -791,6 +789,8 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
     static_fpls = []
     for func, b_list in dynamics_bonds_by_func.items():
         fpl = espressopp.FixedPairList(system.storage)
+        fpl_params = collections.defaultdict(dict)
+        fpl.params = fpl_params
         fpl.addBonds(b_list)
         interaction_class, potential_class = func2interaction_dynamic.get(func)
         interaction = interaction_class(system, fpl)
@@ -800,6 +800,8 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
             interaction.setPotential(
                 type1=t[0], type2=t[1],
                 potential=potential_class(**convert_params(func, params['params'])))
+            fpl_params[t[0]][t[1]] = params
+            fpl_params[t[1]][t[0]] = params
         system.addInteraction(interaction, 'dyn_{}_{}'.format(name, bond_count))
         bond_count += 1
         dynamics_fpls[collections.namedtuple('dfpls', ['func', 'is_observe_list'])(func, observe_list)] = fpl
@@ -811,6 +813,7 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
             if b_list:
                 fpl = espressopp.FixedPairList(system.storage)
                 fpl.addBonds(b_list)
+                fpl.params = (func, params)
                 static_fpls.append(fpl)
                 interaction = interaction_class(system, fpl, potential_class(**convert_params(func, params)))
                 system.addInteraction(interaction, '{}_{}'.format(name, bond_count))
@@ -877,6 +880,7 @@ def set_angle_interactions(system, gt, dynamic_type_ids, name='angles'):
             if b_list:
                 ftl = espressopp.FixedTripleList(system.storage)
                 ftl.addTriples(b_list)
+                ftl.params = (func, params)
                 static_ftls.append(ftl)
                 interaction = interaction_class(system, ftl, potential_class(**convert_params(func, params)))
                 system.addInteraction(interaction, '{}_{}'.format(name, angle_count))
@@ -894,14 +898,16 @@ def set_angle_interactions(system, gt, dynamic_type_ids, name='angles'):
     for func, b_list in dynamics_angles_by_func.items():
         ftl = espressopp.FixedTripleList(system.storage)
         ftl.addTriples(b_list)
+        ftl_params = lambda: collections.defaultdict(ftl_params)
+        ftl.params = ftl_params()
         interaction_class, potential_class = func2interaction_dynamic.get(func)
         interaction = interaction_class(system, ftl)
         for t, params in angleparams_func[func]:
-            print t, params
             interaction.setPotential(
                 type1=t[0], type2=t[1], type3=t[2],
-                potential=potential_class(**convert_params(func, params['params']))
-            )
+                potential=potential_class(**convert_params(func, params['params'])))
+            ftl.params[t[0]][t[1]][t[2]] = params
+            ftl.params[t[2]][t[1]][t[0]] = params
         system.addInteraction(interaction, 'dyn_{}_{}'.format(name, angle_count))
         angle_count += 1
         dynamics_ftls[func] = ftl
@@ -978,6 +984,7 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, name='dihedrals'):
         for params, b_list in dihedrals_by_func[func].items():
             fql = espressopp.FixedQuadrupleList(system.storage)
             fql.addQuadruples(b_list)
+            fql.params = (func, params)
             static_fqls.append(fql)
             interaction = interaction_class(system, fql, potential_class(**convert_params(func, params)))
             system.addInteraction(interaction, '{}_{}'.format(name, dihedral_count))
@@ -995,13 +1002,16 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, name='dihedrals'):
     for func, b_list in dynamics_dihedrals_by_func.items():
         fql = espressopp.FixedQuadrupleList(system.storage)
         fql.addQuadruples(b_list)
+        fql_params = lambda: collections.defaultdict(fql_params)
+        fql.params = fql_params()
         interaction_class, potential_class = func2interaction_dynamic.get(func)
         interaction = interaction_class(system, fql)
         for t, params in dihedralparams_func[func]:
             interaction.setPotential(
                 type1=t[0], type2=t[1], type3=t[2], type4=t[3],
-                potential=potential_class(**convert_params(func, params['params']))
-            )
+                potential=potential_class(**convert_params(func, params['params'])))
+            fql.params[t[0]][t[1]][t[2]][t[3]] = params
+            fql.params[t[3]][t[2]][t[1]][t[0]] = params
         system.addInteraction(interaction, 'dyn_{}_{}'.format(name, dihedral_count))
         dihedral_count += 1
         dynamics_fqls[func] = fql

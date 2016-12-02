@@ -743,16 +743,18 @@ def main():  #NOQA
                 topo_atom.atom_id = at_pid
                 topo_atom.name = at_data['name']
                 topo_atom.atom_type = gt.atomtype_atomsym[p.type]
+                topo_atom.atom_type_id = p.type
                 topo_atom.mass = p.mass
                 topo_atom.chain_idx = p.res_id
                 topo_atom.chain_name = at_data['chain_name']
                 topo_atom.charge = p.q
                 topo_atom.cgnr = at_pid
+                out_topol.atoms[at_pid] = topo_atom
             else:
                 if 'MOLX' not in out_topol.molecules_data:
                     out_topol.molecules_data['MOLX'] = {'atoms': {}}
 
-                out_topol.molecules_data['MOLX']['atoms'][at_pid] = chemlab.files_io.TopoAtom(
+                topo_atom = chemlab.files_io.TopoAtom(
                     atom_id=at_pid,
                     atom_type=gt.atomtype_atomsym[p.type],
                     chain_idx=p.res_id,
@@ -761,6 +763,9 @@ def main():  #NOQA
                     cgnr=at_pid,
                     charge=p.q,
                     mass=p.mass)
+                topo_atom.atom_type_id = p.type
+                out_topol.molecules_data['MOLX']['atoms'][at_pid] = topo_atom
+                out_topol.atoms[at_pid] = out_topol.molecules_data['MOLX']['atoms'][at_pid]
                 # Extend also input_conf
                 input_conf.atoms[at_pid] = chemlab.files_io.Atom(
                     atom_id=at_pid,
@@ -772,14 +777,18 @@ def main():  #NOQA
     with open('{}_{}_bonds.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
         bond_lists = []
         for fpl in static_fpls:
+            fpl_params = fpl.params
             for p in fpl.getAllBonds():
-                bond_lists.append([p[0], p[1], '; static'])
+                bond_lists.append([p[0], p[1], fpl_params[0]] + list(fpl_params[1]) + ['; static'])
         for func, fpl in dynamic_fpls.items():
             for p in fpl.getAllBonds():
-                bond_lists.append([p[0], p[1], func.func, '; dynamic'])
+                t0, t1 = out_topol.atoms[p[0]].atom_type_id, out_topol.atoms[p[1]].atom_type_id
+                fpl_params = fpl.params[t0][t1]
+                bond_lists.append([p[0], p[1], fpl_params['func']] + fpl_params['params'] + ['; dynamic'])
         for def_f in chem_fpls:
             for p in def_f.fpl.getAllBonds():
-                bond_lists.append([p[0], p[1], '; chem'])
+                t0, t1 = out_topol.atoms[p[0]].atom_type_id, out_topol.atoms[p[1]].atom_type_id
+                bond_lists.append([p[0], p[1], '; chem {}-{}'.format(t0, t1)])
         for b in bond_lists:
             of.write('{}\n'.format(' '.join(map(str, b))))
             out_topol.new_data['bonds'][(b[0], b[1])] = b[2:]
@@ -787,11 +796,15 @@ def main():  #NOQA
     with open('{}_{}_angles.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
         angle_lists = []
         for ftl in static_ftls:
+            ftl_params = ftl.params
             for p in ftl.getAllTriples():
-                angle_lists.append(list(p) + ['; static'])
+                angle_lists.append(list(p) + [ftl_params[0]] + list(ftl_params[1]) + ['; static'])
         for func, ftl in dynamic_ftls.items():
             for p in ftl.getAllTriples():
-                angle_lists.append(list(p) + [func, '; dynamic'])
+                t0, t1, t2 = (out_topol.atoms[p[0]].atom_type_id, out_topol.atoms[p[1]].atom_type_id,
+                              out_topol.atoms[p[2]].atom_type_id)
+                ftl_params = ftl.params[t0][t1][t2]
+                angle_lists.append(list(p) + [ftl_params['func']] + ftl_params['params'] + ['; dynamic'])
         for a in angle_lists:
             of.write('{}\n'.format(' '.join(map(str, a))))
             out_topol.new_data['angles'][tuple(a[:3])] = a[3:]
@@ -799,11 +812,15 @@ def main():  #NOQA
     with open('{}_{}_dihedrals.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
         dih_lists = []
         for fql in static_fqls:
+            fql_params = fql.params
             for p in fql.getAllQuadruples():
-                dih_lists.append(list(p) + ['; static'])
+                dih_lists.append(list(p) + [fql_params[0]] + list(fql_params[1]) + ['; static'])
         for func, fql in dynamic_fqls.items():
             for p in fql.getAllQuadruples():
-                dih_lists.append(list(p) + [func, '; dynamic'])
+                t0, t1, t2, t3 = (out_topol.atoms[p[0]].atom_type_id, out_topol.atoms[p[1]].atom_type_id,
+                                  out_topol.atoms[p[2]].atom_type_id, out_topol.atoms[p[3]].atom_type_id)
+                fql_params = fql.params[t0][t1][t2][t3]
+                dih_lists.append(list(p) + [fql_params['func']] + fql_params['params'] + ['; dynamic'])
         for d in dih_lists:
             of.write('{}\n'.format(' '.join(map(str, d))))
             out_topol.new_data['dihedrals'][tuple(d[:3])] = d[3:]
