@@ -728,7 +728,7 @@ def main():  #NOQA
     if args.table_groups:
         valid_type_ids = map(gt.atomsym_atomtype.get, args.table_groups.split(','))
 
-    for at_pid in xrange(1, int(max_pid)):
+    for at_pid in xrange(1, int(max_pid)+1):
         p = system.storage.getParticle(at_pid)
         if p:
             if valid_type_ids and p.type not in valid_type_ids:
