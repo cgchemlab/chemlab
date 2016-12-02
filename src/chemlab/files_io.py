@@ -56,7 +56,7 @@ class TopoAtom(object):
         self.chain_idx = chain_idx
         self.chain_name = chain_name
         self.name = name
-        self.chnr = cgnr
+        self.cgnr = cgnr
         self.charge = charge
         self.mass = mass
         self.active_site = active_site
@@ -385,6 +385,7 @@ class GROMACSTopologyFile(TopologyFile):
 
     def __init__(self, file_name):
         super(GROMACSTopologyFile, self).__init__(file_name)
+
         self.parsers = {
             'defaults': self._parse_defaults,
             'atomtypes': self._parse_atomtypes,
@@ -410,6 +411,10 @@ class GROMACSTopologyFile(TopologyFile):
             'system': self._write_system,
             'molecules': self._write_molecules,
             'atomtypes': self._write_atomtypes,
+            'atomstate': self._write_atomstate,
+            'bondtypes': self._write_bondtypes,
+            'angletypes': self._write_angletypes,
+            'dihedraltypes': self._write_dihedraltypes,
             'atoms': self._write_atoms,
             'bonds': self._write_bonds,
             'angles': self._write_angles,
@@ -439,6 +444,7 @@ class GROMACSTopologyFile(TopologyFile):
         self.molecules = []
         self.system_name = None
 
+        self.atoms = {}
         # Store bond, angle, dihedral, pairs list by the moleculetype.
         self.current_molecule = None
         self.molecules_data = collections.defaultdict(dict)
@@ -464,9 +470,11 @@ class GROMACSTopologyFile(TopologyFile):
         Args:
           pdbfile: The pdb file.
         """
-        logger.info('Update position from file %s', pdbfile.file_name)
-        for k, v in pdbfile.atoms.iteritems():
-            self.atoms[k].position = v.position
+        raise NotImplemented('method not implemented')
+
+        # logger.info('Update position from file %s', pdbfile.file_name)
+        # for k, v in pdbfile.atoms.iteritems():
+        #     self.atoms[k].position = v.position
 
     def read(self):
         """Reads the topology file."""
@@ -525,6 +533,17 @@ class GROMACSTopologyFile(TopologyFile):
                 sections.append('defaults')
             if self.atomtypes:
                 sections.append('atomtypes')
+            if self.bondtypes:
+                sections.append('bondtypes')
+            if self.angletypes:
+                sections.append('angletypes')
+            if self.dihedraltypes:
+                sections.append('dihedraltypes')
+            if self.nonbond_params:
+                sections.append('nonbond_params')
+            if self.atomstate:
+                sections.append('atomstate')
+
             sections.extend([
                 'moleculetype',
                 'atoms',
@@ -714,6 +733,7 @@ class GROMACSTopologyFile(TopologyFile):
         at.chain_name = raw_data[3]
         at.name = raw_data[4]
         at.cgnr = int(raw_data[5])
+        at.molecule_name = self.current_molecule
 
         if len(raw_data) > 6:
             at.charge = float(raw_data[6])
@@ -785,8 +805,12 @@ class GROMACSTopologyFile(TopologyFile):
     # Writers
     def _write_atoms(self):
         return_data = []
-        for atom_id in sorted(self.atoms):
-            x = self.atoms[atom_id]
+        atoms = {}
+        for mol_data in self.molecules_data.values():
+            atoms.update(mol_data['atoms'])
+
+        for atom_id in sorted(atoms):
+            x = atoms[atom_id]
             return_data.append('%s %s %s %s %s %s %s %s' % (
                                x.atom_id,
                                x.atom_type,
@@ -801,52 +825,94 @@ class GROMACSTopologyFile(TopologyFile):
 
     def _write_atomtypes(self):
         return_data = []
-        for atom_type, values in self.atomtypes.iteritems():
+        for atom_type, values in self.atomtypes.items():
             return_data.append('{name} {mass} {charge} {type} {sigma} {epsilon}'.format(
                 **values))
         return return_data
 
+    def _write_atomstate(self):
+        return_data = []
+        for val in self.atomstate.items():
+            return_data.append('{} {}'.format(*val))
+        return return_data
+
+    def _write_bondtypes(self):
+        return_data = []
+        for i in self.bondtypes:
+            for j, params in self.bondtypes[i].items():
+                return_data.append('{} {} {} {}'.format(i, j, params['func'], ' '.join(params['params'])))
+        return return_data
+
+    def _write_angletypes(self):
+        return_data = []
+        for i in self.angletypes:
+            for j in self.angletypes[i]:
+                for k, params in self.angletypes[i][j].items():
+                    return_data.append('{} {} {} {} {}'.format(
+                        i, j, k, params['func'], ' '.join(params['params'])))
+        return return_data
+
+    def _write_dihedraltypes(self):
+        return_data = []
+        for i in self.dihedraltypes:
+            for j in self.dihedraltypes[i]:
+                for k in self.dihedraltypes[i][j]:
+                    for l, params in self.dihedraltypes[i][j][k].items():
+                        return_data.append('{} {} {} {} {} {}'.format(
+                            i, j, k, l, params['func'], ' '.join(params['params'])))
+        return return_data
+
     def _write_bonds(self):  # pylint:disable=R0201
         return_data = []
-        return_data.extend(self._write_default(self.bonds))
-        return_data.extend(self._write_default(self.new_data['bonds'], self.bonds))
+        total_bonds = {}
+        for mol_data in self.molecules_data.values():
+            return_data.extend(self._write_default(mol_data.get('bonds', {})))
+            total_bonds.update(mol_data.get('bonds', {}))
+        return_data.extend(self._write_default(self.new_data['bonds'], total_bonds))
         return return_data
 
     def _write_pairs(self):  # pylint:disable=R0201
         return_data = []
-        return_data.extend(self._write_default(self.pairs))
-        return_data.extend(
-            self._write_default(self.new_data['pairs'], self.pairs)
-            )
+        total_pairs = {}
+        for mol_data in self.molecules_data.values():
+            return_data.extend(self._write_default(mol_data.get('pairs', {})))
+            total_pairs.update(mol_data.get('pairs', {}))
+        return_data.extend(self._write_default(self.new_data['pairs'], total_pairs))
         return return_data
 
     def _write_angles(self):
         return_data = []
-        return_data.extend(self._write_default(self.angles))
-        return_data.extend(
-            self._write_default(self.new_data['angles'], self.angles)
-            )
+        total_angles = {}
+        for mol_data in self.molecules_data.values():
+            return_data.extend(self._write_default(mol_data.get('angles', {})))
+            total_angles.update(mol_data.get('angles', {}))
+        return_data.extend(self._write_default(self.new_data['angles'], total_angles))
         return return_data
 
     def _write_dihedrals(self):
         return_data = []
-        return_data.extend(self._write_default(self.dihedrals))
-        return_data.extend(
-            self._write_default(self.new_data['dihedrals'], self.dihedrals)
-            )
+        total_dihedrals = {}
+        for mol_data in self.molecules_data.values():
+            return_data.extend(self._write_default(mol_data.get('dihedrals', {})))
+            total_dihedrals.update(mol_data.get('dihedrals', {}))
+        return_data.extend(self._write_default(self.new_data['dihedrals'], total_dihedrals))
         return return_data
 
     def _write_improper_dihedrals(self):
         return_data = []
-        return_data.extend(self._write_default(self.improper_dihedrals))
-        return_data.extend(
-            self._write_default(self.new_data['improper_dihedrals'], self.improper_dihedrals)
-            )
+        total_impropers = {}
+        for mol_data in self.molecules_data.values():
+            return_data.extend(self._write_default(mol_data.get('improper_dihedrals', {})))
+            total_impropers.update(mol_data.get('improper_dihedrals', {}))
+
+        return_data.extend(self._write_default(self.new_data['improper_dihedrals'], total_impropers))
         return return_data
 
     def _write_defaults(self):
         if self.defaults:
-            return ['{nbfunc} {combinationrule} {gen-pairs} {fudgeLJ} {fudgeQQ}'.format(**self.defaults)]
+            defaults = self.defaults.copy()
+            defaults['gen-pairs'] = 'yes' if defaults['gen-pairs'] else 'no'
+            return ['{nbfunc} {combinationrule} {gen-pairs} {fudgeLJ} {fudgeQQ}'.format(**defaults)]
         return []
 
     def _write_moleculetype(self):
@@ -856,7 +922,7 @@ class GROMACSTopologyFile(TopologyFile):
         return [self.system_name]
 
     def _write_molecules(self):
-        return ['{} {}'.format(*self.molecules.items()[0])]
+        return ['{} {}'.format(*x) for x in self.molecules]
 
     def _write_default(self, datas=None, check_in=None):  # pylint:disable=R0201
         if check_in is None:

@@ -1,0 +1,23 @@
+#!/bin/bash -l
+#PBS -l mem=32gb
+#PBS -l walltime=24:00:00
+#PBS -o Output.job
+#PBS -j oe
+#PBS -l nodes=1:ppn=20
+#PBS -M jakub.krajniak@cs.kuleuven.be
+#PBS -A lp_polymer_goa_project
+#PBS -N dacron_water
+
+module purge
+
+cd $PBS_O_WORKDIR
+
+module load espressopp/chem_devel
+module load chemlab/dev
+# Set up OpenMPI environment
+n_proc=$(cat $PBS_NODEFILE | wc -l)
+n_node=$(cat $PBS_NODEFILE | uniq | wc -l)
+mpdboot -f $PBS_NODEFILE -n $n_node -r ssh -v
+
+rng="`shuf -i 12345-99999 -n1`"
+mpirun -n 18 start_simulation.py @params --rng_seed ${rng} &> run_${rng}.log

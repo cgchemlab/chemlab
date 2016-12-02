@@ -20,14 +20,18 @@
 import espressopp  # NOQA
 import h5py
 import math  # NOQA
+import numpy
+
 try:
     import MPI
 except ImportError:
     from mpi4py import MPI
 import collections
+import cPickle
 import time
 import logging
 import random
+import re
 import shutil
 
 import chemlab
@@ -82,11 +86,15 @@ def main():  #NOQA
     print('Setup simulation...')
 
     # Tune simulation parameter according to arguments
-    integrator_step = min([args.int_step, args.trj_collect])
+    integrator_step = args.int_step
+    if args.trj_collect > 0:
+        integrator_step = min([args.int_step, args.trj_collect])
     sim_step = args.run / integrator_step
 
-    if args.skin:
-        skin = args.skin
+    if args.skin == 'auto':
+        skin = 0.16
+    else:
+        skin = float(args.skin)
 
     # Seed for RNG
     rng_seed = args.rng_seed
@@ -103,7 +111,7 @@ def main():  #NOQA
 
     particle_ids = [x[0] for x in particle_list]
 
-    density = sum(x[3] for x in particle_list)*mass_factor/ (box[0] * box[1] * box[2])
+    density = sum(x[3] for x in particle_list) * mass_factor / (box[0] * box[1] * box[2])
     print('Density: {} kg/m^3'.format(density))
     print('Box: {} nm'.format(box))
 
@@ -112,11 +120,11 @@ def main():  #NOQA
         raise RuntimeError('Temperature not defined!')
     temperature = args.temperature * kb
     print('Generating velocities from Maxwell-Boltzmann distribution T={} ({})'.format(
-        args.temperature, args.temperature*kb))
+        args.temperature, args.temperature * kb))
     vx, vy, vz = espressopp.tools.velocities.gaussian(
         args.temperature,
         len(particle_list),
-        [x[3]*mass_factor for x in particle_list],
+        [x[3] * mass_factor for x in particle_list],
         kb=kb)
     part_prop.append('v')
     for i, p in enumerate(particle_list):
@@ -147,14 +155,15 @@ def main():  #NOQA
 
     system.storage.decompose()
 
-# Dynamic exclude list, depends on the new create bonds as well.
+    # Dynamic exclude list, depends on the new create bonds as well.
     if has_exclusions:
         exclusion_file = open(args.exclusion_list, 'r')
         exclusions = [map(int, x.split()) for x in exclusion_file.readlines()]
         print('Read exclusion list from {} (total: {})'.format(args.exclusion_list, len(exclusions)))
         gt.exclusions = exclusions
 
-    output_filename = 'exclusion_{}.list'.format(args.top.split('.')[0])
+    topol_file = os.path.basename(args.top)
+    output_filename = 'exclusion_{}.list'.format(topol_file.split('.')[0])
     out_file = open(output_filename, 'w')
     out_file.writelines('\n'.join(['{} {}'.format(*d) for d in sorted(gt.exclusions)]))
     out_file.close()
@@ -162,14 +171,14 @@ def main():  #NOQA
     dynamic_exclusion_list = espressopp.DynamicExcludeList(integrator, gt.exclusions)
     print('Excluded pairs from LJ interaction: {}'.format(len(gt.exclusions)))
 
-# Exclude all bonded interaction from the lennard jones
+    # Exclude all bonded interaction from the lennard jones
     verletlist = espressopp.VerletList(
         system,
         cutoff=max_cutoff,
         exclusionlist=dynamic_exclusion_list
-        )
+    )
 
-# define the potential, interaction_id = 0
+    # define the potential, interaction_id = 0
     print('Bonds: {}'.format(len(gt.bonds)))
     print('Angles: {}'.format(len(gt.angles)))
     print('Dihedrals: {}'.format(len(gt.dihedrals)))
@@ -208,15 +217,16 @@ def main():  #NOQA
     if args.reactions is not None and os.path.exists(args.reactions):
         print('Set chemical reactions from: {}'.format(args.reactions))
         reaction_config = chemlab.reaction_parser.parse_config(args.reactions)
-        sc = chemlab.reaction_parser.SetupReactions(
+        sc = chemlab.reaction_setup.SetupReactions(
             system,
             verletlist,
             gt,
             topology_manager,
-            reaction_config)
+            reaction_config,
+            args)
         ar, chem_fpls, reactions, extensions_integrator = sc.setup_reactions()
         chem_dynamic_types = sc.dynamic_types
-        chem_dynamic_bond_types = sc.obser_bondtypes
+        chem_dynamic_bond_types = sc.observed_bondtypes
 
         if cr_observs is None:
             cr_observs = {}
@@ -232,9 +242,8 @@ def main():  #NOQA
         print('Change integrator step to {}'.format(integrator_step))
         sim_step = args.run / integrator_step
         print('Change topology collect interval to {}'.format(cr_interval))
-        args.topol_collect = cr_interval
+        args.topol_collect = min([cr_interval, args.topol_collect])
         has_reaction = True
-        # Run hook after reaction object created.
         hook_postsetup_reaction(system, integrator, gt, args, ar)
     else:
         cr_interval = integrator_step
@@ -258,7 +267,14 @@ def main():  #NOQA
                 cr_observs[(type_id_symbol, tot_number)] = espressopp.analysis.ChemicalConversion(
                     system, type_id_symbol, tot_number)
             maximum_conversion.append((cr_observs[(type_id_symbol, tot_number)], stop_value))
-        eq_run = int(args.eq_steps / sim_step)
+        if args.eq_steps > 0:
+            eq_run = int(args.eq_steps / sim_step)
+
+    if args.t_hybrid_bond > 0:
+        list_dynamic_resolution = espressopp.integrator.FixedListDynamicResolution(system)
+        for fpl in chem_fpls:
+            list_dynamic_resolution.register_pair_list(fpl.fpl, 1.0/args.t_hybrid_bond)
+        integrator.addExtension(list_dynamic_resolution)
 
     system.storage.decompose()
 
@@ -274,6 +290,12 @@ def main():  #NOQA
         system, gt, args, chem_dynamic_types)
     chemlab.gromacs_topology.set_coulomb_interactions(system, gt, args)
 
+    if args.table_groups:
+        thermal_groups = map(gt.atomsym_atomtype.get, args.table_groups.split(','))
+        print('Thermal groups: {} ({})'.format(args.table_groups, thermal_groups))
+    else:
+        thermal_groups = []
+
     # Add cap force
     if args.max_force > -1:
         cap_force = espressopp.integrator.CapForce(system, args.max_force)
@@ -288,8 +310,8 @@ def main():  #NOQA
         thermostat.temperature = temperature
         thermostat.gamma = args.thermostat_gamma
         if has_reaction and sc and sc.use_thermal_group:
-            print('Running thermostat on thermal groups: {}'.format(gt.used_atomsym_atomtype))
-            thermostat.add_valid_types(gt.used_atomsym_atomtype.values())
+            print('Running thermostat on thermal groups: {}'.format(thermal_groups))
+            thermostat.add_valid_types(thermal_groups)
     elif args.thermostat == 'vr':
         thermostat = espressopp.integrator.StochasticVelocityRescaling(system)
         thermostat.temperature = temperature
@@ -347,31 +369,36 @@ def main():  #NOQA
 
     topology_manager.initialize_topology()
 
-    #for t, p in gt.bondparams.items():
-    #    if p['func'] in dynamic_fpls:
-    #        fpl = dynamic_fpls[p['func']]
-    #        print('Register bonds for type: {}'.format(t))
-    #        topology_manager.register_tuple(fpl, *t)
+    for t, p in gt.bondparams.items():
+       if p['func'] in dynamic_fpls:
+           fpl = dynamic_fpls[p['func']]
+           print('Register bonds for type: {}'.format(t))
+           topology_manager.register_tuple(fpl, *t)
 
     # Any new bond will trigger update here.
     for t, p in gt.angleparams.items():
         if p['func'] in dynamic_ftls:
             ftl = dynamic_ftls[p['func']]
-            print('Register angles for type: {}'.format(t))
+            print('Register angles for type: {} ({})'.format(t, ftl))
             topology_manager.register_triplet(ftl, *t)
 
     for t, p in gt.dihedralparams.items():
         if p['func'] in dynamic_fqls:
             fql = dynamic_fqls[p['func']]
-            print('Register dihedral for type: {}'.format(t))
+            print('Register dihedral for type: {} ({})'.format(t, fql))
             topology_manager.register_quadruplet(fql, *t)
 
     integrator.addExtension(topology_manager)
 
     # Add fpls defined by chemical reactions to exclude lists and topology_manager.
     for f in chem_fpls:
-        topology_manager.observe_tuple(f)
-        dynamic_exclusion_list.observe_tuple(f)
+        topology_manager.observe_tuple(f.fpl)
+        dynamic_exclusion_list.observe_tuple(f.fpl)
+    # Register chemistry tuples in topology_manager
+    for def_f in chem_fpls:
+        for t in def_f.type_list:
+            print('Register chem_fpl for type: {} ({})'.format(t, def_f.fpl))
+            topology_manager.register_tuple(def_f.fpl, *t)
 
     # Define SystemMonitor that will store data from observables into a .csv file.
     energy_file = '{}_energy_{}.csv'.format(args.output_prefix, rng_seed)
@@ -382,8 +409,12 @@ def main():  #NOQA
         espressopp.analysis.SystemMonitorOutputCSV(energy_file))
     temp_comp = espressopp.analysis.Temperature(system)
     if has_reaction and sc and sc.use_thermal_group:
-        for t_id in gt.used_atomsym_atomtype.values():
+        for t_id in thermal_groups:
             temp_comp.add_type(t_id)
+
+    system_monitor_filter = None
+    if args.system_monitor_filter:
+        system_monitor_filter = args.system_monitor_filter.split(',')
 
     system_analysis.add_observable('T', temp_comp)
     system_analysis.add_observable(
@@ -393,14 +424,26 @@ def main():  #NOQA
         system_analysis.add_observable('P', pressure_comp)
     for label, interaction in sorted(system.getAllInteractions().items()):
         print('System analysis: adding {}'.format(label))
+        show_in_system_info = True
+        if system_monitor_filter:
+            show_in_system_info = False
+            for v in system_monitor_filter:
+                if v in label:
+                    show_in_system_info = True
+                    break
         system_analysis.add_observable(
-            label, espressopp.analysis.PotentialEnergy(system, interaction))
+            label, espressopp.analysis.PotentialEnergy(system, interaction), show_in_system_info)
     for (cr_type, _), obs in cr_observs.items():
         system_analysis.add_observable(
             'cr_{}'.format(cr_type), obs)
     for fidx, f in enumerate(chem_fpls):
         system_analysis.add_observable(
-            'count_{}'.format(fidx), espressopp.analysis.NFixedPairListEntries(system, f))
+            'count_{}'.format(fidx), espressopp.analysis.NFixedPairListEntries(system, f.fpl))
+
+    if args.t_hybrid_bond > 0:
+        for fpl_idx, fpl in enumerate(chem_fpls):
+            system_analysis.add_observable(
+                'res_fpl_{}'.format(fpl_idx), espressopp.analysis.ResolutionFixedPairList(system, fpl.fpl))
 
     # system_analysis.add_observable(
     #   'Fmax', espressopp.analysis.MaxForce(system))
@@ -437,7 +480,7 @@ def main():  #NOQA
 
     if args.count_types:
         for at_sym in args.count_types.split(','):
-            print('Observer {:9} ({:8})'.format(at_sym, gt.atomsym_atomtype[at_sym]))
+            print('Observer {:9} ({})'.format(at_sym, gt.atomsym_atomtype[at_sym]))
             obs_type_id = gt.atomsym_atomtype[at_sym]
             chem_conver_obs = espressopp.analysis.ChemicalConversion(system, obs_type_id)
             system_analysis.add_observable('num_type_{}_{}'.format(at_sym, obs_type_id), chem_conver_obs)
@@ -452,9 +495,15 @@ def main():  #NOQA
                 'st_{}_{}'.format(type_name, state),
                 espressopp.analysis.ChemicalConversionTypeState(system, type_id, state))
 
-    ext_analysis = espressopp.integrator.ExtAnalyze(system_analysis, cr_interval)
-    integrator.addExtension(ext_analysis)
-    print('Configured system analysis, collect data every {} steps'.format(cr_interval))
+    if args.count_fix_distances:
+        for fd_idx, fd in enumerate(sc.fix_distances):
+            system_analysis.add_observable('fd_{}'.format(fd_idx), espressopp.analysis.NumFixDistances(system, fd))
+
+    cr_interval = min([cr_interval, args.energy_collect])
+    if args.energy_collect > 0:
+        ext_analysis = espressopp.integrator.ExtAnalyze(system_analysis, min([cr_interval, args.energy_collect]))
+        integrator.addExtension(ext_analysis)
+        print('Configured system analysis, collect data every {} steps'.format(min([cr_interval, args.energy_collect])))
 
     print('Configure H5MD trajectory writer')
     NPart = espressopp.analysis.NPart(system).compute()
@@ -476,12 +525,12 @@ def main():  #NOQA
         store_velocity=args.store_velocity,
         store_mass=args.store_mass,
         is_single_prec=args.store_single_precision,
-        chunk_size=128) #int(NPart/MPI.COMM_WORLD.size))
+        chunk_size=256)  # int(NPart/MPI.COMM_WORLD.size))
 
     print('Set topology writer')
     dump_topol = espressopp.io.DumpTopology(system, integrator, traj_file)
     for i, f in enumerate(chem_fpls):
-        dump_topol.observe_tuple(f, 'chem_bonds_{}'.format(i))
+        dump_topol.observe_tuple(f.fpl, 'chem_bonds_{}'.format(i))
 
     bcount = 0
     for (i, observe_tuple), f in dynamic_fpls.items():
@@ -489,7 +538,7 @@ def main():  #NOQA
             print('DumpTopol: observe dynamic_bonds_{}'.format(i))
             dump_topol.observe_tuple(f, 'dynamic_bonds_{}'.format(i))
         else:
-            print('DumpTopol: observe bonds_{}'.format(i))
+            print('DumpTopol: save static list from bonds_{}'.format(i))
             dump_topol.add_static_tuple(f, 'bonds_{}'.format(bcount))
         bcount += 1
 
@@ -507,10 +556,10 @@ def main():  #NOQA
 
     trj_collect = min([args.trj_collect, cr_interval]) if cr_interval > 0 else args.trj_collect
     k_trj_collect = int(math.ceil(trj_collect/float(integrator_step)))
-    k_trj_flush = 25 if 25 < k_trj_collect else k_trj_collect
+    k_trj_flush = 25 if 25 < 10*k_trj_collect else 10*k_trj_collect
     print('Collect trajectory every {} steps'.format(trj_collect))
-
     print('Collect energy data everey {} steps'.format(cr_interval))
+    print('Flush trajectory and topology to disk every {} steps'.format(k_trj_flush*integrator_step))
 
     if args.start_ar >= 0 and has_reaction:
         k_enable_reactions = int(math.ceil(args.start_ar/float(integrator_step)))
@@ -534,11 +583,11 @@ def main():  #NOQA
     total_velocity.reset()
 
     print('{:9}    {:8}'.format('Type name', 'type id'))
-    for at_sym in gt.atomsym_atomtype:
-        print('{:9}    {:8}'.format(at_sym, gt.atomsym_atomtype[at_sym]))
+    for at_sym, type_id in sorted(gt.atomsym_atomtype.items(), key=lambda x: x[1]):
+        print('{:9}    {:8}'.format(at_sym, type_id))
 
-    print('Running {} steps'.format(sim_step*integrator_step))
-    print('Temperature: {} ({} K)'.format(args.temperature*kb, args.temperature))
+    print('Running {} steps'.format(sim_step * integrator_step))
+    print('Temperature: {} ({} K)'.format(args.temperature * kb, args.temperature))
     print('Number of particles: {}'.format(NPart))
     system_analysis.dump()
 
@@ -551,16 +600,23 @@ def main():  #NOQA
     if args.rate_arrhenius:
         rate_file = open('{}_{}_new_rates.csv'.format(args.output_prefix, rng_seed), 'w')
 
+    if args.skin == 'auto':
+        print('Tunning skin parameter.')
+        skin = espressopp.tools.decomp.tuneSkin(
+            system, integrator, minSkin=0.1, maxSkin=1.5, precision=0.0001, printInfo=True)
+        print('Found skin: {}'.format(skin))
+        integrator.step = 0
+
     totalTime = time.time()
     integratorLoop = 0.0
 
     for k in range(sim_step):
         system_analysis.info()
-        if k % k_trj_collect == 0:
-            traj_file.dump(k*integrator_step, k*integrator_step*args.dt)
-        if k % k_trj_flush == 0:
+        if k_trj_collect > 0 and k % k_trj_collect == 0:
+            traj_file.dump(k * integrator_step, k * integrator_step * args.dt)
+        if k_trj_flush > 0 and k % k_trj_flush == 0:
             dump_topol.update()
-            traj_file.flush()   # Write HDF5 to disk.
+            traj_file.flush()  # Write HDF5 to disk.
         if k_enable_reactions == k:
             print('Enabling chemical reactions')
             integrator.addExtension(ar)
@@ -593,7 +649,7 @@ def main():  #NOQA
                     eq_run -= 1
             # Support for arrhenius law.
             if args.rate_arrhenius:
-                bonds0 = sum(f.totalSize() for f in chem_fpls)  # TODO(jakub): this is terrible.
+                bonds0 = sum(f.fpl.totalSize() for f in chem_fpls)  # TODO(jakub): this is terrible.
                 energy0 = system_analysis.potential_energy
 
             if k_stop_reactions == k:
@@ -603,31 +659,25 @@ def main():  #NOQA
         integrator.run(integrator_step)
         integratorLoop += (time.time() - loopTimer)
 
-        # Hook at every simulation step after integrator
         hook_at_step(system, integrator, ar, gt, args, k*integrator_step)
 
         if args.rate_arrhenius and reactions_enabled:
-            bonds1 = sum(f.totalSize() for f in chem_fpls)  # TODO(jakub): this is terrible.
+            bonds1 = sum(f.fpl.totalSize() for f in chem_fpls)  # TODO(jakub): this is terrible.
             delta_bonds = bonds1 - bonds0
             if delta_bonds > 0:
                 energy_delta = (system_analysis.potential_energy - energy0) / float(delta_bonds)
-                new_rate = math.exp(-energy_delta/temperature)
-                print('{}\tChange reaction rate, delta_E={}, new_k={}, delta_bonds={}'.format(k*integrator_step, energy_delta, new_rate, delta_bonds))
-                rate_file.write('{} {:e}\n'.format(k*integrator_step, new_rate))
+                new_rate = math.exp(-energy_delta / temperature)
+                print('{}\tChange reaction rate, delta_E={}, new_k={}, delta_bonds={}'.format(k * integrator_step,
+                                                                                              energy_delta, new_rate,
+                                                                                              delta_bonds))
+                rate_file.write('{} {:e}\n'.format(k * integrator_step, new_rate))
                 for r in reactions:
                     r.rate = new_rate
     totalTime = time.time() - totalTime
     ##### END of main integrator loop ###########
 
-    with open('{}_{}_benchmark.csv'.format(args.output_prefix, args.rng_seed), 'a+') as benchmark_file:
-        benchmark_file.write('{} {} {} {}\n'.format(MPI.COMM_WORLD.size, NPart, totalTime, integratorLoop))
-
-    if args.rate_arrhenius:
-        print('Changes in reaction rates written to {}'.format(rate_file.name))
-        rate_file.close()
-
     system_analysis.info()
-    traj_file.dump(sim_step*integrator_step, sim_step*integrator_step*args.dt)
+    traj_file.dump(sim_step * integrator_step, sim_step * integrator_step * args.dt)
     dump_topol.dump()
     dump_topol.update()
     traj_file.flush()
@@ -645,8 +695,8 @@ def main():  #NOQA
         'kb': kb,
         'barostat': args.barostat if args.pressure else 'no',
         'pressure': pressure,
-        'total_steps': sim_step*integrator_step,
-        'total_time': sim_step*integrator_step*args.dt,
+        'total_steps': sim_step * integrator_step,
+        'total_time': sim_step * integrator_step * args.dt,
         'integrator_step': integrator_step,
         'start_reaction': args.start_ar,
         'topology_collect': args.topol_collect,
@@ -656,7 +706,117 @@ def main():  #NOQA
         g_params.attrs[k] = v
     tools.save_forcefield(h5, gt)
     h5.close()
-    print('Closing {} ...'.format(h5md_output_file))
+    print('Closing HDF5 {} '.format(h5md_output_file))
+
+    # Save topology
+    max_pid = espressopp.analysis.MaxPID(system).compute()
+    output_topol_filename = '{}_{}_output_topol.top'.format(args.output_prefix, args.rng_seed)
+    out_topol = chemlab.files_io.GROMACSTopologyFile(output_topol_filename)
+    out_topol.atomtypes = gt.topol.atomtypes
+    out_topol.bondtypes = gt.topol.bondtypes
+    out_topol.angletypes = gt.topol.angletypes
+    out_topol.dihedraltypes = gt.topol.dihedraltypes
+    out_topol.nonbond_params = gt.topol.nonbond_params
+    out_topol.atomstate = gt.topol.atomstate
+    out_topol.defaults = gt.topol.defaults
+    out_topol.system_name = gt.topol.system_name
+    out_topol.moleculetype = {'name': 'MOL', 'nrexcl': 3}
+    out_topol.molecules = [('MOL', 1)]
+    out_topol.content = None
+
+    valid_type_ids = None
+    if args.table_groups:
+        valid_type_ids = map(gt.atomsym_atomtype.get, args.table_groups.split(','))
+
+    for at_pid in xrange(1, int(max_pid)):
+        p = system.storage.getParticle(at_pid)
+        if p:
+            if valid_type_ids and p.type not in valid_type_ids:
+                continue
+            if at_pid in gt.atoms:
+                at_data = gt.atoms[at_pid]
+                mol_name = at_data['molecule_name']
+                if mol_name not in out_topol.molecules_data:
+                    out_topol.molecules_data[mol_name] = {'atoms': {}}
+
+                topo_atom = out_topol.molecules_data[mol_name]['atoms'].setdefault(at_pid, chemlab.files_io.TopoAtom())
+                topo_atom.atom_id = at_pid
+                topo_atom.name = at_data['name']
+                topo_atom.atom_type = gt.atomtype_atomsym[p.type]
+                topo_atom.mass = p.mass
+                topo_atom.chain_idx = p.res_id
+                topo_atom.chain_name = at_data['chain_name']
+                topo_atom.charge = p.q
+                topo_atom.cgnr = at_pid
+            else:
+                if 'MOLX' not in out_topol.molecules_data:
+                    out_topol.molecules_data['MOLX'] = {'atoms': {}}
+
+                out_topol.molecules_data['MOLX']['atoms'][at_pid] = chemlab.files_io.TopoAtom(
+                    atom_id=at_pid,
+                    atom_type=gt.atomtype_atomsym[p.type],
+                    chain_idx=p.res_id,
+                    chain_name='CH{}'.format(p.res_id),
+                    name='X{}'.format(p.type),
+                    cgnr=at_pid,
+                    charge=p.q,
+                    mass=p.mass)
+                # Extend also input_conf
+                input_conf.atoms[at_pid] = chemlab.files_io.Atom(
+                    atom_id=at_pid,
+                    name='X{}'.format(p.type),
+                    chain_idx=p.res_id,
+                    chain_name='C{}'.format(p.type),
+                    position=numpy.zeros(3))
+
+    with open('{}_{}_bonds.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
+        bond_lists = []
+        for fpl in static_fpls:
+            for p in fpl.getAllBonds():
+                bond_lists.append([p[0], p[1], '; static'])
+        for func, fpl in dynamic_fpls.items():
+            for p in fpl.getAllBonds():
+                bond_lists.append([p[0], p[1], func.func, '; dynamic'])
+        for def_f in chem_fpls:
+            for p in def_f.fpl.getAllBonds():
+                bond_lists.append([p[0], p[1], '; chem'])
+        for b in bond_lists:
+            of.write('{}\n'.format(' '.join(map(str, b))))
+            out_topol.new_data['bonds'][(b[0], b[1])] = b[2:]
+
+    with open('{}_{}_angles.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
+        angle_lists = []
+        for ftl in static_ftls:
+            for p in ftl.getAllTriples():
+                angle_lists.append(list(p) + ['; static'])
+        for func, ftl in dynamic_ftls.items():
+            for p in ftl.getAllTriples():
+                angle_lists.append(list(p) + [func, '; dynamic'])
+        for a in angle_lists:
+            of.write('{}\n'.format(' '.join(map(str, a))))
+            out_topol.new_data['angles'][tuple(a[:3])] = a[3:]
+
+    with open('{}_{}_dihedrals.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
+        dih_lists = []
+        for fql in static_fqls:
+            for p in fql.getAllQuadruples():
+                dih_lists.append(list(p) + ['; static'])
+        for func, fql in dynamic_fqls.items():
+            for p in fql.getAllQuadruples():
+                dih_lists.append(list(p) + [func, '; dynamic'])
+        for d in dih_lists:
+            of.write('{}\n'.format(' '.join(map(str, d))))
+            out_topol.new_data['dihedrals'][tuple(d[:3])] = d[3:]
+    print('Write output topology: {}'.format(output_topol_filename))
+    out_topol.write(output_topol_filename)
+    # End save tuples.
+
+    with open('{}_{}_benchmark.csv'.format(args.output_prefix, args.rng_seed), 'a+') as benchmark_file:
+        benchmark_file.write('{} {} {} {}\n'.format(MPI.COMM_WORLD.size, NPart, totalTime, integratorLoop))
+
+    if args.rate_arrhenius:
+        print('Changes in reaction rates written to {}'.format(rate_file.name))
+        rate_file.close()
 
     # Saves coordinate output file.
     output_gro_file = '{}_{}_confout.gro'.format(args.output_prefix, rng_seed)
@@ -669,9 +829,14 @@ def main():  #NOQA
     dump_gro.dump()
     print('Wrote whole configuration to: {}'.format(output_whole_gro))
 
-    # Saves output topology file.
-    # TODO(jakub): save new bonds in GROMACS like topology file.
-    # output_topol_file = 'output_{}_{}_toopol.top'.format(args.output_prefix, rng_seed)
+    # Save fix distances, this is temporary
+    if sc is not None and sc.fix_distances:
+        all_fix_distances = []
+        for fd in sc.fix_distances:
+            all_fix_distances.extend(fd.get_all_triplets())
+        with open('all_fix_distances.pck', 'wb') as out_fd:
+            cPickle.dump(all_fix_distances, out_fd)
+
 
     total_time = time.time() - time0
 
@@ -697,11 +862,28 @@ def main():  #NOQA
     for k, v in traj_timers.items():
         print('\t{}: {}'.format(k, v))
 
+    with open('{}_{}_benchmark.pck'.format(args.output_prefix, args.rng_seed), 'wb') as benchmark_file:
+        benchmark_data = {}
+        benchmark_data['traj_timers'] = traj_timers
+        benchmark_data['topol_timers'] = topol_timers
+        benchmark_data['integrator_timers'] = tools.get_integrator_timers(integrator.getTimers(), system)
+        benchmark_data['extension_timers'] = {}
+        for ext_id in range(integrator.getNumberOfExtensions()):
+            ext = integrator.getExtension(ext_id)
+            ext_timers = tools.average_timers(ext.get_timers())
+            if ext_timers:
+                ext_name = str(ext)
+                ext_name = '{}_{}'.format(re.match(r'\<(.*) object', ext_name).groups()[0], id(ext))
+                benchmark_data['extension_timers'][ext_name] = tools.average_timers(ext.get_timers())
+        benchmark_data['verlet_list'] = tools.average_timers(verletlist.get_timers())
+        cPickle.dump(benchmark_data, benchmark_file)
+
     print('Final time analysis (per CPUs - {}) [s]:'.format(MPI.COMM_WORLD.size))
     espressopp.tools.analyse.final_info(system, integrator, verletlist, time0, time.time())
 
     print('Total time: {}'.format(total_time))
     print('Finished! Thanks!')
+
 
 if __name__ == '__main__':
     main()

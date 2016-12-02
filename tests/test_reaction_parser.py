@@ -52,6 +52,5 @@ class TestTopologyReader(unittest.TestCase):
         self.assertEqual(reactants['type_3']['max'], '1')
         self.assertEqual(reactants['type_3']['delta'], '1')
 
-
 if __name__ == '__main__':
     unittest.main()
