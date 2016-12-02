@@ -91,5 +91,5 @@ def hook_init_reaction(system, integrator, ar, topol, args):
     assert type_list.count(name2type['PL']) == number_to_activate
     return True
 
-def hook_at_step(system integrator, ar, gt, args, step):
+def hook_at_step(system, integrator, ar, gt, args, step):
     pass
