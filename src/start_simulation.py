@@ -784,7 +784,10 @@ def main():  #NOQA
             for p in fpl.getAllBonds():
                 t0, t1 = out_topol.atoms[p[0]].atom_type_id, out_topol.atoms[p[1]].atom_type_id
                 fpl_params = fpl.params[t0][t1]
-                bond_lists.append([p[0], p[1], fpl_params['func']] + fpl_params['params'] + ['; dynamic'])
+                if fpl_params:
+                    bond_lists.append([p[0], p[1], fpl_params['func']] + fpl_params['params'] + ['; dynamic'])
+                else:
+                    bond_lists.append([p[0], p[1]] + ['; MISSING params type: {}-{} dynamic'.format(t0, t1)])
         for def_f in chem_fpls:
             for p in def_f.fpl.getAllBonds():
                 t0, t1 = out_topol.atoms[p[0]].atom_type_id, out_topol.atoms[p[1]].atom_type_id
@@ -804,7 +807,10 @@ def main():  #NOQA
                 t0, t1, t2 = (out_topol.atoms[p[0]].atom_type_id, out_topol.atoms[p[1]].atom_type_id,
                               out_topol.atoms[p[2]].atom_type_id)
                 ftl_params = ftl.params[t0][t1][t2]
-                angle_lists.append(list(p) + [ftl_params['func']] + ftl_params['params'] + ['; dynamic'])
+                if ftl_params:
+                    angle_lists.append(list(p) + [ftl_params['func']] + list(ftl_params['params']) + ['; dynamic'])
+                else:
+                    angle_lists.append(list(p) + ['; MISSING params type: {}-{}-{} dynamic'.format(t0, t1, t2)])
         for a in angle_lists:
             of.write('{}\n'.format(' '.join(map(str, a))))
             out_topol.new_data['angles'][tuple(a[:3])] = a[3:]
@@ -820,7 +826,10 @@ def main():  #NOQA
                 t0, t1, t2, t3 = (out_topol.atoms[p[0]].atom_type_id, out_topol.atoms[p[1]].atom_type_id,
                                   out_topol.atoms[p[2]].atom_type_id, out_topol.atoms[p[3]].atom_type_id)
                 fql_params = fql.params[t0][t1][t2][t3]
-                dih_lists.append(list(p) + [fql_params['func']] + fql_params['params'] + ['; dynamic'])
+                if fql_params:
+                    dih_lists.append(list(p) + [fql_params['func']] + list(fql_params['params']) + ['; dynamic'])
+                else:
+                    dih_lists.append(list(p) + ['; MISSING params type: {}-{}-{}-{} dynamic'.format(t0, t1, t2, t3)])
         for d in dih_lists:
             of.write('{}\n'.format(' '.join(map(str, d))))
             out_topol.new_data['dihedrals'][tuple(d[:3])] = d[3:]
