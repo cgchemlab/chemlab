@@ -783,15 +783,28 @@ def main():  #NOQA
         for func, fpl in dynamic_fpls.items():
             for p in fpl.getAllBonds():
                 t0, t1 = out_topol.atoms[p[0]].atom_type_id, out_topol.atoms[p[1]].atom_type_id
+                namet0, namet1 = out_topol.atoms[p[0]].atom_type, out_topol.atoms[p[1]].atom_type
                 fpl_params = fpl.params[t0][t1]
                 if fpl_params:
                     bond_lists.append([p[0], p[1], fpl_params['func']] + fpl_params['params'] + ['; dynamic'])
                 else:
-                    bond_lists.append([p[0], p[1]] + ['; MISSING params type: {}-{} dynamic'.format(t0, t1)])
+                    bond_lists.append([p[0], p[1]] + ['; MISSING params type: {}-{} dynamic'.format(namet0, namet1)])
         for def_f in chem_fpls:
             for p in def_f.fpl.getAllBonds():
                 t0, t1 = out_topol.atoms[p[0]].atom_type_id, out_topol.atoms[p[1]].atom_type_id
-                bond_lists.append([p[0], p[1], '; chem {}-{}'.format(t0, t1)])
+                namet0, namet1 = out_topol.atoms[p[0]].atom_type, out_topol.atoms[p[1]].atom_type
+                params = None
+                if namet0 in out_topol.bondtypes:
+                    if namet1 in out_topol.bondtypes[namet0]:
+                        params = out_topol.bondtypes[namet0][namet1]
+                elif namet1 in out_topol.bondtypes:
+                    if namet0 in out_topol.bondtypes[namet1]:
+                        params = out_topol.bondtypes[namet1][namet0]
+                if params:
+                    bond_lists.append([p[0], p[1], '{} {} ; chem {}-{}'.format(
+                        params['func'], ' '.join(params['params']), namet0, namet1)])
+                else:
+                    bond_lists.append([p[0], p[1], '; chem MISSING params type: {}-{}'.format(namet0, namet1)])
         for b in bond_lists:
             of.write('{}\n'.format(' '.join(map(str, b))))
             out_topol.new_data['bonds'][(b[0], b[1])] = b[2:]
@@ -806,11 +819,15 @@ def main():  #NOQA
             for p in ftl.getAllTriples():
                 t0, t1, t2 = (out_topol.atoms[p[0]].atom_type_id, out_topol.atoms[p[1]].atom_type_id,
                               out_topol.atoms[p[2]].atom_type_id)
+                namet0, namet1, namet2 = (
+                    out_topol.atoms[p[0]].atom_type,
+                    out_topol.atoms[p[1]].atom_type,
+                    out_topol.atoms[p[2]].atom_type)
                 ftl_params = ftl.params[t0][t1][t2]
                 if ftl_params:
                     angle_lists.append(list(p) + [ftl_params['func']] + list(ftl_params['params']) + ['; dynamic'])
                 else:
-                    angle_lists.append(list(p) + ['; MISSING params type: {}-{}-{} dynamic'.format(t0, t1, t2)])
+                    angle_lists.append(list(p) + ['; MISSING params type: {}-{}-{} dynamic'.format(namet0, namet1, namet2)])
         for a in angle_lists:
             of.write('{}\n'.format(' '.join(map(str, a))))
             out_topol.new_data['angles'][tuple(a[:3])] = a[3:]
@@ -825,11 +842,17 @@ def main():  #NOQA
             for p in fql.getAllQuadruples():
                 t0, t1, t2, t3 = (out_topol.atoms[p[0]].atom_type_id, out_topol.atoms[p[1]].atom_type_id,
                                   out_topol.atoms[p[2]].atom_type_id, out_topol.atoms[p[3]].atom_type_id)
+                namet0, namet1, namet2, namet3 = (
+                    out_topol.atoms[p[0]].atom_type,
+                    out_topol.atoms[p[1]].atom_type,
+                    out_topol.atoms[p[2]].atom_type,
+                    out_topol.atoms[p[3]].atom_type)
                 fql_params = fql.params[t0][t1][t2][t3]
                 if fql_params:
                     dih_lists.append(list(p) + [fql_params['func']] + list(fql_params['params']) + ['; dynamic'])
                 else:
-                    dih_lists.append(list(p) + ['; MISSING params type: {}-{}-{}-{} dynamic'.format(t0, t1, t2, t3)])
+                    dih_lists.append(list(p) + ['; MISSING params type: {}-{}-{}-{} dynamic'.format(
+                        namet0, namet1, namet2, namet3)])
         for d in dih_lists:
             of.write('{}\n'.format(' '.join(map(str, d))))
             out_topol.new_data['dihedrals'][tuple(d[:3])] = d[3:]
