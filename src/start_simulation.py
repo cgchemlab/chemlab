@@ -279,7 +279,7 @@ def main():  #NOQA
     system.storage.decompose()
 
     # Set potentials.
-    cr_observs = chemlab.gromacs_topology.set_nonbonded_interactions(
+    cr_observs, particle_pair_scales = chemlab.gromacs_topology.set_nonbonded_interactions(
         system, gt, verletlist, lj_cutoff, cg_cutoff, tables=args.table_groups, cr_observs=cr_observs)
     dynamic_fpls, static_fpls = chemlab.gromacs_topology.set_bonded_interactions(
         system, gt, chem_dynamic_types, chem_dynamic_bond_types)
@@ -477,6 +477,13 @@ def main():  #NOQA
             system_analysis.add_observable(
                 'qcount_{}'.format(bcount), espressopp.analysis.NFixedQuadrupleListEntries(system, fql))
             bcount += 1
+        # Add counter on the exclude list pairs
+        system_analysis.add_observable('vl_excl', espressopp.analysis.NExcludeListEntries(system, verletlist))
+
+        # Observe ParticlePairsScale
+        for pps_idx, pps in enumerate(particle_pair_scales, 1):
+            system_analysis.add_observable(
+                'pair_scale_{}'.format(pps_idx), espressopp.analysis.NParticlePairScalingEntries(system, pps))
 
     if args.count_types:
         for at_sym in args.count_types.split(','):

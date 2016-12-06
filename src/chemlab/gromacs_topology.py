@@ -462,6 +462,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
 
     Returns:
         The updated list of Conversion observables.
+        The list of ParticlePairScaling objects.
     """
     defaults = gt.gt.defaults
     atomparams = gt.gt.atomtypes
@@ -477,6 +478,8 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
 
     if cr_observs is None:
         cr_observs = {}
+
+    particle_pair_scales = []
 
     combinationrule = int(defaults['combinationrule'])
     print('Settings up LJ interactions')
@@ -680,6 +683,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
     if tab_scaled:
         for scale_increment, data_list in tab_scaled.items():
             particle_pair_scale_map = espressopp.esutil.ParticlePairScaling(0.0, scale_increment, vl, system.integrator)
+            particle_pair_scales.append(particle_pair_scale_map)
             max_forces_group = collections.defaultdict(dict)
             for (t1, t2), (tab_name, max_force) in data_list.items():
                 max_forces_group[max_force][(t1, t2)] = tab_name
@@ -742,7 +746,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
         print('Adding lj-tab_cap interaction')
         system.addInteraction(tab_capped_interaction, 'lj-tab_cap')
 
-    return cr_observs
+    return cr_observs, particle_pair_scales
 
 
 def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(), name='bonds'):
