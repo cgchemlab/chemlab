@@ -656,7 +656,8 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                     print('Convert {} to {}'.format(tab2, espp_tab2_name))
                     espressopp.tools.convert.gromacs.convertTable((tab2, espp_tab2_name))
                 if isinstance(mix_func_data, Func10):
-                    print('Set mixed tabulated potential {}-{} with conversion observable'.format(mt1, mt2))
+                    print('Set mixed tabulated potential {}-{} with conversion observable (U=x*{} + (1-x)*{})'.format(
+                        mt1, mt2, espp_tab1_name, espp_tab2_name))
                     mixed_tab_interaction.setPotential(
                         type1=mt1,
                         type2=mt2,
@@ -664,12 +665,13 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                             1, espp_tab1_name, espp_tab2_name, cr_obs, cutoff=tab_cutoff
                         ))
                 elif isinstance(mix_func_data, Func12):
-                    print('Set mixed tabulated potential {}-{} with static scaling x={}'.format(mt1, mt2, cr_obs))
+                    print('Set mixed tabulated potential {}-{} with static scaling x={x} (U={x}*{table1}+(1-{x})*{table2})'.format(
+                        mt1, mt2, x=cr_obs, table1=espp_tab1_name, table2=espp_tab2_name))
                     mixed_tab_interaction.setPotential(
                         type1=mt1,
                         type2=mt2,
                         potential=espressopp.interaction.MixedTabulated(
-                            1, espp_tab1_name, espp_tab2_name, mix_value=cr_obs))
+                            1, table1=espp_tab1_name, table2=espp_tab2_name, mix_value=cr_obs))
                 else:
                     raise RuntimeError('Wrong type of data: {}'.format(type(data)))
                 defined_types.add((mt1, mt2))
