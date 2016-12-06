@@ -63,8 +63,12 @@ def main():  #NOQA
 
     if args.debug:
         for s in args.debug.split(','):
-            print('Activating logger {}'.format(s))
-            logging.getLogger(s.strip()).setLevel(logging.DEBUG)
+            name_filter = s.split(':')
+            print('Activating logger {}'.format(name_filter[0]))
+            logging.getLogger(name_filter[0].strip()).setLevel(logging.DEBUG)
+            if len(name_filter) == 2:
+                log_filter = tools.RegexpFilter(name_filter[1])
+                logging.getLogger(name_filter[0].strip()).addFilter(log_filter)
 
     lj_cutoff = args.lj_cutoff
     cg_cutoff = args.cg_cutoff

@@ -20,8 +20,10 @@
 import argparse
 import ast
 import collections
+import logging
 import numpy as np
 import random
+import re
 
 __doc__ = "Tool functions."
 
@@ -35,7 +37,7 @@ class MyArgParser(argparse.ArgumentParser):
             t = arg.strip()
             if not t:
                 continue
-            if t.startswith('#'):
+            if t.startswith('#') or t.startswith(';'):
                 break
             if not t.startswith('--'):
                 t = '--{}'.format(t)
@@ -55,6 +57,17 @@ class MyArgParser(argparse.ArgumentParser):
                 v = namespace.__dict__[k]
                 if v is not None:
                     of.write('{}={}\n'.format(k, v))
+
+
+class RegexpFilter(logging.Filter):
+    """This filter allows only messages that matches regexp to pass to user."""
+
+    def __init__(self, regexp, name=''):
+        self.regexp = re.compile(regexp)
+        super(RegexpFilter, self).__init__(name)
+
+    def filter(self, record):
+        return self.regexp.match(record.msg) or self.regexp.match(record.funcName)
 
 
 def save_forcefield(h5, gt):
