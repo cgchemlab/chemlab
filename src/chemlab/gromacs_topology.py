@@ -495,6 +495,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
     # Special case for MultiTabulated
     cr_multi = collections.defaultdict(list)
     cr_mix_tab = collections.defaultdict(list)
+    tab_scaled = {} # increment -> (t1, t2)
     dynamic_interactions = collections.defaultdict(dict)
 
     Func10 = collections.namedtuple('Func10', ['cr_observers', 'tab1', 'tab2'])
@@ -572,6 +573,16 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
             elif func == 13:
                 table_name = param['params'][0]
                 table_cap = float(param['params'][1])
+            elif func == 14:  # Special case of tabulated potential that has additional scaling function.
+                tab1 = param['params'][0]
+                scale_increment = float(param['params'][1])
+                if len(param['params']) == 3:
+                    max_force = float(param['params'][2])
+                else:
+                    max_force = -1
+                if scale_increment not in tab_scaled:
+                    tab_scaled[scale_increment] = {}
+                tab_scaled[scale_increment][(t1, t2)] = (tab1, max_force)
 
         elif type_1 in tables and type_2 in tables:
             table_name = 'table_{}_{}.xvg'.format(type_1, type_2)
@@ -663,6 +674,31 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                     raise RuntimeError('Wrong type of data: {}'.format(type(data)))
                 defined_types.add((mt1, mt2))
         system.addInteraction(mixed_tab_interaction, 'lj-mix_tab')
+
+    if tab_scaled:
+        for scale_increment, data_list in tab_scaled.items():
+            particle_pair_scale_map = espressopp.esutil.ParticlePairScaling(0.0, scale_increment, vl, system.integrator)
+            max_forces_group = collections.defaultdict(dict)
+            for (t1, t2), (tab_name, max_force) in data_list.items():
+                max_forces_group[max_force][(t1, t2)] = tab_name
+            bn = 0
+            for max_force, data in max_forces_group.items():
+                tab_scaled_interaction = espressopp.interaction.VerletListScaleTabulated(vl, particle_pair_scale_map)
+                for (t1, t2), tab_name in data.items():
+                    espp_tab_name = '{}.pot'.format(tab_name.replace('.xvg', ''))
+                    if not os.path.exists(espp_tab_name):
+                        print('Convert {} to {}'.format(tab_name, espp_tab_name))
+                        espressopp.tools.convert.gromacs.convertTable(tab_name, espp_tab_name)
+                    print('Set scaled potential {}-{} (max force: {} scale_increment: {})'.format(
+                        t1, t2, max_force, scale_increment))
+                    tab_scaled_interaction.setPotential(
+                        type1=t1,
+                        type2=t2,
+                        potential=espressopp.interaction.Tabulated(1, espp_tab_name, cutoff=tab_cutoff))
+                if max_force != -1:
+                    tab_scaled_interaction.setMaxForce(max_force)
+                system.addInteraction(tab_scaled_interaction, 'tab-scaled_{}'.format(bn))
+                bn += 1
 
     if dynamic_interactions:
         print('Set up DynamicResolution non-bonded interactions')
