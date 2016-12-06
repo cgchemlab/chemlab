@@ -160,6 +160,8 @@ def main():  #NOQA
         exclusion_file = open(args.exclusion_list, 'r')
         exclusions = [map(int, x.split()) for x in exclusion_file.readlines()]
         print('Read exclusion list from {} (total: {})'.format(args.exclusion_list, len(exclusions)))
+        if len(exclusions) == 0:
+            raise RuntimeError('Exclusion list in {} is empty'.format(args.exclusion_list))
         gt.exclusions = exclusions
 
     topol_file = os.path.basename(args.top)
