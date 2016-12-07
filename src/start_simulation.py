@@ -568,10 +568,10 @@ def main():  #NOQA
     for (i, observe_quadruple), f in dynamic_fqls.items():
         if observe_quadruple:
             print('DumpTopol: observe dynamic_dihedrals_{}'.format(qcount))
-            dump_topol.observe_triple(f, 'dynamic_dihedrals_{}'.format(qcount))
+            dump_topol.observe_quadruple(f, 'dynamic_dihedrals_{}'.format(qcount))
         else:
             print('DumpTopol: save static list from dihedrals_{}'.format(qcount))
-            dump_topol.add_static_triple(f, 'dihedrals_{}'.format(qcount))
+            dump_topol.add_static_quadruple(f, 'dihedrals_{}'.format(qcount))
         qcount += 1
 
     for static_fpl in static_fpls:

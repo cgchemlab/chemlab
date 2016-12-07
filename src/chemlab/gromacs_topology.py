@@ -1066,10 +1066,10 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, change_dihedral_type
     dynamics_fqls = collections.defaultdict(dict)
     static_fqls = []
     for func, b_list in dynamics_dihedrals_by_func.items():
-        fql = espressopp.FixedTripleList(system.storage)
-        fql_params = collections.defaultdict(dict)
-        fql.params = fql_params
-        fql.addBonds(b_list)
+        fql = espressopp.FixedQuadrupleList(system.storage)
+        fql_params = lambda: collections.defaultdict(fql_params)
+        fql.params = fql_params()
+        fql.addQuadruples(b_list)
         interaction_class, potential_class = func2interaction_dynamic.get(func)
         interaction = interaction_class(system, fql)
         observe_list = False
@@ -1082,7 +1082,7 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, change_dihedral_type
                 or (t[2], t[1]) in change_dihedral_types
                 or (t[3], t[2]) in change_dihedral_types)
             interaction.setPotential(
-                type1=t[0], type2=t[1], type3=t[2],
+                type1=t[0], type2=t[1], type3=t[2], type4=t[3],
                 potential=potential_class(**convert_params(func, params['params'])))
             fql.params[t[0]][t[1]][t[2]][t[3]] = params
             fql.params[t[3]][t[2]][t[1]][t[0]] = params
@@ -1095,7 +1095,7 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, change_dihedral_type
         interaction_class, potential_class = func2interaction_static.get(func)
         for params, b_list in dihedrals_by_func[func].items():
             if b_list:
-                fql = espressopp.FixedTripleList(system.storage)
+                fql = espressopp.FixedQuadrupleList(system.storage)
                 fql.addTriples(b_list)
                 fql.params = (func, params)
                 static_fqls.append(fql)
