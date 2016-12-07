@@ -904,7 +904,7 @@ def set_angle_interactions(system, gt, dynamic_type_ids, change_angle_types=set(
             continue
         params = p['params']
         if tuple(params) not in set(dynamic_ptypes.values()):
-            dynamic_ptypes[tuple(sorted(pt))] = tuple(params)
+            dynamic_ptypes[tuple((pt))] = tuple(params)
             angleparams_func[p['func']].append((pt, p))
             if p['func'] not in dynamics_angles_by_func:
                 dynamics_angles_by_func[p['func']] = []
@@ -915,7 +915,7 @@ def set_angle_interactions(system, gt, dynamic_type_ids, change_angle_types=set(
     # Sort existing angle lists by functional type and select if it is dynamic angle or static.
     angles_by_func = collections.defaultdict(dict)
     for b, parameters in gt.angles.items():
-        ptypes = tuple(sorted(map(lambda x: gt.atoms[x]['type_id'], b)))
+        ptypes = tuple(map(lambda x: gt.atoms[x]['type_id'], b))
         is_dynamic_angle = ptypes in dynamic_ptypes
         if parameters:  # Has parameters on the list.
             func = int(parameters[0])
