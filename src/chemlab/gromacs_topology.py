@@ -532,12 +532,12 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 else:
                     table_name = 'table_{}_{}.xvg'.format(type_1, type_2)
             elif func == 9:
-                tab_name = 'table_{}_{}.xvg'.format(param['params'][1], param['params'][0])
-                cr_type = atomsym_atomtype[param['params'][2]]
-                cr_total = int(param['params'][3])
-                cr_min = float(param['params'][4])
-                cr_max = float(param['params'][5])
-                cr_default = bool(int(param['params'][6])) if len(param['params']) > 6 else False
+                tab_name = param['params'][0]
+                cr_type = atomsym_atomtype[param['params'][1]]
+                cr_total = int(param['params'][2])
+                cr_min = float(param['params'][3])
+                cr_max = float(param['params'][4])
+                cr_default = bool(int(param['params'][5])) if len(param['params']) > 5 else False
                 if (cr_type, cr_total) not in cr_observs:
                     cr_observs[(cr_type, cr_total)] = espressopp.analysis.ChemicalConversion(
                         system, cr_type, cr_total)
