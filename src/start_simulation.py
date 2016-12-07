@@ -378,15 +378,15 @@ def main():  #NOQA
     topology_manager.initialize_topology()
 
     for t, p in gt.bondparams.items():
-       if p['func'] in dynamic_fpls:
-           fpl = dynamic_fpls[p['func']]
-           print('Register bonds for type: {}'.format(t))
-           topology_manager.register_tuple(fpl, *t)
+        fpl = dynamic_fpls.get((p['func'], True), dynamic_fpls.get((p['func'], False)))
+        if fpl:
+            print('Register bonds for type: {}'.format(t))
+            topology_manager.register_tuple(fpl, *t)
 
     # Any new bond will trigger update here.
     for t, p in gt.angleparams.items():
-        if p['func'] in dynamic_ftls:
-            ftl = dynamic_ftls[p['func']]
+        ftl = dynamic_ftls.get((p['func'], True), dynamic_ftls.get((p['func'], False)))
+        if ftl:
             print('Register angles for type: {} ({})'.format(t, ftl))
             topology_manager.register_triplet(ftl, *t)
 
