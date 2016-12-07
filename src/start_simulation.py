@@ -289,8 +289,10 @@ def main():  #NOQA
         system, gt, verletlist, lj_cutoff, cg_cutoff, tables=args.table_groups, cr_observs=cr_observs)
     dynamic_fpls, static_fpls = chemlab.gromacs_topology.set_bonded_interactions(
         system, gt, chem_dynamic_types, chem_dynamic_bond_types)
-    dynamic_ftls, static_ftls = chemlab.gromacs_topology.set_angle_interactions(system, gt, chem_dynamic_types)
-    dynamic_fqls, static_fqls = chemlab.gromacs_topology.set_dihedral_interactions(system, gt, chem_dynamic_types)
+    dynamic_ftls, static_ftls = chemlab.gromacs_topology.set_angle_interactions(
+        system, gt, chem_dynamic_types, chem_dynamic_bond_types)
+    dynamic_fqls, static_fqls = chemlab.gromacs_topology.set_dihedral_interactions(
+        system, gt, chem_dynamic_types, chem_dynamic_bond_types)
 
     dynamic_fpairs, static_fpairs = chemlab.gromacs_topology.set_pair_interactions(
         system, gt, args, chem_dynamic_types)
@@ -544,20 +546,39 @@ def main():  #NOQA
     for i, f in enumerate(chem_fpls):
         dump_topol.observe_tuple(f.fpl, 'chem_bonds_{}'.format(i))
 
-    bcount = 0
+    bcount = acount = qcount = 0
     for (i, observe_tuple), f in dynamic_fpls.items():
         if observe_tuple:
-            print('DumpTopol: observe dynamic_bonds_{}'.format(i))
-            dump_topol.observe_tuple(f, 'dynamic_bonds_{}'.format(i))
+            print('DumpTopol: observe dynamic_bonds_{}'.format(bcount))
+            dump_topol.observe_tuple(f, 'dynamic_bonds_{}'.format(bcount))
         else:
-            print('DumpTopol: save static list from bonds_{}'.format(i))
+            print('DumpTopol: save static list from bonds_{}'.format(bcount))
             dump_topol.add_static_tuple(f, 'bonds_{}'.format(bcount))
         bcount += 1
+
+    for (i, observe_triple), f in dynamic_ftls.items():
+        if observe_triple:
+            print('DumpTopol: observe dynamic_angles_{}'.format(i))
+            dump_topol.observe_triple(f, 'dynamic_angles_{}'.format(i))
+        else:
+            print('DumpTopol: save static list from angles_{}'.format(acount))
+            dump_topol.add_static_triple(f, 'angles_{}'.format(acount))
+            acount += 1
 
     for static_fpl in static_fpls:
         print('DumpTopol: store bonds_{}'.format(bcount))
         dump_topol.add_static_tuple(static_fpl, 'bonds_{}'.format(bcount))
         bcount += 1
+
+    for static_ftl in static_ftls:
+        print('DumpTopol: store angles_{}'.format(acount))
+        dump_topol.add_static_triple(static_ftl, 'angles_{}'.format(acount))
+        acount += 1
+
+    for static_fql in static_fqls:
+        print('DumpTopol: store dihedrals_{}'.format(qcount))
+        dump_topol.add_static_quadruple(static_fql, 'dihedrals_{}'.format(qcount))
+        qcount += 1
 
     if args.topol_collect > 0:
         print('Collect topology every {} steps'.format(args.topol_collect))

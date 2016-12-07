@@ -869,7 +869,7 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
     return dynamics_fpls, static_fpls
 
 
-def set_angle_interactions(system, gt, dynamic_type_ids, name='angles'):
+def set_angle_interactions(system, gt, dynamic_type_ids, change_angle_types=set(), name='angles'):
     """Set angle interactions."""
     def convert_params(func, raw_data):
         if func == 1:
@@ -894,32 +894,72 @@ def set_angle_interactions(system, gt, dynamic_type_ids, name='angles'):
         8: (espressopp.interaction.FixedTripleListTabulatedAngular, espressopp.interaction.TabulatedAngular)
     }
 
-    # Sort existing angle lists by functional type.
-    angles_by_func = collections.defaultdict(dict)
     dynamics_angles_by_func = collections.defaultdict(list)
+
+    angleparams_func = collections.defaultdict(list)
+    dynamic_ptypes = {}
+    for pt, p in gt.angleparams.items():
+        # Bond types are not in the list of dynamic angle types or in set of change
+        if set(pt) - dynamic_type_ids == set(pt) and tuple(pt) not in change_angle_types:
+            continue
+        params = p['params']
+        if tuple(params) not in set(dynamic_ptypes.values()):
+            dynamic_ptypes[tuple(sorted(pt))] = tuple(params)
+            angleparams_func[p['func']].append((pt, p))
+            if p['func'] not in dynamics_angles_by_func:
+                dynamics_angles_by_func[p['func']] = []
+        else:
+            dynamic_ptypes = {k: v for k, v in dynamic_ptypes.items() if v != tuple(params)}
+            angleparams_func[p['func']] = [x for x in angleparams_func[p['func']][:] if x != (pt, p)]
+
+    # Sort existing angle lists by functional type and select if it is dynamic angle or static.
+    angles_by_func = collections.defaultdict(dict)
     for b, parameters in gt.angles.items():
-        ptypes = map(lambda x: gt.atoms[x]['type_id'], b)
-        s_ptypes = set(ptypes)
-        is_dynamic_bond = s_ptypes - dynamic_type_ids != s_ptypes
-        if parameters:
+        ptypes = tuple(sorted(map(lambda x: gt.atoms[x]['type_id'], b)))
+        is_dynamic_angle = ptypes in dynamic_ptypes
+        if parameters:  # Has parameters on the list.
             func = int(parameters[0])
             params = tuple(map(float, parameters[1:]))
-        else:
-            params = gt.angleparams[tuple(ptypes)]
+        else:  # Without parameters, take from angletypes
+            params = gt.angleparams[ptypes]
             if not params:
                 params = gt.angles[tuple(reversed(ptypes))]
             func = int(params['func'])
             params = tuple(map(float, params['params']))
-        if is_dynamic_bond:
+        if is_dynamic_angle:
             dynamics_angles_by_func[func].append(b)
         else:
             if params not in angles_by_func[func]:
                 angles_by_func[func][params] = []
             angles_by_func[func][params].append(b)
 
-    # Set first static angles, those one that has explicitly the parameters
-    static_ftls = []
     angle_count = 0
+    # Process the dynamic angles, those are stored in the FixedTripleTypesList where
+    # potential is choose depends on the type of particles.
+    dynamics_ftls = collections.defaultdict(dict)
+    static_ftls = []
+    for func, b_list in dynamics_angles_by_func.items():
+        ftl = espressopp.FixedTripleList(system.storage)
+        ftl_params = collections.defaultdict(dict)
+        ftl.params = ftl_params
+        ftl.addBonds(b_list)
+        interaction_class, potential_class = func2interaction_dynamic.get(func)
+        interaction = interaction_class(system, ftl)
+        observe_list = False
+        for t, params in angleparams_func[func]:
+            observe_list = observe_list or (
+                (t[0], t[1]) in change_angle_types or (t[1], t[2]) in change_angle_types
+                or (t[1], t[0]) in change_angle_types or (t[2], t[1]) in change_angle_types)
+            interaction.setPotential(
+                type1=t[0], type2=t[1], type3=t[2],
+                potential=potential_class(**convert_params(func, params['params'])))
+            ftl.params[t[0]][t[1]][t[2]] = params
+            ftl.params[t[2]][t[1]][t[0]] = params
+        system.addInteraction(interaction, 'dyn_{}_{}'.format(name, angle_count))
+        angle_count += 1
+        dynamics_ftls[collections.namedtuple('dftls', ['func', 'is_observe_list'])(func, observe_list)] = ftl
+
+    # Set first static angles, those one that has explicitly the parameters
     for func in angles_by_func:
         interaction_class, potential_class = func2interaction_static.get(func)
         for params, b_list in angles_by_func[func].items():
@@ -932,36 +972,11 @@ def set_angle_interactions(system, gt, dynamic_type_ids, name='angles'):
                 system.addInteraction(interaction, '{}_{}'.format(name, angle_count))
                 angle_count += 1
 
-    dynamics_ftls = collections.defaultdict(dict)
-    angleparams_func = collections.defaultdict(list)
-    for pt, p in gt.angleparams.items():
-        if set(pt) - dynamic_type_ids == set(pt):
-            continue
-        angleparams_func[p['func']].append((pt, p))
-        if p['func'] not in dynamics_angles_by_func:
-            dynamics_angles_by_func[p['func']] = []
-
-    for func, b_list in dynamics_angles_by_func.items():
-        ftl = espressopp.FixedTripleList(system.storage)
-        ftl.addTriples(b_list)
-        ftl_params = lambda: collections.defaultdict(ftl_params)
-        ftl.params = ftl_params()
-        interaction_class, potential_class = func2interaction_dynamic.get(func)
-        interaction = interaction_class(system, ftl)
-        for t, params in angleparams_func[func]:
-            interaction.setPotential(
-                type1=t[0], type2=t[1], type3=t[2],
-                potential=potential_class(**convert_params(func, params['params'])))
-            ftl.params[t[0]][t[1]][t[2]] = params
-            ftl.params[t[2]][t[1]][t[0]] = params
-        system.addInteraction(interaction, 'dyn_{}_{}'.format(name, angle_count))
-        angle_count += 1
-        dynamics_ftls[func] = ftl
     print('Set up angle interactions')
     return dynamics_ftls, static_ftls
 
 
-def set_dihedral_interactions(system, gt, dynamic_type_ids, name='dihedrals'):
+def set_dihedral_interactions(system, gt, dynamic_type_ids, change_bond_types=set(), name='dihedrals'):
     """Set dihedral interactions."""
     def convert_params(func, raw_data):
         if func == 1:
