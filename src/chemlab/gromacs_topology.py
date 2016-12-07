@@ -900,7 +900,10 @@ def set_angle_interactions(system, gt, dynamic_type_ids, change_angle_types=set(
     dynamic_ptypes = {}
     for pt, p in gt.angleparams.items():
         # Bond types are not in the list of dynamic angle types or in set of change
-        if set(pt) - dynamic_type_ids == set(pt) and tuple(pt) not in change_angle_types:
+        if (set(pt) - dynamic_type_ids == set(pt) and ((pt[0], pt[1]) not in change_angle_types
+            or (pt[1], pt[2]) not in change_angle_types
+            or (pt[1], pt[0]) not in change_angle_types
+            or (pt[2], pt[1]) not in change_angle_types)):
             continue
         params = p['params']
         if tuple(params) not in set(dynamic_ptypes.values()):
@@ -975,8 +978,7 @@ def set_angle_interactions(system, gt, dynamic_type_ids, change_angle_types=set(
     print('Set up angle interactions')
     return dynamics_ftls, static_ftls
 
-
-def set_dihedral_interactions(system, gt, dynamic_type_ids, change_bond_types=set(), name='dihedrals'):
+def set_dihedral_interactions(system, gt, dynamic_type_ids, change_dihedral_types=set(), name='dihedrals'):
     """Set dihedral interactions."""
     def convert_params(func, raw_data):
         if func == 1:
@@ -1014,68 +1016,92 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, change_bond_types=se
             espressopp.interaction.TabulatedDihedral)
     }
 
-    # Sort existing dihedral lists by functional type.
-    dihedrals_by_func = collections.defaultdict(dict)
     dynamics_dihedrals_by_func = collections.defaultdict(list)
+
+    dihedralparams_func = collections.defaultdict(list)
+    dynamic_ptypes = {}
+    for pt, p in gt.dihedralparams.items():
+        # Bond types are not in the list of dynamic dihedral types or in set of change
+        if (set(pt) - dynamic_type_ids == set(pt) and ((pt[0], pt[1]) not in change_dihedral_types
+            or (pt[1], pt[2]) not in change_dihedral_types
+            or (pt[2], pt[3]) not in change_dihedral_types
+            or (pt[1], pt[0]) not in change_dihedral_types
+            or (pt[2], pt[1]) not in change_dihedral_types
+            or (pt[3], pt[2]) not in change_dihedral_types)):
+            continue
+        params = p['params']
+        if tuple(params) not in set(dynamic_ptypes.values()):
+            dynamic_ptypes[tuple((pt))] = tuple(params)
+            dihedralparams_func[p['func']].append((pt, p))
+            if p['func'] not in dynamics_dihedrals_by_func:
+                dynamics_dihedrals_by_func[p['func']] = []
+        else:
+            dynamic_ptypes = {k: v for k, v in dynamic_ptypes.items() if v != tuple(params)}
+            dihedralparams_func[p['func']] = [x for x in dihedralparams_func[p['func']][:] if x != (pt, p)]
+
+    # Sort existing dihedral lists by functional type and select if it is dynamic dihedral or static.
+    dihedrals_by_func = collections.defaultdict(dict)
     for b, parameters in gt.dihedrals.items():
-        ptypes = map(lambda x: gt.atoms[x]['type_id'], b)
-        s_ptypes = set(ptypes)
-        is_dynamic_bond = s_ptypes - dynamic_type_ids != s_ptypes
-        if parameters:
+        ptypes = tuple(map(lambda x: gt.atoms[x]['type_id'], b))
+        is_dynamic_dihedral = ptypes in dynamic_ptypes
+        if parameters:  # Has parameters on the list.
             func = int(parameters[0])
             params = tuple(map(float, parameters[1:]))
-        else:
-            params = gt.dihedralparams.get(tuple(ptypes))
+        else:  # Without parameters, take from dihedraltypes
+            params = gt.dihedralparams[ptypes]
             if not params:
-                params = gt.dihedralparams[tuple(reversed(ptypes))]
+                params = gt.dihedrals[tuple(reversed(ptypes))]
             func = int(params['func'])
             params = tuple(map(float, params['params']))
-        if is_dynamic_bond:
+        if is_dynamic_dihedral:
             dynamics_dihedrals_by_func[func].append(b)
         else:
             if params not in dihedrals_by_func[func]:
                 dihedrals_by_func[func][params] = []
             dihedrals_by_func[func][params].append(b)
 
-    # Set first static dihedrals, those one that has explicitly the parameters
-    static_fqls = []
     dihedral_count = 0
-    for func in dihedrals_by_func:
-        interaction_class, potential_class = func2interaction_static.get(func)
-        for params, b_list in dihedrals_by_func[func].items():
-            fql = espressopp.FixedQuadrupleList(system.storage)
-            fql.addQuadruples(b_list)
-            fql.params = (func, params)
-            static_fqls.append(fql)
-            interaction = interaction_class(system, fql, potential_class(**convert_params(func, params)))
-            system.addInteraction(interaction, '{}_{}'.format(name, dihedral_count))
-            dihedral_count += 1
-
+    # Process the dynamic dihedrals, those are stored in the FixedTripleTypesList where
+    # potential is choose depends on the type of particles.
     dynamics_fqls = collections.defaultdict(dict)
-    dihedralparams_func = collections.defaultdict(list)
-    for pt, p in gt.dihedralparams.items():
-        if set(pt) - dynamic_type_ids == set(pt):
-            continue
-        dihedralparams_func[p['func']].append((pt, p))
-        if p['func'] not in dynamics_dihedrals_by_func:
-            dynamics_dihedrals_by_func[p['func']] = []
-
+    static_fqls = []
     for func, b_list in dynamics_dihedrals_by_func.items():
-        fql = espressopp.FixedQuadrupleList(system.storage)
-        fql.addQuadruples(b_list)
-        fql_params = lambda: collections.defaultdict(fql_params)
-        fql.params = fql_params()
+        fql = espressopp.FixedTripleList(system.storage)
+        fql_params = collections.defaultdict(dict)
+        fql.params = fql_params
+        fql.addBonds(b_list)
         interaction_class, potential_class = func2interaction_dynamic.get(func)
         interaction = interaction_class(system, fql)
+        observe_list = False
         for t, params in dihedralparams_func[func]:
+            observe_list = observe_list or (
+                (t[0], t[1]) in change_dihedral_types
+                or (t[1], t[2]) in change_dihedral_types
+                or (t[2], t[3]) in change_dihedral_types
+                or (t[1], t[0]) in change_dihedral_types
+                or (t[2], t[1]) in change_dihedral_types
+                or (t[3], t[2]) in change_dihedral_types)
             interaction.setPotential(
-                type1=t[0], type2=t[1], type3=t[2], type4=t[3],
+                type1=t[0], type2=t[1], type3=t[2],
                 potential=potential_class(**convert_params(func, params['params'])))
             fql.params[t[0]][t[1]][t[2]][t[3]] = params
             fql.params[t[3]][t[2]][t[1]][t[0]] = params
         system.addInteraction(interaction, 'dyn_{}_{}'.format(name, dihedral_count))
         dihedral_count += 1
-        dynamics_fqls[func] = fql
+        dynamics_fqls[collections.namedtuple('dfqls', ['func', 'is_observe_list'])(func, observe_list)] = fql
+
+    # Set first static dihedrals, those one that has explicitly the parameters
+    for func in dihedrals_by_func:
+        interaction_class, potential_class = func2interaction_static.get(func)
+        for params, b_list in dihedrals_by_func[func].items():
+            if b_list:
+                fql = espressopp.FixedTripleList(system.storage)
+                fql.addTriples(b_list)
+                fql.params = (func, params)
+                static_fqls.append(fql)
+                interaction = interaction_class(system, fql, potential_class(**convert_params(func, params)))
+                system.addInteraction(interaction, '{}_{}'.format(name, dihedral_count))
+                dihedral_count += 1
 
     print('Set up dihedral interactions')
     return dynamics_fqls, static_fqls

@@ -377,11 +377,11 @@ def main():  #NOQA
 
     topology_manager.initialize_topology()
 
-    for t, p in gt.bondparams.items():
-        fpl = dynamic_fpls.get((p['func'], True), dynamic_fpls.get((p['func'], False)))
-        if fpl:
-            print('Register bonds for type: {}'.format(t))
-            topology_manager.register_tuple(fpl, *t)
+    # for t, p in gt.bondparams.items():
+    #     fpl = dynamic_fpls.get((p['func'], True), dynamic_fpls.get((p['func'], False)))
+    #     if fpl:
+    #         print('Register bonds for type: {}'.format(t))
+    #         topology_manager.register_tuple(fpl, *t)
 
     # Any new bond will trigger update here.
     for t, p in gt.angleparams.items():
@@ -391,8 +391,8 @@ def main():  #NOQA
             topology_manager.register_triplet(ftl, *t)
 
     for t, p in gt.dihedralparams.items():
-        if p['func'] in dynamic_fqls:
-            fql = dynamic_fqls[p['func']]
+        fql = dynamic_fqls.get((p['func'], True), dynamic_fqls.get((p['func'], False)))
+        if fql:
             print('Register dihedral for type: {} ({})'.format(t, fql))
             topology_manager.register_quadruplet(fql, *t)
 
@@ -558,12 +558,21 @@ def main():  #NOQA
 
     for (i, observe_triple), f in dynamic_ftls.items():
         if observe_triple:
-            print('DumpTopol: observe dynamic_angles_{}'.format(i))
-            dump_topol.observe_triple(f, 'dynamic_angles_{}'.format(i))
+            print('DumpTopol: observe dynamic_angles_{}'.format(acount))
+            dump_topol.observe_triple(f, 'dynamic_angles_{}'.format(acount))
         else:
             print('DumpTopol: save static list from angles_{}'.format(acount))
             dump_topol.add_static_triple(f, 'angles_{}'.format(acount))
-            acount += 1
+        acount += 1
+
+    for (i, observe_quadruple), f in dynamic_fqls.items():
+        if observe_quadruple:
+            print('DumpTopol: observe dynamic_dihedrals_{}'.format(qcount))
+            dump_topol.observe_triple(f, 'dynamic_dihedrals_{}'.format(qcount))
+        else:
+            print('DumpTopol: save static list from dihedrals_{}'.format(qcount))
+            dump_topol.add_static_triple(f, 'dihedrals_{}'.format(qcount))
+        qcount += 1
 
     for static_fpl in static_fpls:
         print('DumpTopol: store bonds_{}'.format(bcount))
