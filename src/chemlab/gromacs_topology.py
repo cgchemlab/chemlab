@@ -546,7 +546,9 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                     tab_name,
                     cr_min,
                     cr_max,
-                    cr_default])
+                    cr_default,
+                    cr_type,
+                    cr_total])
             elif func == 10:
                 tab1 = param['params'][0]
                 tab2 = param['params'][1]
@@ -632,13 +634,14 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
         multi_tab_interaction = espressopp.interaction.VerletListMultiTabulated(vl)
         for (mt1, mt2), data in cr_multi.items():
             mp_tab = espressopp.interaction.MultiTabulated(cutoff=tab_cutoff)
-            for cr_obs, tab_name, cr_min, cr_max, cr_default in data:
+            for cr_obs, tab_name, cr_min, cr_max, cr_default, cr_type, cr_total in data:
                 espp_tab_name = '{}.pot'.format(tab_name.replace('.xvg', ''))
                 if not os.path.exists(espp_tab_name):
                     print('Convert {} to {}'.format(tab_name, espp_tab_name))
                     espressopp.tools.convert.gromacs.convertTable(tab_name, espp_tab_name)
                 mp_tab.register_table(espp_tab_name, 1, cr_obs, cr_min, cr_max, cr_default)
-            print('Set multi tabulated potential {}-{}'.format(mt1, mt2))
+                print('Set multi tabulated potential {}-{} range=[{},{}) type obs: {}'.format(
+                    mt1, mt2, cr_min, cr_max, cr_type))
             multi_tab_interaction.setPotential(
                 type1=mt1, type2=mt2, potential=mp_tab)
             defined_types.add((mt1, mt2))
