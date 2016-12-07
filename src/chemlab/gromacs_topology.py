@@ -940,9 +940,9 @@ def set_angle_interactions(system, gt, dynamic_type_ids, change_angle_types=set(
     static_ftls = []
     for func, b_list in dynamics_angles_by_func.items():
         ftl = espressopp.FixedTripleList(system.storage)
-        ftl_params = collections.defaultdict(dict)
-        ftl.params = ftl_params
-        ftl.addBonds(b_list)
+        ftl_params = lambda: collections.defaultdict(ftl_params)
+        ftl.params = ftl_params()
+        ftl.addTriples(b_list)
         interaction_class, potential_class = func2interaction_dynamic.get(func)
         interaction = interaction_class(system, ftl)
         observe_list = False
