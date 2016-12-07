@@ -682,7 +682,8 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
 
     if tab_scaled:
         for scale_increment, data_list in tab_scaled.items():
-            particle_pair_scale_map = espressopp.esutil.ParticlePairScaling(0.0, scale_increment, vl, system.integrator)
+            particle_pair_scale_map = espressopp.esutil.ParticlePairScaling(
+                0.0, scale_increment, vl, system.integrator)
             particle_pair_scales.append(particle_pair_scale_map)
             max_forces_group = collections.defaultdict(dict)
             for (t1, t2), (tab_name, max_force) in data_list.items():
