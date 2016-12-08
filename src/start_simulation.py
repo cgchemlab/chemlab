@@ -879,6 +879,10 @@ def main():  #NOQA
         print('Changes in reaction rates written to {}'.format(rate_file.name))
         rate_file.close()
 
+    topology_manager.save_topology('{}_{}_topology.dat'.format(args.output_prefix, args.rng_seed))
+    topology_manager.save_res_topology('{}_{}_res_topology.dat'.format(args.output_prefix, args.rng_seed))
+    topology_manager.save_residues('{}_{}_residue_list.dat'.format(args.output_prefix, args.rng_seed))
+
     # Saves coordinate output file.
     output_gro_file = '{}_{}_confout.gro'.format(args.output_prefix, rng_seed)
     input_conf.update_position(system, unfolded=False)
