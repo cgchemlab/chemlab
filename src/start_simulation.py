@@ -404,10 +404,10 @@ def main():  #NOQA
         topology_manager.observe_tuple(f.fpl)
         dynamic_exclusion_list.observe_tuple(f.fpl)
     # Register chemistry tuples in topology_manager
-    # for def_f in chem_fpls:
-    #     for t in def_f.type_list:
-    #         print('Register chem_fpl for type: {} ({})'.format(t, def_f.fpl))
-    #         topology_manager.register_tuple(def_f.fpl, *t)
+    for def_f in chem_fpls:
+        for t in def_f.type_list:
+            print('Register chem_fpl for type: {} ({})'.format(t, def_f.fpl))
+            topology_manager.register_tuple(def_f.fpl, *t)
 
     # Define SystemMonitor that will store data from observables into a .csv file.
     energy_file = '{}_energy_{}.csv'.format(args.output_prefix, rng_seed)
