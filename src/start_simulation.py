@@ -398,6 +398,7 @@ def main():  #NOQA
 
     # Add fpls defined by chemical reactions to exclude lists and topology_manager.
     for f in chem_fpls:
+        print("TopologyManager: Observe tuple {}".format(f.fpl))
         topology_manager.observe_tuple(f.fpl)
         dynamic_exclusion_list.observe_tuple(f.fpl)
     # Register chemistry tuples in topology_manager
