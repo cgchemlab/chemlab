@@ -92,8 +92,9 @@ class SetupReactions:
 
         print('Setup reaction: {}({})-{}({})'.format(
             rt1, self.name2type[rt1], rt2, self.name2type[rt2]))
-        if 'intramolecular' in chem_reaction:
-            print('Warning, tag intramolecular not used anymore!')
+
+        print("Intramolecular bonds: {}".format(chem_reaction['intramolecular']))
+        reaction.intramolecular = bool(eval(chem_reaction['intramolecular']))
 
         reaction.intraresidual = bool(chem_reaction['intraresidual'])
         reaction.is_virtual = bool(chem_reaction['virtual'])
@@ -319,6 +320,9 @@ class SetupReactions:
 
         fpl_def = collections.namedtuple('FPLDef', ['fpl', 'type_list'])
 
+        self.reaction_index = {}
+        reaction_idx = 0
+
         for group_name, reaction_group in self.cfg['reactions'].items():
             print('Setting reaction group {}'.format(group_name))
 
@@ -375,13 +379,16 @@ class SetupReactions:
                             print('Skip extension: {} ({})'.format(ext_name, chem_reaction['equation']))
                         else:
                             for extension in extensions:
-                                print('Add extension {} to {} ({}): {}'.format(ext_name, chem_reaction['equation'], extension.pp_type, extension.ext))
+                                print('Add extension {} to {} ({}): {}'.format(
+                                    ext_name, chem_reaction['equation'], extension.pp_type, extension.ext))
                                 if extension.pp_type:
                                     r.add_postprocess(extension.ext, extension.pp_type)
                                 else:
                                     r.add_postprocess(extension.ext)
                     ar.add_reaction(r)
+                    self.reaction_index[reaction_idx] = chem_reaction['equation']
                     reactions.append(r)
+                    reaction_idx += 1
             fpls.append(fpl_def(fpl, set(reaction_type_list)))
 
         return ar, fpls, reactions, extensions_to_integrator
