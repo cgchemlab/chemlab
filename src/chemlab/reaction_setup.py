@@ -94,7 +94,7 @@ class SetupReactions:
             rt1, self.name2type[rt1], rt2, self.name2type[rt2]))
 
         print("Intramolecular bonds: {}".format(chem_reaction['intramolecular']))
-        reaction.intramolecular = bool(eval(chem_reaction['intramolecular']))
+        reaction.intramolecular = bool(chem_reaction['intramolecular'])
 
         reaction.intraresidual = bool(chem_reaction['intraresidual'])
         reaction.is_virtual = bool(chem_reaction['virtual'])
