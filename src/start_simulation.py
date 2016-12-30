@@ -105,6 +105,8 @@ def main():  #NOQA
     if not args.rng_seed or args.rng_seed == -1:
         rng_seed = random.randint(10, 1000000)
 
+    global_file_prefix = '{}_{}'.format(args.output_prefix, rng_seed)
+
     print('Skin: {}'.format(skin))
     print('RNG Seed: {}'.format(rng_seed))
     print('Boltzmann constant: {}'.format(kb))
@@ -931,9 +933,16 @@ def main():  #NOQA
         all_fix_distances = []
         for fd in sc.fix_distances:
             all_fix_distances.extend(fd.get_all_triplets())
-        with open('all_fix_distances.pck', 'wb') as out_fd:
+        with open('{}_all_fix_distances.pck'.format(global_file_prefix), 'wb') as out_fd:
             cPickle.dump(all_fix_distances, out_fd)
 
+    if sc is not None:
+        ar.save_reaction_counters('{}_reaction_counters'.format(global_file_prefix))
+        with open('{}_reaction_counters'.format(global_file_prefix), 'a') as outf:
+            outf.write('\n\nReaction index\n')
+            for ridx in sorted(sc.reaction_index):
+                outf.write('{} {}\n'.format(ridx, sc.reaction_index[ridx]))
+        print('Saved reactioncounters: {}_reaction_counters'.format(global_file_prefix))
 
     total_time = time.time() - time0
 
