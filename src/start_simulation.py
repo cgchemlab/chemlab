@@ -204,6 +204,7 @@ def main():  #NOQA
     hook_init_reaction = lambda *_, **__: True
     hook_postsetup_reaction = lambda *_, **__: True
     hook_at_step = lambda *_, **__: True
+    hook_before_sim = lambda *_, **__: True
     if os.path.exists('hooks.py'):
         print('Found hooks.py')
         locals = {}
@@ -211,6 +212,7 @@ def main():  #NOQA
         hook_init_reaction = locals.get('hook_init_reaction', hook_init_reaction)
         hook_postsetup_reaction = locals.get('hook_postsetup_reaction', hook_postsetup_reaction)
         hook_at_step = locals.get('hook_at_step', hook_at_step)
+        hook_before_sim = locals.get('hook_before_sim', hook_before_sim)
 
     # Set chemical reactions, parser in reaction_parser.py
     chem_dynamic_types = set()
@@ -655,6 +657,8 @@ def main():  #NOQA
 
     totalTime = time.time()
     integratorLoop = 0.0
+
+    hook_before_sim(system, integrator, ar, gt)
 
     for k in range(sim_step):
         system_analysis.info()

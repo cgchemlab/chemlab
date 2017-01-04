@@ -127,6 +127,8 @@ class PostProcessSetup(object):
             width = espressopp.Real3D(float(cfg['width']))
 
         remove_particles = eval(cfg.get('remove_particles', 'False'))
+        prob = float(eval(cfg.get('prob', '1.0')))
+        print('Freeze region: prob {}'.format(prob))
 
         dir_to_region = {
             '-x': (espressopp.Real3D(0.0), espressopp.Real3D(width[0], boxL[1], boxL[2])),
@@ -154,6 +156,7 @@ class PostProcessSetup(object):
                 target_type_id, espressopp.integrator.TopologyParticleProperties(type=final_type_id))
             change_in_region.set_flags(target_type_id, reset_velocity=True, reset_force=True,
                                        remove_particle=remove_particles)
+            change_in_region.p = prob
             self.system.integrator.addExtension(change_in_region)
         return output_triplet(None, None, None)
 
