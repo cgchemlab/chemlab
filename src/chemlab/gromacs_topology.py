@@ -881,17 +881,21 @@ def set_angle_interactions(system, gt, dynamic_type_ids, change_angle_types=set(
                 print('Convert {} to {}'.format(tab_name, espp_tab_name))
                 espressopp.tools.convert.gromacs.convertTable(tab_name, espp_tab_name)
             return {'itype': 1, 'filename': espp_tab_name}
+        elif func == 11:
+            return {'K': float(raw_data[1]), 'theta0': float(raw_data[0])*2*math.pi/360.0}
         else:
             raise RuntimeError('Unknown func type')
 
     func2interaction_dynamic = {
         1: (espressopp.interaction.FixedTripleListTypesAngularHarmonic, espressopp.interaction.AngularHarmonic),
-        8: (espressopp.interaction.FixedTripleListTypesTabulatedAngular, espressopp.interaction.TabulatedAngular)
+        8: (espressopp.interaction.FixedTripleListTypesTabulatedAngular, espressopp.interaction.TabulatedAngular),
+        11: (espressopp.interaction.FixedTripleListTypesCosine, espressopp.interaction.Cosine)
     }
 
     func2interaction_static = {
         1: (espressopp.interaction.FixedTripleListAngularHarmonic, espressopp.interaction.AngularHarmonic),
-        8: (espressopp.interaction.FixedTripleListTabulatedAngular, espressopp.interaction.TabulatedAngular)
+        8: (espressopp.interaction.FixedTripleListTabulatedAngular, espressopp.interaction.TabulatedAngular),
+        11: (espressopp.interaction.FixedTripleListCosine, espressopp.interaction.Cosine)
     }
 
     dynamics_angles_by_func = collections.defaultdict(list)
