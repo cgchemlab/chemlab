@@ -117,6 +117,8 @@ def _args():
 
     general_options.add_argument('--table_groups', default=None,
                                  help='The list of atom type names that should be simulated with tabulated potential.')
+    general_options.add_argument('--thermal_groups', default=None,
+                                 help='The list of atom type names that should be thermalized.')
     general_options.add_argument('--max_force', default=-1, type=float,
                                  help='Maximum force in the system.')
     general_options.add_argument('--rate_arrhenius', default=False, help='Change rate based on the Arrhenius equation.',
