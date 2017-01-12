@@ -461,7 +461,7 @@ def main():  #NOQA
             system_analysis.add_observable(
                 'res_fpl_{}'.format(fpl_idx), espressopp.analysis.ResolutionFixedPairList(system, fpl.fpl))
 
-    system_analysis.add_observable('Fmax', espressopp.analysis.MaxForce(system))
+    #system_analysis.add_observable('Fmax', espressopp.analysis.MaxForce(system))
 
     # This is a bit expensive
     if args.count_tuples:

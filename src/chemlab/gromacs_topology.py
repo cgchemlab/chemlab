@@ -238,7 +238,7 @@ class GromacsTopology:
 
         # Update non_bonded params
         for k, v in self.topol.nonbond_params.items():
-            if v['func'] == 1 and self.topol.defaults['combinationrule'] == 1:
+            if v['func'] == 1 and self.topol.defaults['combinationrule'] == 1 and v['params']:
                 c6 = float(v['params'][0])
                 c12 = float(v['params'][1])
                 sig, eps = convertc6c12(c6, c12, combinationrule)
