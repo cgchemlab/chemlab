@@ -569,6 +569,18 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                     tn = 'table_{}_{}.xvg'.format(type_1, type_2)
                 sig, eps = 0.0, 0.0
                 dynamic_interactions[func][(t1, t2)] = (tn, max_force)
+            elif func == 15:
+                max_force = -1
+                if param['params']:
+                    sig = float(param['params'][0])
+                    eps = float(param['params'][1])
+                    if len(param['params']) == 3:
+                        max_force = float(param['params'][2])
+                else:
+                    sig_1, eps_1 = atomparams[type_1]['sigma'], atomparams[type_1]['epsilon']
+                    sig_2, eps_2 = atomparams[type_2]['sigma'], atomparams[type_2]['epsilon']
+                    sig, eps = combination(sig_1, eps_1, sig_2, eps_2, combinationrule)
+                dynamic_interactions[func][(t1, t2)] = (sig, eps, max_force)
             elif func == 12:  # MixedTabulated with static x
                 tab1 = param['params'][0]
                 tab2 = param['params'][1]
@@ -735,6 +747,22 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                     if max_force != -1:
                         interDynamicTab.setMaxForce(max_force)
                     system.addInteraction(interDynamicTab, 'tab-dynamic_{}'.format(bn))
+                    bn += 1
+            elif func == 15:
+                max_forces_group = collections.defaultdict(dict)
+                for (t1, t2), (sig, eps, max_force) in data_list.items():
+                    max_forces_group[max_force][(t1, t2)] = (sig, eps)
+                bn = 0
+                for max_force, data in max_forces_group.items():
+                    interDynamicLJ = espressopp.interaction.VerletListDynamicResolutionLennardJones(vl, False)
+                    for (t1, t2), (sig, eps) in data.items():
+                        interDynamicLJ.setPotential(
+                            type1=t1,
+                            type2=t2,
+                            potential=espressopp.interaction.LennardJones(epsilon=eps, sigma=sig, cutoff=lj_cutoff))
+                    if max_force != -1:
+                        interDynamicLJ.setMaxForce(max_force)
+                    system.addInteraction(interDynamicLJ, 'lj-dynamic_{}'.format(bn))
                     bn += 1
             else:
                 raise RuntimeError('Currently {} not supported'.format(func))
