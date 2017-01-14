@@ -572,10 +572,13 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
             elif func == 15:
                 max_force = -1
                 if param['params']:
-                    sig = float(param['params'][0])
-                    eps = float(param['params'][1])
-                    if len(param['params']) == 3:
-                        max_force = float(param['params'][2])
+                    if len(param['params']) == 1:
+                        max_force = float(param['params'][0])
+                    else:
+                        sig = float(param['params'][0])
+                        eps = float(param['params'][1])
+                        if len(param['params']) == 3:
+                            max_force = float(param['params'][2])
                 else:
                     sig_1, eps_1 = atomparams[type_1]['sigma'], atomparams[type_1]['epsilon']
                     sig_2, eps_2 = atomparams[type_2]['sigma'], atomparams[type_2]['epsilon']
