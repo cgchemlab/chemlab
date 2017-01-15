@@ -279,7 +279,7 @@ def main():  #NOQA
                 for fpl_def in chem_fpls:
                     if (type_id_1, type_id_2) in fpl_def.type_list or (type_id_2, type_id_1) in fpl_def.type_list:
                         obs_fpl = espressopp.analysis.NFixedPairListEntries(system, fpl_def.fpl)
-                        maximum_conversion.append((obs_fpl, stop_value))
+                        maximum_conversion.append((obs_fpl, max_number))
                         break
             else:   # Observe count of types
                 type_id_symbol = gt.used_atomsym_atomtype[type_symbol]
