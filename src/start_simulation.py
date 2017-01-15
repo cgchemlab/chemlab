@@ -269,14 +269,24 @@ def main():  #NOQA
             cr_observs = {}
         for o in args.maximum_conversion.split(','):
             type_symbol, max_number, tot_number = o.split(':')
-            type_id_symbol = gt.used_atomsym_atomtype[type_symbol]
             max_number = int(max_number)
             tot_number = int(tot_number)
             stop_value = float(max_number) / tot_number
-            if (type_id_symbol, tot_number) not in cr_observs:
-                cr_observs[(type_id_symbol, tot_number)] = espressopp.analysis.ChemicalConversion(
-                    system, type_id_symbol, tot_number)
-            maximum_conversion.append((cr_observs[(type_id_symbol, tot_number)], stop_value))
+            if '-' in type_symbol:  # Observe count of bonds
+                type_sym_1, type_sym_2 = type_symbol.split('-')
+                type_id_1 = gt.used_atomsym_atomtype[type_sym_1]
+                type_id_2 = gt.used_atomsym_atomtype[type_sym_2]
+                for fpl_def in chem_fpls:
+                    if (type_id_1, type_id_2) in fpl_def.type_list or (type_id_2, type_id_1) in fpl_def.type_list:
+                        obs_fpl = espressopp.analysis.NFixedPairListEntries(system, fpl_def.fpl)
+                        maximum_conversion.append((obs_fpl, stop_value))
+                        break
+            else:   # Observe count of types
+                type_id_symbol = gt.used_atomsym_atomtype[type_symbol]
+                if (type_id_symbol, tot_number) not in cr_observs:
+                    cr_observs[(type_id_symbol, tot_number)] = espressopp.analysis.ChemicalConversion(
+                        system, type_id_symbol, tot_number)
+                maximum_conversion.append((cr_observs[(type_id_symbol, tot_number)], stop_value))
         if args.eq_steps > 0:
             eq_run = int(args.eq_steps / sim_step)
 
