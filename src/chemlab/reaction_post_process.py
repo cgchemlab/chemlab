@@ -19,7 +19,10 @@
 
 
 import collections
+
+import cPickle
 import espressopp
+import os
 import re
 
 from reaction_parser import EXT_INTEGRATOR, EXT_POSTPROCESS
@@ -168,6 +171,7 @@ class PostProcessSetup(object):
         alpha = float(cfg['alpha'])
         init_res = float(cfg['init_res'])
         final_type = cfg.get('final_type', target_type)
+        cache_file = cfg.get('cache_file')
 
         replicate = int(cfg.get('replicate', 1))
         release_on = cfg.get('release_on', 'type')  # bond or type
@@ -191,22 +195,33 @@ class PostProcessSetup(object):
         # Creates list of dummy particles.
         particle_list = []
         fix_list = []
-        dummy_idx = max_pid + 1
-        for idx, host_pid in enumerate(host_pids):
-            host_p = self.system.storage.getParticle(host_pid)
-            for _ in range(replicate):
-                dummy_pos = host_p.pos + espressopp.Real3D(eq_length, 0.0, 0.0)
-                fix_list.append((host_pid, dummy_idx, eq_length))
-                particle_list.append((
-                    dummy_idx,
-                    dummy_type_id,
-                    dummy_pos,
-                    target_properties['mass'],
-                    dummy_idx,
-                    init_res,
-                    target_properties.get('state', 0)))
-                dummy_idx += 1
         props = ['id', 'type', 'pos', 'mass', 'res_id', 'lambda_adr', 'state']
+        if cache_file is None or not os.path.exists(cache_file):
+            dummy_idx = max_pid + 1
+            for idx, host_pid in enumerate(host_pids):
+                host_p = self.system.storage.getParticle(host_pid)
+                for _ in range(replicate):
+                    dummy_pos = host_p.pos + espressopp.Real3D(eq_length, 0.0, 0.0)
+                    fix_list.append((host_pid, dummy_idx, eq_length))
+                    particle_list.append((
+                        dummy_idx,
+                        dummy_type_id,
+                        dummy_pos,
+                        target_properties['mass'],
+                        dummy_idx,
+                        init_res,
+                        target_properties.get('state', 0)))
+                    dummy_idx += 1
+        if cache_file:
+            if os.path.exists(cache_file):
+                print('Read dummy particles from {}'.format(cache_file))
+                with open(cache_file, 'rb') as in_file:
+                    particle_list, fix_list, props = cPickle.load(in_file)
+            else:
+                print('Save data to {}'.format(cache_file))
+                with open(cache_file, 'wb') as in_file:
+                    cPickle.dump((particle_list, fix_list, props), in_file)
+
         self.system.storage.addParticles(particle_list, *props)
         self.system.storage.decompose()
 
