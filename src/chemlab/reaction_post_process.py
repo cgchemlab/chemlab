@@ -228,12 +228,14 @@ class PostProcessSetup(object):
         reaction_post_process = None
 
         if release_on == 'type':
+            print('Release particle on type change {}-{}'.format(host_type, dummy_type_id))
             fix_distance = espressopp.integrator.FixDistances(
                 self.system,
                 fix_list,
                 self.topol.atomsym_atomtype[host_type],
                 dummy_type_id)
         else:  # do not remove fix when change of type
+            print('Release particle on new bond created, count: {}'.format(release_count))
             fix_distance = espressopp.integrator.FixDistances(self.system, fix_list)
             # Remove by post process in the reaction
             reaction_post_process = espressopp.integrator.PostProcessReleaseParticles(fix_distance, release_count)
