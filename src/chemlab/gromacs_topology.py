@@ -575,15 +575,20 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 dynamic_interactions[func][(t1, t2)] = (tn, max_force)
             elif func == 15:
                 max_force = -1
+                gen_sig_eps = False
                 if param['params']:
                     if len(param['params']) == 1:
                         max_force = float(param['params'][0])
+                        gen_sig_eps = True
                     else:
                         sig = float(param['params'][0])
                         eps = float(param['params'][1])
                         if len(param['params']) == 3:
                             max_force = float(param['params'][2])
                 else:
+                    gen_sig_eps = False
+
+                if gen_sig_eps:
                     sig_1, eps_1 = atomparams[type_1]['sigma'], atomparams[type_1]['epsilon']
                     sig_2, eps_2 = atomparams[type_2]['sigma'], atomparams[type_2]['epsilon']
                     sig, eps = combination(sig_1, eps_1, sig_2, eps_2, combinationrule)
@@ -593,7 +598,6 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 tab2 = param['params'][1]
                 mix_value = float(param['params'][2])
                 cr_mix_tab[(t1, t2)].append(Func12(mix_value, tab1, tab2))
-                print t1, t2, param
             elif func == 13:
                 table_name = param['params'][0]
                 table_cap = float(param['params'][1])
@@ -781,6 +785,8 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                             type1=t1,
                             type2=t2,
                             potential=espressopp.interaction.LennardJones(epsilon=eps, sigma=sig, cutoff=lj_cutoff))
+                        print('Set dynamic resolution potential {}-{} (sig: {}, eps: {}, max_force: {})'.format(
+                            t1, t2, sig, eps, max_force))
                     if max_force != -1:
                         interDynamicLJ.setMaxForce(max_force)
                     system.addInteraction(interDynamicLJ, 'lj-dynamic_{}'.format(bn))
