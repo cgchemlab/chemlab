@@ -489,11 +489,14 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
             type_pairs.add(tuple(sorted([type_1, type_2])))
 
     has_lj_interaction = False
-    lj_interaction = espressopp.interaction.VerletListLennardJones(vl)
+    has_lj_capped_interaction = False
     has_tab_interaction = False
-    tab_interaction = espressopp.interaction.VerletListTabulated(vl)
     has_tab_capped_interaction = False
+
+    lj_interaction = espressopp.interaction.VerletListLennardJones(vl)
+    tab_interaction = espressopp.interaction.VerletListTabulated(vl)
     tab_capped_interaction = espressopp.interaction.VerletListTabulatedCapped(vl)
+    lj_capped_interaction = espressopp.interaction.VerletListLennardJonesEnergyCapped(vl)
 
     # Special case for MultiTabulated
     cr_multi = collections.defaultdict(list)
@@ -514,6 +517,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
         param = gt.gt.nonbond_params.get((type_1, type_2))
         table_name = None
         table_cap = None
+        lj_cap = None
         sig, eps = -1, -1
         if param:
             func = param['func']
@@ -603,6 +607,13 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 if scale_increment not in tab_scaled:
                     tab_scaled[scale_increment] = {}
                 tab_scaled[scale_increment][(t1, t2)] = (tab1, max_force)
+            elif func == 16:  # LJ capped
+                if len(param['params']) == 1:
+                    lj_cap = float(param['params'][0])
+                elif len(param['params']) == 3:
+                    sig = float(param['params'][0])
+                    eps = float(param['params'][1])
+                    lj_cap = float(param['params'][2])
 
         elif type_1 in tables and type_2 in tables:
             table_name = 'table_{}_{}.xvg'.format(type_1, type_2)
@@ -635,6 +646,13 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 type1=t1, type2=t2,
                 potential=espressopp.interaction.Tabulated(
                     itype=1, filename=espp_tab_name, cutoff=tab_cutoff))
+            defined_types.add((t1, t2))
+        elif sig > 0.0  and lj_cap is not None:
+            print('Set LJ potential {}-{}, eps={}, sig={}, caprad={}'.format(type_1, type_2, eps, sig, lj_cap))
+            ljpot = espressopp.interaction.LennardJonesEnergyCapped(
+                epsilon=eps, sigma=sig, cutoff=lj_cutoff, caprad=lj_cap)
+            lj_capped_interaction.setPotential(type1=t1, type2=t2, potential=ljpot)
+            has_lj_capped_interaction = True
             defined_types.add((t1, t2))
         elif sig > 0.0:
             print('Set LJ potential {}-{}, eps={}, sig={}'.format(type_1, type_2, eps, sig))
@@ -773,6 +791,11 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
     if has_lj_interaction:
         print('Adding lj interaction')
         system.addInteraction(lj_interaction, 'lj')
+
+    if has_lj_capped_interaction:
+        print('Adding lj-capped interaction')
+        system.addInteraction(lj_capped_interaction, 'lj-cap')
+
     if has_tab_interaction:
         print('Adding lj-tab interaction')
         system.addInteraction(tab_interaction, 'lj-tab')
@@ -1266,7 +1289,5 @@ def gen_particle_list(coordinate, topol):
              top_data['charge'],
              data.chain_idx,
              top_data.get('state', 0),
-             1.0]
-        )
-
+             1.0])
     return props, particle_list
