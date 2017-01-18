@@ -1,5 +1,93 @@
+Functionals
+-----------
+
+Harmonic bond
++++++++++++++
+
+.. _eq1:
+
+.. math::
+
+   U(r) = K(r-r0)^2
+
+Harmonic angle
+++++++++++++++
+
+.. _eq2:
+
+.. math::
+
+   U(\theta) = K(\theta - \theta_0)^2
+
+
+Cosine angle
+++++++++++++
+
+.. _eq3:
+
+.. math::
+
+   U(\theta) = K(1.0 + cos(\theta - \theta_0))
+
+Harmonic n-cosine dihedral
+++++++++++++++++++++++++++
+
+.. _eq4:
+
+.. math::
+
+   U(\phi) = K(1 + cos(multiplicity*\phi - \phi_0));
+
+
+Ryckaert Bellemans dihedral
++++++++++++++++++++++++++++
+
+.. _eq5:
+
+.. math::
+
+   U(\phi) = \sum^{5}_{n=0} K_n cos^n(\phi)
+
+
 Topology file
-=============
+-------------
+
+[ bondtypes ]
++++++++++++++
+
+========================  =====  =======
+Name of interaction       func   params
+========================  =====  =======
+Harmonic eq1_             1      K [1]_, r0
+Tabulated                 8      table index
+========================  =====  =======
+
+.. [1] Force constant internaly divided by 2.0
+
+[ angletypes ]
+++++++++++++++
+
+========================  =====  =======
+Name of interaction       func   params
+========================  =====  =======
+Harmonic eq2_             1      K [2]_, theta0 (deg)
+Tabulated                 8      table index
+Cosine   eq3_             11     K [2]_, theta0 (deg)
+========================  =====  =======
+
+.. [2] Force constant internaly divided by 2.0
+
+[ dihedraltypes ]
++++++++++++++++++
+
+========================  =====  =======
+Name of interaction       func   params
+========================  =====  =======
+HarmonicNCos  eq4_        1      K, phi0 (deg), multiplicity
+Ryckaert Bellemans  eq5_  3      K0, K1, K2, K3, K4, K5
+Tabulated                 8      table index
+========================  =====  =======
+
 
 [ nonbond_params ]
 ++++++++++++++++++
@@ -18,3 +106,5 @@ Tabulated (scalled pairs)       14    filename, scale increment, max_force*
 Lennard-Jones scaled by lambda  15    sigma*, epsilon*, max_force*
 Lennard-Jones capped            16    sigma*, epsilon*, cap radius
 ==============================  ====  ======
+
+Parameters with * are optional.

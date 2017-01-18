@@ -614,10 +614,15 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
             elif func == 16:  # LJ capped
                 if len(param['params']) == 1:
                     lj_cap = float(param['params'][0])
+                    sig_1, eps_1 = atomparams[type_1]['sigma'], atomparams[type_1]['epsilon']
+                    sig_2, eps_2 = atomparams[type_2]['sigma'], atomparams[type_2]['epsilon']
+                    sig, eps = combination(sig_1, eps_1, sig_2, eps_2, combinationrule)
                 elif len(param['params']) == 3:
                     sig = float(param['params'][0])
                     eps = float(param['params'][1])
                     lj_cap = float(param['params'][2])
+            else:
+                raise RuntimeError('Functional {} not found'.format(func))
 
         elif type_1 in tables and type_2 in tables:
             table_name = 'table_{}_{}.xvg'.format(type_1, type_2)
