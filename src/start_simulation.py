@@ -457,9 +457,13 @@ def main():  #NOQA
                     break
         system_analysis.add_observable(
             label, espressopp.analysis.PotentialEnergy(system, interaction), show_in_system_info)
-    for (cr_type, _, _), obs in cr_observs.items():
-        system_analysis.add_observable(
-            'cr_{}'.format(cr_type), obs)
+    for (cr_type, _, ts), obs in cr_observs.items():
+        if ts is None:
+            system_analysis.add_observable(
+                'cr_{}'.format(cr_type), obs)
+        else:
+            system_analysis.add_observable(
+                'cr_{}_{}'.format(cr_type, ts), obs)
     for fidx, f in enumerate(chem_fpls):
         system_analysis.add_observable(
             'count_{}'.format(fidx), espressopp.analysis.NFixedPairListEntries(system, f.fpl))
