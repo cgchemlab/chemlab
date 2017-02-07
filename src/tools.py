@@ -194,7 +194,7 @@ def _args():
                                             default=None,
                                             help=('The comma separated list of conditions on which '
                                                   'the simulation will stop. (format: '
-                                                  'atom type symbol:max number:total number)'))
+                                                  'atom type symbol(state):max number:total number)'))
     maximum_conversion_options.add_argument('--eq_steps', default=0,
                                             help=('Run simulation after conversion reached for n-steps'), type=int)
     maximum_conversion_options.add_argument('--keep_simulation', default=False,
