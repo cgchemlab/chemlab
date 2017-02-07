@@ -62,7 +62,7 @@ Harmonic eq1_             1      K [1]_, r0
 Tabulated                 8      table index
 ========================  =====  =======
 
-.. [1] Force constant internaly divided by 2.0
+.. [1] Force constant internally divided by 2.0
 
 [ angletypes ]
 ++++++++++++++
@@ -75,7 +75,7 @@ Tabulated                 8      table index
 Cosine   eq3_             11     K [2]_, theta0 (deg)
 ========================  =====  =======
 
-.. [2] Force constant internaly divided by 2.0
+.. [2] Force constant internally divided by 2.0
 
 [ dihedraltypes ]
 +++++++++++++++++
