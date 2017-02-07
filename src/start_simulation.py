@@ -265,16 +265,31 @@ def main():  #NOQA
     if args.maximum_conversion:
         if cr_observs is None:
             cr_observs = {}
+        re_max_conversion = re.compile(r'(?P<type>\w+)\(?(?P<state>\d?)\)?:(?P<maxnum>\d+):(?P<tot>\d+)')
         for o in args.maximum_conversion.split(','):
-            type_symbol, max_number, tot_number = o.split(':')
+            vals = re_max_conversion.match(o)
+            if not vals:
+                raise RuntimeError('Problem with maximum conversion {}, not defined correctly'.format(o))
+            vals = vals.groupdict()
+            type_symbol = vals['type']
+            max_number = int(vals['maxnum'])
+            tot_number = int(vals['tot'])
+            if vals['state']:
+                type_state = int(vals['state'])
+            else:
+                type_state = None
             type_id_symbol = gt.used_atomsym_atomtype[type_symbol]
             max_number = int(max_number)
             tot_number = int(tot_number)
             stop_value = float(max_number) / tot_number
-            if (type_id_symbol, tot_number) not in cr_observs:
-                cr_observs[(type_id_symbol, tot_number)] = espressopp.analysis.ChemicalConversion(
-                    system, type_id_symbol, tot_number)
-            maximum_conversion.append((cr_observs[(type_id_symbol, tot_number)], stop_value))
+            if (type_id_symbol, tot_number, type_state) not in cr_observs:
+                if type_state is None:
+                    cr_observs[(type_id_symbol, tot_number, type_state)] = espressopp.analysis.ChemicalConversion(
+                        system, type_id_symbol, tot_number)
+                else:
+                    cr_observs[(type_id_symbol, tot_number, type_state)] = espressopp.analysis.ChemicalConversionTypeState(
+                        system, type_id_symbol, type_state, tot_number)
+            maximum_conversion.append((cr_observs[(type_id_symbol, tot_number, type_state)], stop_value))
         if args.eq_steps > 0:
             eq_run = int(args.eq_steps / sim_step)
 
@@ -442,7 +457,7 @@ def main():  #NOQA
                     break
         system_analysis.add_observable(
             label, espressopp.analysis.PotentialEnergy(system, interaction), show_in_system_info)
-    for (cr_type, _), obs in cr_observs.items():
+    for (cr_type, _, _), obs in cr_observs.items():
         system_analysis.add_observable(
             'cr_{}'.format(cr_type), obs)
     for fidx, f in enumerate(chem_fpls):

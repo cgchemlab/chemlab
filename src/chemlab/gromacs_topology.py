@@ -539,10 +539,10 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 cr_max = float(param['params'][4])
                 cr_default = bool(int(param['params'][5])) if len(param['params']) > 5 else False
                 if (cr_type, cr_total) not in cr_observs:
-                    cr_observs[(cr_type, cr_total)] = espressopp.analysis.ChemicalConversion(
+                    cr_observs[(cr_type, cr_total, None)] = espressopp.analysis.ChemicalConversion(
                         system, cr_type, cr_total)
                 cr_multi[(t1, t2)].append([
-                    cr_observs[(cr_type, cr_total)],
+                    cr_observs[(cr_type, cr_total, None)],
                     tab_name,
                     cr_min,
                     cr_max,
@@ -555,10 +555,10 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 cr_type = atomsym_atomtype[param['params'][2]]
                 cr_total = int(param['params'][3])
                 if (cr_type, cr_total) not in cr_observs:
-                    cr_observs[(cr_type, cr_total)] = espressopp.analysis.ChemicalConversion(
+                    cr_observs[(cr_type, cr_total, None)] = espressopp.analysis.ChemicalConversion(
                         system, cr_type, cr_total
                     )
-                cr_mix_tab[(t1, t2)].append(Func10(cr_observs[(cr_type, cr_total)], tab1, tab2))
+                cr_mix_tab[(t1, t2)].append(Func10(cr_observs[(cr_type, cr_total, None)], tab1, tab2))
             elif func == 11:  # Special case, dynamic interactions with tables
                 max_force = -1
                 if param['params']:
