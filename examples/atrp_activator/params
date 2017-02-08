@@ -27,4 +27,4 @@ thermostat_gamma=1.0
 top=topol.top
 topol_collect=1000
 trj_collect=1000
-maximum_conversion=PL(1):1200:2000
+maximum_conversion=PL(1):1200:1

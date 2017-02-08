@@ -88,6 +88,8 @@ def hook_init_reaction(system, integrator, ar, topol, args):
         for pid in res_id2pids[res_id]:
             p = system.storage.getParticle(pid)
             type_list.append(p.type)
+            if p.type == name2type['PL']:
+                assert p.state == 2
     print res_ids
     assert type_list.count(name2type['FA']) == number_to_activate
     assert type_list.count(name2type['PA']) == number_to_activate
