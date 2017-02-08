@@ -932,6 +932,9 @@ def main():  #NOQA
                 outf.write('{} {}\n'.format(ridx, sc.reaction_index[ridx]))
         print('Saved reactioncounters: {}_reaction_counters'.format(global_file_prefix))
 
+        ar.save_intra_inter_counter('{}_intra_inter_counters'.format(global_file_prefix))
+        print('Saved intra/inter reactions counter: {}_intra_inter_counters'.format(global_file_prefix))
+
     total_time = time.time() - time0
 
     topol_timers = collections.defaultdict(list)
