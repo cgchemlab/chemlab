@@ -74,14 +74,19 @@ class PostProcessSetup(object):
             if opt_match:
                 new_type, options = opt_match.groups()
                 t1_new = self.name2type[new_type]
+                new_property_def = self.topol.gt.atomtypes[new_type]
+                new_properties_args = {
+                    'type': t1_new,
+                    'mass': new_property_def['mass'],
+                    'q': new_property_def['charge'],
+                    'state': new_property_def['state']
+                }
                 if options:
-                    new_properties_args = {'type': t1_new}
-                    exec (options, {}, new_properties_args)
-                    new_property = espressopp.integrator.TopologyParticleProperties(**new_properties_args)
-                else:
-                    new_property_def = self.topol.gt.atomtypes[new_type]
-                    new_property = espressopp.integrator.TopologyParticleProperties(
-                        type=t1_new, mass=new_property_def['mass'], q=new_property_def['charge'])
+                    additional_properties = {}
+                    exec (options, {}, additional_properties)
+                    new_properties_args.update(additional_properties)
+                print new_properties_args
+                new_property = espressopp.integrator.TopologyParticleProperties(**new_properties_args)
 
                 self.dynamic_types.add(t1_old)
                 self.dynamic_types.add(t1_new)

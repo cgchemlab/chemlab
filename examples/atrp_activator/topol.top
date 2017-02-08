@@ -1,0 +1,38 @@
+#include "ffnb.itp"
+
+[ atomtypes ]
+;name  at.num   mass      charge  ptype      c6           c12
+  MA    69.083399      0.000     A        0            0
+  ML    60.052800      0.000     A        0            0
+  PA    69.083399      0.000     A        0            0
+  FA    70.091399      0.000     A        0            0
+  DA    104.536398     0.000     A        0            0
+  RA    69.083399      0.000     A        0            0
+  PL    60.052800      0.000     A        0            0
+
+[ moleculetype ]
+EGD 3
+
+[atoms]
+; nr type resnr residue atom cgnr charge mass
+1 MA 1 MON AI 1 0.000000 69.083399
+2 ML 1 MON LM 2 0.000000 60.052800
+3 MA 1 MON AJ 3 0.000000 69.083399
+
+
+[ bonds ]
+1 2
+2 3
+
+[ angles ]
+1 2 3
+
+[ dihedrals ]
+
+[ system ]
+; Name
+CG_monomer
+
+[ molecules ]
+; Compound        #mols
+EGD             2000

@@ -1,0 +1,10 @@
+#!/bin/bash -l
+#PBS -A lp_polymer_goa_project
+#PBS -l nodes=2:ppn=10
+#PBS -l walltime=24:00:00
+#PBS -N cpc01
+module load espressopp/chem
+module load chemlab/1.0
+cd $PBS_O_WORKDIR
+mpirun -np 20 mdrun_mpi -deffnm bere -v
+
