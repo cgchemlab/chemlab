@@ -575,7 +575,7 @@ def main():  #NOQA
         bcount += 1
 
     for (i, observe_triple), f in dynamic_ftls.items():
-        if observe_triple:
+        if False:
             print('DumpTopol: observe dynamic_angles_{}'.format(acount))
             dump_topol.observe_triple(f, 'dynamic_angles_{}'.format(acount))
         else:
@@ -584,7 +584,7 @@ def main():  #NOQA
         acount += 1
 
     for (i, observe_quadruple), f in dynamic_fqls.items():
-        if observe_quadruple:
+        if False:
             print('DumpTopol: observe dynamic_dihedrals_{}'.format(qcount))
             dump_topol.observe_quadruple(f, 'dynamic_dihedrals_{}'.format(qcount))
         else:
