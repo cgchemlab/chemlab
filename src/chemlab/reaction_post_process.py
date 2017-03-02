@@ -33,7 +33,7 @@ output_triplet = collections.namedtuple('Extension', ['ext', 'pp_type', 'ext_typ
 
 
 class PostProcessSetup(object):
-    def __init__(self, system, topol, topol_manager):
+    def __init__(self, system, topol, topol_manager, args):
         self.fix_distances = []
         self.system = system
         self.tm = topol_manager
@@ -43,6 +43,7 @@ class PostProcessSetup(object):
         self.observed_bondtypes = None
         self.cr_observs = {}
         self.use_thermal_group = False
+        self.simulation_args = args
 
     def setup_post_process(self, post_process_type):
         pp_type_to_cfg = {
@@ -331,7 +332,7 @@ class PostProcessSetup(object):
         delta_catalyst = float(cfg['delta_catalyst'])
         k_activate = float(cfg['k_activate'])
         k_deactivate = float(cfg['k_deactivate'])
-        stats_file = cfg.get('stats_file', 'atrp_stats.dat')
+        stats_file = cfg.get('stats_file', '{}_atrp_stats.dat'.format(self.simulation_args.output_prefix))
 
         atrp_activator = espressopp.integrator.ATRPActivator(
             self.system, interval, num_particles, ratio_activator, ratio_deactivator,
