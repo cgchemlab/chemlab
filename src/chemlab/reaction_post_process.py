@@ -332,7 +332,8 @@ class PostProcessSetup(object):
         delta_catalyst = float(cfg['delta_catalyst'])
         k_activate = float(cfg['k_activate'])
         k_deactivate = float(cfg['k_deactivate'])
-        stats_file = cfg.get('stats_file', '{}_atrp_stats.dat'.format(self.simulation_args.output_prefix))
+        stats_file = cfg.get('stats_file', '{}_{}_atrp_stats.dat'.format(
+            self.simulation_args.output_prefix, self.simulation_args.rng_seed))
 
         atrp_activator = espressopp.integrator.ATRPActivator(
             self.system, interval, num_particles, ratio_activator, ratio_deactivator,
