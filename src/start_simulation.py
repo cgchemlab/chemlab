@@ -104,6 +104,7 @@ def main():  #NOQA
     rng_seed = args.rng_seed
     if not args.rng_seed or args.rng_seed == -1:
         rng_seed = random.randint(10, 1000000)
+        args.rng_seed = rng_seed
 
     global_file_prefix = '{}_{}'.format(args.output_prefix, rng_seed)
 
