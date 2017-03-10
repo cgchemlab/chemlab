@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#  Copyright (C) 2016
+#  Copyright (C) 2016-2017
 #      Jakub Krajniak (jkrajniak at gmail.com)
 #
 #  This file is part of ChemLab.
@@ -69,6 +69,9 @@ def main():  #NOQA
             if len(name_filter) == 2:
                 log_filter = tools.RegexpFilter(name_filter[1])
                 logging.getLogger(name_filter[0].strip()).addFilter(log_filter)
+
+    if args.check_topology:
+        logging.getLogger('TopologyManager').setLevel(logging.WARN)
 
     lj_cutoff = args.lj_cutoff
     cg_cutoff = args.cg_cutoff
