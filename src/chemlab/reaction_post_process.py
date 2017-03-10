@@ -76,6 +76,10 @@ class PostProcessSetup(object):
                 new_type, options = opt_match.groups()
                 t1_new = self.name2type[new_type]
                 new_property_def = self.topol.gt.atomtypes[new_type]
+                if 'state' not in new_property_def:
+                    raise RuntimeError(
+                        ('Please define initial atom state in [ atomstate ]'
+                         'section of your topology for atom type {}'.format(new_type)))
                 new_properties_args = {
                     'type': t1_new,
                     'mass': new_property_def['mass'],
@@ -86,7 +90,6 @@ class PostProcessSetup(object):
                     additional_properties = {}
                     exec (options, {}, additional_properties)
                     new_properties_args.update(additional_properties)
-                print new_properties_args
                 new_property = espressopp.integrator.TopologyParticleProperties(**new_properties_args)
 
                 self.dynamic_types.add(t1_old)
