@@ -19,7 +19,7 @@
 # Defines hooks run in different part of the simulation toolbox.
 # This is really advance option, use it if you know what are you doing.
 # Every function will get in the paramters:
-#  - system, integrator, chemical_reaction extension, topology, args objects.
+#  - system, integrator, args objects.
 # It should return status at the end, True if success or False if failure.
 # on failure, the simulation will be stoped.
 
@@ -30,6 +30,7 @@ import collections
 import espressopp
 import random
 
+random.seed(None)
 
 def hook_init_reaction(system, integrator, ar, topol, args):
     name2type = topol.atomsym_atomtype
@@ -73,8 +74,10 @@ def hook_init_reaction(system, integrator, ar, topol, args):
                 new_property = topol.gt.atomtypes['PL']
                 p.type = name2type['PL']
                 p.mass = new_property['mass']
+                p.state = 2
                 system.storage.modifyParticle(pid, 'type', p.type)
                 system.storage.modifyParticle(pid, 'mass', p.mass)
+                system.storage.modifyParticle(pid, 'state', p.state)
             else:
                 print('Ignore {} with type {}'.format(pid, p.type))
     print ('Activated {} monomers'.format(number_to_activate))
@@ -85,11 +88,10 @@ def hook_init_reaction(system, integrator, ar, topol, args):
         for pid in res_id2pids[res_id]:
             p = system.storage.getParticle(pid)
             type_list.append(p.type)
+            if p.type == name2type['PL']:
+                assert p.state == 2
     print res_ids
     assert type_list.count(name2type['FA']) == number_to_activate
     assert type_list.count(name2type['PA']) == number_to_activate
     assert type_list.count(name2type['PL']) == number_to_activate
     return True
-
-def hook_at_step(system, integrator, ar, gt, args, step):
-    pass

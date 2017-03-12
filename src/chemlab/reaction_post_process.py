@@ -36,7 +36,7 @@ output_triplet = collections.namedtuple('Extension', ['ext', 'pp_type', 'ext_typ
 
 
 class PostProcessSetup(object):
-    def __init__(self, system, topol, topol_manager):
+    def __init__(self, system, topol, topol_manager, args):
         self.fix_distances = []
         self.system = system
         self.tm = topol_manager
@@ -46,6 +46,7 @@ class PostProcessSetup(object):
         self.observed_bondtypes = None
         self.cr_observs = {}
         self.use_thermal_group = False
+        self.simulation_args = args
 
     def setup_post_process(self, post_process_type):
         pp_type_to_cfg = {
@@ -77,14 +78,22 @@ class PostProcessSetup(object):
             if opt_match:
                 new_type, options = opt_match.groups()
                 t1_new = self.name2type[new_type]
+                new_property_def = self.topol.gt.atomtypes[new_type]
+                if 'state' not in new_property_def:
+                    raise RuntimeError(
+                        ('Please define initial atom state in [ atomstate ]'
+                         'section of your topology for atom type {}'.format(new_type)))
+                new_properties_args = {
+                    'type': t1_new,
+                    'mass': new_property_def['mass'],
+                    'q': new_property_def['charge'],
+                    'state': new_property_def['state']
+                }
                 if options:
-                    new_properties_args = {'type': t1_new}
-                    exec (options, {}, new_properties_args)
-                    new_property = espressopp.integrator.TopologyParticleProperties(**new_properties_args)
-                else:
-                    new_property_def = self.topol.gt.atomtypes[new_type]
-                    new_property = espressopp.integrator.TopologyParticleProperties(
-                        type=t1_new, mass=new_property_def['mass'], q=new_property_def['charge'])
+                    additional_properties = {}
+                    exec (options, {}, additional_properties)
+                    new_properties_args.update(additional_properties)
+                new_property = espressopp.integrator.TopologyParticleProperties(**new_properties_args)
 
                 self.dynamic_types.add(t1_old)
                 self.dynamic_types.add(t1_new)
@@ -346,7 +355,8 @@ class PostProcessSetup(object):
         delta_catalyst = float(cfg['delta_catalyst'])
         k_activate = float(cfg['k_activate'])
         k_deactivate = float(cfg['k_deactivate'])
-        stats_file = cfg.get('stats_file', 'atrp_stats.dat')
+        stats_file = cfg.get('stats_file', '{}_{}_atrp_stats.dat'.format(
+            self.simulation_args.output_prefix, self.simulation_args.rng_seed))
 
         atrp_activator = espressopp.integrator.ATRPActivator(
             self.system, interval, num_particles, ratio_activator, ratio_deactivator,

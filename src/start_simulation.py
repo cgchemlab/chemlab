@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#  Copyright (C) 2016
+#  Copyright (C) 2016-2017
 #      Jakub Krajniak (jkrajniak at gmail.com)
 #
 #  This file is part of ChemLab.
@@ -70,6 +70,9 @@ def main():  #NOQA
                 log_filter = tools.RegexpFilter(name_filter[1])
                 logging.getLogger(name_filter[0].strip()).addFilter(log_filter)
 
+    if args.check_topology:
+        logging.getLogger('TopologyManager').setLevel(logging.WARN)
+
     lj_cutoff = args.lj_cutoff
     cg_cutoff = args.cg_cutoff
     max_cutoff = max([lj_cutoff, cg_cutoff])
@@ -104,6 +107,7 @@ def main():  #NOQA
     rng_seed = args.rng_seed
     if not args.rng_seed or args.rng_seed == -1:
         rng_seed = random.randint(10, 1000000)
+        args.rng_seed = rng_seed
 
     global_file_prefix = '{}_{}'.format(args.output_prefix, rng_seed)
 
@@ -267,8 +271,20 @@ def main():  #NOQA
     if args.maximum_conversion:
         if cr_observs is None:
             cr_observs = {}
+        re_max_conversion = re.compile(r'(?P<type>\w+)\(?(?P<state>\d?)\)?:(?P<maxnum>\d+):(?P<tot>\d+)')
         for o in args.maximum_conversion.split(','):
-            type_symbol, max_number, tot_number = o.split(':')
+            vals = re_max_conversion.match(o)
+            if not vals:
+                raise RuntimeError('Problem with maximum conversion {}, not defined correctly'.format(o))
+            vals = vals.groupdict()
+            type_symbol = vals['type']
+            max_number = int(vals['maxnum'])
+            tot_number = int(vals['tot'])
+            if vals['state']:
+                type_state = int(vals['state'])
+            else:
+                type_state = None
+            type_id_symbol = gt.used_atomsym_atomtype[type_symbol]
             max_number = int(max_number)
             tot_number = int(tot_number)
             stop_value = float(max_number) / tot_number
@@ -279,14 +295,18 @@ def main():  #NOQA
                 for fpl_def in chem_fpls:
                     if (type_id_1, type_id_2) in fpl_def.type_list or (type_id_2, type_id_1) in fpl_def.type_list:
                         obs_fpl = espressopp.analysis.NFixedPairListEntries(system, fpl_def.fpl)
-                        maximum_conversion.append((obs_fpl, max_number))
+                        maximum_conversion.append((obs_fpl, max_number, None))
                         break
             else:   # Observe count of types
                 type_id_symbol = gt.used_atomsym_atomtype[type_symbol]
-                if (type_id_symbol, tot_number) not in cr_observs:
-                    cr_observs[(type_id_symbol, tot_number)] = espressopp.analysis.ChemicalConversion(
-                        system, type_id_symbol, tot_number)
-                maximum_conversion.append((cr_observs[(type_id_symbol, tot_number)], stop_value))
+                if (type_id_symbol, tot_number, type_state) not in cr_observs:
+                    if type_state is None:
+                        cr_observs[(type_id_symbol, tot_number, type_state)] = espressopp.analysis.ChemicalConversion(
+                            system, type_id_symbol, tot_number)
+                    else:
+                        cr_observs[(type_id_symbol, tot_number, type_state)] = espressopp.analysis.ChemicalConversionTypeState(
+                            system, type_id_symbol, type_state, tot_number)
+                    maximum_conversion.append((cr_observs[(type_id_symbol, tot_number, type_state)], stop_value))
         if args.eq_steps > 0:
             eq_run = int(args.eq_steps / sim_step)
 
@@ -316,9 +336,9 @@ def main():  #NOQA
         thermal_groups = map(gt.atomsym_atomtype.get, args.thermal_groups.split(','))
     elif args.table_groups:
         thermal_groups = map(gt.atomsym_atomtype.get, args.table_groups.split(','))
+        print('Thermal groups: {} ({})'.format(args.table_groups, thermal_groups))
     else:
         thermal_groups = []
-    print('Thermal groups: {} ({})'.format(args.table_groups, thermal_groups))
 
     # Add cap force
     if args.max_force > -1:
@@ -459,9 +479,13 @@ def main():  #NOQA
                     break
         system_analysis.add_observable(
             label, espressopp.analysis.PotentialEnergy(system, interaction), show_in_system_info)
-    for (cr_type, _), obs in cr_observs.items():
-        system_analysis.add_observable(
-            'cr_{}'.format(cr_type), obs)
+    for (cr_type, _, ts), obs in cr_observs.items():
+        if ts is None:
+            system_analysis.add_observable(
+                'cr_{}'.format(cr_type), obs)
+        else:
+            system_analysis.add_observable(
+                'cr_{}_{}'.format(cr_type, ts), obs)
     for fidx, f in enumerate(chem_fpls):
         system_analysis.add_observable(
             'count_{}'.format(fidx), espressopp.analysis.NFixedPairListEntries(system, f.fpl))
@@ -471,7 +495,7 @@ def main():  #NOQA
             system_analysis.add_observable(
                 'res_fpl_{}'.format(fpl_idx), espressopp.analysis.ResolutionFixedPairList(system, fpl.fpl))
 
-    #system_analysis.add_observable('Fmax', espressopp.analysis.MaxForce(system))
+    # system_analysis.add_observable('Fmax', espressopp.analysis.MaxForce(system))
 
     # This is a bit expensive
     if args.count_tuples:
@@ -959,6 +983,9 @@ def main():  #NOQA
             for ridx in sorted(sc.reaction_index):
                 outf.write('{} {}\n'.format(ridx, sc.reaction_index[ridx]))
         print('Saved reactioncounters: {}_reaction_counters'.format(global_file_prefix))
+
+        ar.save_intra_inter_counter('{}_intra_inter_counters'.format(global_file_prefix))
+        print('Saved intra/inter reactions counter: {}_intra_inter_counters'.format(global_file_prefix))
 
     total_time = time.time() - time0
 

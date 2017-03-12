@@ -54,7 +54,7 @@ class SetupReactions:
 
         self.exclusions_list = []  # For restrict reactions, the exclusion lists has to be extended.
 
-        self.post_process_setup = reaction_post_process.PostProcessSetup(system, topol, topol_manager)
+        self.post_process_setup = reaction_post_process.PostProcessSetup(system, topol, topol_manager, args)
         self.post_process_setup.dynamic_types = self.dynamic_types
         self.post_process_setup.observed_bondtypes = self.observed_bondtypes
         self.post_process_setup.cr_observs = self.cr_observs
