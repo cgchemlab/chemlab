@@ -617,7 +617,7 @@ def main():  #NOQA
                ' global value of the total energy divided by the number of created bonds.'))
 
     print('Reset total velocity')
-    total_velocity = espressopp.analysis.TotalVelocity(system)
+    total_velocity = espressopp.analysis.CMVelocity(system)
     total_velocity.reset()
 
     print('{:9}    {:8}'.format('Type name', 'type id'))
