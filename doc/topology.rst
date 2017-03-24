@@ -10,6 +10,15 @@ Harmonic bond
 
    U(r) = K(r-r0)^2
 
+FENE bond
+++++++++++++++++
+
+.. _eqFENE:
+
+.. math::
+
+   U(r) = -\frac{1}{2} K b^2 log \left( 1 - \frac{r^2}{b^2} \right)
+
 Harmonic angle
 ++++++++++++++
 
@@ -59,6 +68,7 @@ Topology file
 Name of interaction       func   params
 ========================  =====  =======
 Harmonic eq1_             1      K [1]_, r0
+FENE eqFENE_              7      K, r0
 Tabulated                 8      table index
 ========================  =====  =======
 

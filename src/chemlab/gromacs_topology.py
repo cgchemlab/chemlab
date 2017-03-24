@@ -776,16 +776,27 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
                 print('Convert {} to {}'.format(tab_name, espp_tab_name))
                 espressopp.tools.convert.gromacs.convertTable(tab_name, espp_tab_name)
             return {'itype': 1, 'filename': espp_tab_name}
+        elif func == 7:
+            try:
+                K = float(raw_data[1])
+                rMax = float(raw_data[0])
+                r0 = 0.0  # Following GROMACS convention.
+                return {'K': K, 'r0': r0, 'rMax': rMax}
+            except:
+                raise RuntimeError(
+                    'Wrong FENE definition, (expect r0 K rMax) found ({})'.format(raw_data))
         else:
             raise RuntimeError('Unknown func type {}'.format(func))
 
     func2interaction_dynamic = {
         1: (espressopp.interaction.FixedPairListTypesHarmonic, espressopp.interaction.Harmonic),
+        7: (espressopp.interaction.FixedPairListTypesFENE, espressopp.interaction.FENE),
         8: (espressopp.interaction.FixedPairListTypesTabulated, espressopp.interaction.Tabulated)
     }
 
     func2interaction_static = {
         1: (espressopp.interaction.FixedPairListHarmonic, espressopp.interaction.Harmonic),
+        7: (espressopp.interaction.FixedPairListFENE, espressopp.interaction.FENE),
         8: (espressopp.interaction.FixedPairListTabulated, espressopp.interaction.Tabulated)
     }
 
