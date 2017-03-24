@@ -809,14 +809,14 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
         if set(pt) - dynamic_type_ids == set(pt) and tuple(pt) not in change_bond_types:
             continue
         params = p['params']
-        if tuple(params) not in set(dynamic_ptypes.values()):
-            dynamic_ptypes[tuple(sorted(pt))] = tuple(params)
-            bondparams_func[p['func']].append((pt, p))
-            if p['func'] not in dynamics_bonds_by_func:
-                dynamics_bonds_by_func[p['func']] = []
-        else:
-            dynamic_ptypes = {k: v for k, v in dynamic_ptypes.items() if v != tuple(params)}
-            bondparams_func[p['func']] = [x for x in bondparams_func[p['func']][:] if x != (pt, p)]
+        #if tuple(params) not in set(dynamic_ptypes.values()):
+        dynamic_ptypes[tuple(sorted(pt))] = tuple(params)
+        bondparams_func[p['func']].append((pt, p))
+        if p['func'] not in dynamics_bonds_by_func:
+            dynamics_bonds_by_func[p['func']] = []
+        #else:
+        #    dynamic_ptypes = {k: v for k, v in dynamic_ptypes.items() if v != tuple(params)}
+        #    bondparams_func[p['func']] = [x for x in bondparams_func[p['func']][:] if x != (pt, p)]
 
     # Sort existing bond lists by functional type and select if it is dynamic bond or static.
     bonds_by_func = collections.defaultdict(dict)

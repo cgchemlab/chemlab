@@ -77,6 +77,8 @@ def main():  #NOQA
     cg_cutoff = args.cg_cutoff
     max_cutoff = max([lj_cutoff, cg_cutoff])
     dt = args.dt
+    print('LJ cutoff: {} Tabulated cutoff: {} time-step: {}'.format(
+        lj_cutoff, cg_cutoff, dt))
 
     time0 = time.time()
 
