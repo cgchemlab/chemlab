@@ -854,6 +854,7 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
         observe_list = False
         for t, params in bondparams_func[func]:
             observe_list = observe_list or (t in change_bond_types)
+            print('Bond {}-{} params: {}'.format(t[0], t[1], convert_params(func, params['params'])))
             interaction.setPotential(
                 type1=t[0], type2=t[1],
                 potential=potential_class(**convert_params(func, params['params'])))
@@ -989,6 +990,10 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, name='dihedrals'):
                 print('Convert {} to {}'.format(tab_name, espp_tab_name))
                 espressopp.tools.convert.gromacs.convertTable(tab_name, espp_tab_name)
             return {'itype': 1, 'filename': espp_tab_name}
+        elif func == 12:
+            phi0 = float(raw_data[0])*2*math.pi/360.0
+            K = float(raw_data[1])
+            return {'K': K, 'phi0': phi0}
         else:
             raise RuntimeError('Unknown func type')
 
@@ -997,8 +1002,8 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, name='dihedrals'):
             espressopp.interaction.DihedralHarmonicNCos),
         3: (espressopp.interaction.FixedQuadrupleListTypesDihedralRB,
             espressopp.interaction.DihedralRB),
-        8: (espressopp.interaction.FixedQuadrupleListTypesTabulatedDihedral,
-            espressopp.interaction.TabulatedDihedral)
+        8: (espressopp.interaction.FixedQuadrupleListTypesTabulatedDihedral, espressopp.interaction.TabulatedDihedral),
+        12: (espressopp.interaction.FixedQuadrupleListTypesDihedralHarmonic, espressopp.interaction.DihedralHarmonic)
     }
 
     func2interaction_static = {
@@ -1007,7 +1012,9 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, name='dihedrals'):
         3: (espressopp.interaction.FixedQuadrupleListDihedralRB,
             espressopp.interaction.DihedralRB),
         8: (espressopp.interaction.FixedQuadrupleListTabulatedDihedral,
-            espressopp.interaction.TabulatedDihedral)
+            espressopp.interaction.TabulatedDihedral),
+        12: (espressopp.interaction.FixedQuadrupleListDihedralHarmonic,
+            espressopp.interaction.DihedralHarmonic)
     }
 
     # Sort existing dihedral lists by functional type.
