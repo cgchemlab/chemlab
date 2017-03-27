@@ -271,7 +271,7 @@ def main():  #NOQA
     if args.maximum_conversion:
         if cr_observs is None:
             cr_observs = {}
-        re_max_conversion = re.compile(r'(?P<type>\w+)\(?(?P<state>\d?)\)?:(?P<maxnum>\d+):(?P<tot>\d+)')
+        re_max_conversion = re.compile(r'(?P<type>[A-Za-z0-9-]+)\(?(?P<state>\d?)\)?:(?P<maxnum>\d+):(?P<tot>\d+)')
         for o in args.maximum_conversion.split(','):
             vals = re_max_conversion.match(o)
             if not vals:
@@ -284,7 +284,6 @@ def main():  #NOQA
                 type_state = int(vals['state'])
             else:
                 type_state = None
-            type_id_symbol = gt.used_atomsym_atomtype[type_symbol]
             max_number = int(max_number)
             tot_number = int(tot_number)
             stop_value = float(max_number) / tot_number
@@ -663,7 +662,7 @@ def main():  #NOQA
                ' global value of the total energy divided by the number of created bonds.'))
 
     print('Reset total velocity')
-    total_velocity = espressopp.analysis.TotalVelocity(system)
+    total_velocity = espressopp.analysis.CMVelocity(system)
     total_velocity.reset()
 
     print('{:9}    {:8}'.format('Type name', 'type id'))
