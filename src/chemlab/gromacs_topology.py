@@ -841,16 +841,27 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
                 print('Convert {} to {}'.format(tab_name, espp_tab_name))
                 espressopp.tools.convert.gromacs.convertTable(tab_name, espp_tab_name)
             return {'itype': 1, 'filename': espp_tab_name}
+        elif func == 7:
+            try:
+                K = float(raw_data[1])
+                rMax = float(raw_data[0])
+                r0 = 0.0  # Following GROMACS convention.
+                return {'K': K, 'r0': r0, 'rMax': rMax}
+            except:
+                raise RuntimeError(
+                    'Wrong FENE definition, (expect r0 K rMax) found ({})'.format(raw_data))
         else:
             raise RuntimeError('Unknown func type {}'.format(func))
 
     func2interaction_dynamic = {
         1: (espressopp.interaction.FixedPairListTypesHarmonic, espressopp.interaction.Harmonic),
+        7: (espressopp.interaction.FixedPairListTypesFENE, espressopp.interaction.FENE),
         8: (espressopp.interaction.FixedPairListTypesTabulated, espressopp.interaction.Tabulated)
     }
 
     func2interaction_static = {
         1: (espressopp.interaction.FixedPairListHarmonic, espressopp.interaction.Harmonic),
+        7: (espressopp.interaction.FixedPairListFENE, espressopp.interaction.FENE),
         8: (espressopp.interaction.FixedPairListTabulated, espressopp.interaction.Tabulated)
     }
 
@@ -908,6 +919,7 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
         observe_list = False
         for t, params in bondparams_func[func]:
             observe_list = observe_list or (t in change_bond_types)
+            print('Bond {}-{} params: {}'.format(t[0], t[1], convert_params(func, params['params'])))
             interaction.setPotential(
                 type1=t[0], type2=t[1],
                 potential=potential_class(**convert_params(func, params['params'])))
@@ -1064,6 +1076,10 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, change_dihedral_type
                 print('Convert {} to {}'.format(tab_name, espp_tab_name))
                 espressopp.tools.convert.gromacs.convertTable(tab_name, espp_tab_name)
             return {'itype': 1, 'filename': espp_tab_name}
+        elif func == 12:
+            phi0 = float(raw_data[0])*2*math.pi/360.0
+            K = float(raw_data[1])
+            return {'K': K, 'phi0': phi0}
         else:
             raise RuntimeError('Unknown func type')
 
@@ -1072,8 +1088,8 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, change_dihedral_type
             espressopp.interaction.DihedralHarmonicNCos),
         3: (espressopp.interaction.FixedQuadrupleListTypesDihedralRB,
             espressopp.interaction.DihedralRB),
-        8: (espressopp.interaction.FixedQuadrupleListTypesTabulatedDihedral,
-            espressopp.interaction.TabulatedDihedral)
+        8: (espressopp.interaction.FixedQuadrupleListTypesTabulatedDihedral, espressopp.interaction.TabulatedDihedral),
+        12: (espressopp.interaction.FixedQuadrupleListTypesDihedralHarmonic, espressopp.interaction.DihedralHarmonic)
     }
 
     func2interaction_static = {
@@ -1082,7 +1098,9 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, change_dihedral_type
         3: (espressopp.interaction.FixedQuadrupleListDihedralRB,
             espressopp.interaction.DihedralRB),
         8: (espressopp.interaction.FixedQuadrupleListTabulatedDihedral,
-            espressopp.interaction.TabulatedDihedral)
+            espressopp.interaction.TabulatedDihedral),
+        12: (espressopp.interaction.FixedQuadrupleListDihedralHarmonic,
+            espressopp.interaction.DihedralHarmonic)
     }
 
     dynamics_dihedrals_by_func = collections.defaultdict(list)
