@@ -9,10 +9,10 @@ Welcome to ChemLab's documentation!
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
+   commandlines
    topology
-
 
 
 Indices and tables

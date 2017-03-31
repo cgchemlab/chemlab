@@ -30,7 +30,7 @@ import os
 # ones.
 extensions = [
     'sphinx.ext.mathjax',
-    'sphinx.ext.viewcode',
+    'sphinxarg.ext'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
