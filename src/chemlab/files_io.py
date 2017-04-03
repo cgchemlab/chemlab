@@ -925,7 +925,11 @@ class GROMACSTopologyFile(TopologyFile):
         return []
 
     def _write_moleculetype(self):
-        return ['{name} {nrexcl}'.format(**self.moleculetype)]
+        return_data = []
+        for mol_name, nrexcl in self.moleculetype.items():
+            return_data.append('{} {}'.format(mol_name, nrexcl))
+
+        return return_data
 
     def _write_system(self):
         return [self.system_name]

@@ -1,0 +1,208 @@
+Using kB=0.0083144621 and mass-factor=1.6605402
+topol.top: Reading section defaults
+topol.top: Reading section atomstate
+topol.top: Reading section bondtypes
+topol.top: Reading section angletypes
+topol.top: Reading section dihedraltypes
+topol.top: Reading section nonbond_params
+topol.top: Reading section atomtypes
+topol.top: Reading section moleculetype
+Reading molecule EGD, nrexcl=3
+topol.top: Reading section atoms
+topol.top: Reading section bonds
+topol.top: Reading section angles
+topol.top: Reading section dihedrals
+topol.top: Reading section system
+topol.top: Reading section molecules
+EGD - 2000 molecules
+Reading master topology file...
+topol.top: Reading section atomtypes
+topol.top: Reading section moleculetype
+Reading molecule EGD, nrexcl=3
+topol.top: Reading section atoms
+topol.top: Reading section bonds
+topol.top: Reading section angles
+topol.top: Reading section dihedrals
+topol.top: Reading section system
+topol.top: Reading section molecules
+EGD - 2000 molecules
+Preparing topology data for simulation...
+Building EGD with 2000 molecules
+Replicate bonded lists: EGD
+Building exclusion list for: EGD
+Setup simulation...
+Skin: 0.1
+RNG Seed: 3036
+Boltzmann constant: 0.0083144621
+Reads 6000 particles with properties ['id', 'type', 'pos', 'mass', 'q', 'res_id', 'state', 'lambda_adr']
+Density: 273.445308845 kg/m^3
+Box: [ 13.40248  13.40248  13.40248] nm
+Generating velocities from Maxwell-Boltzmann distribution T=343.0 (2.8518605003)
+Number of nodes 1, node-grid: (1, 1, 1)
+Cell grid: (6, 6, 6)
+Excluded pairs from LJ interaction: 6000
+Bonds: 4000
+Angles: 2000
+Dihedrals: 0
+Decomposing now ...
+Set topology manager
+Set chemical reactions from: atrp.cfg
+Reaction_type: normal
+Reaction_type: normal
+Reaction_type: normal
+Reaction_type: normal
+Setting reaction group reaction_1
+Setting potential for bond with class Tabulated, options {'itype': '2', 'filename': 'table_b7.pot'}
+Settings ATRP activator extension
+ATRPActivator.interval=200 num_part=1000
+ATRPActivator: added DA(2,A)->DA(1) state=2 is_activator=False delta_state=1
+ATRPActivator: added DA(3,DA)->DA(-1) state=3 is_activator=True delta_state=-1
+ATRPActivator: added FA(2,A)->FA(1) state=2 is_activator=False delta_state=1
+ATRPActivator: added FA(3,DA)->FA(-1) state=3 is_activator=True delta_state=-1
+Change property MA->PA nb=2
+Change property ML->PL nb=1
+Setting chemical reactions in group
+Setup reaction: FA(3)-MA(0)
+Warning, tag intramolecular not used anymore!
+Reaction: FA-MA, change type 0->2
+Setup reaction: DA(2)-MA(0)
+Warning, tag intramolecular not used anymore!
+Reaction: DA-MA, change type 2->5
+Reaction: DA-MA, change type 0->2
+Setup reaction: FA(3)-PA(4)
+Warning, tag intramolecular not used anymore!
+Reaction: FA-PA, change type 4->2
+Setup reaction: DA(2)-PA(4)
+Warning, tag intramolecular not used anymore!
+Reaction: DA-PA, change type 2->5
+Reaction: DA-PA, change type 4->2
+Save copy of reaction config to: cpc01_3036_atrp.cfg
+Change integrator step to 200
+Change topology collect interval to 200
+Dynamic type ids: set([0, 1, 2, 3, 4, 5, 6])
+Settings up LJ interactions
+Number of non-bonded type pairs: 28
+Using defined non-bonded cross params 8 ['table_ML_FA.xvg']
+Set tab potential FA-ML: table_ML_FA.xvg
+Using defined non-bonded cross params 8 ['table_DA_PL.xvg']
+Set tab potential DA-PL: table_DA_PL.xvg
+Using defined non-bonded cross params 8 ['table_ML_DA.xvg']
+Set tab potential DA-ML: table_ML_DA.xvg
+Using defined non-bonded cross params 8 ['table_PA_PA.xvg']
+Set tab potential PA-PA: table_PA_PA.xvg
+Using defined non-bonded cross params 8 ['table_PA_FA.xvg']
+Set tab potential FA-PA: table_PA_FA.xvg
+Using defined non-bonded cross params 10 ['table_PA_PA.xvg', 'table_MA_MA.xvg', 'PL', '2000']
+Using defined non-bonded cross params 10 ['table_PL_PL.xvg', 'table_MA_MA.xvg', 'PL', '2000']
+Using defined non-bonded cross params 8 ['table_PL_PL.xvg']
+Set tab potential PL-PL: table_PL_PL.xvg
+Using defined non-bonded cross params 8 ['table_DA_DA.xvg']
+Set tab potential DA-DA: table_DA_DA.xvg
+Using defined non-bonded cross params 8 ['table_PA_RA.xvg']
+Set tab potential PA-RA: table_PA_RA.xvg
+Using defined non-bonded cross params 8 ['table_DA_RA.xvg']
+Set tab potential DA-RA: table_DA_RA.xvg
+Using defined non-bonded cross params 8 ['table_FA_PL.xvg']
+Set tab potential FA-PL: table_FA_PL.xvg
+Using defined non-bonded cross params 8 ['table_FA_RA.xvg']
+Set tab potential FA-RA: table_FA_RA.xvg
+Using defined non-bonded cross params 8 ['table_MA_DA.xvg']
+Set tab potential DA-MA: table_MA_DA.xvg
+Using defined non-bonded cross params 8 ['table_RA_RA.xvg']
+Set tab potential RA-RA: table_RA_RA.xvg
+Using defined non-bonded cross params 8 ['table_FA_DA.xvg']
+Set tab potential DA-FA: table_FA_DA.xvg
+Using defined non-bonded cross params 8 ['table_MA_ML.xvg']
+Set tab potential MA-ML: table_MA_ML.xvg
+Using defined non-bonded cross params 8 ['table_RA_PL.xvg']
+Set tab potential PL-RA: table_RA_PL.xvg
+Using defined non-bonded cross params 8 ['table_ML_RA.xvg']
+Set tab potential ML-RA: table_ML_RA.xvg
+Using defined non-bonded cross params 8 ['table_MA_MA.xvg']
+Set tab potential MA-MA: table_MA_MA.xvg
+Using defined non-bonded cross params 8 ['table_ML_ML.xvg']
+Set tab potential ML-ML: table_ML_ML.xvg
+Using defined non-bonded cross params 8 ['table_PA_PL.xvg']
+Set tab potential PA-PL: table_PA_PL.xvg
+Using defined non-bonded cross params 8 ['table_MA_RA.xvg']
+Set tab potential MA-RA: table_MA_RA.xvg
+Using defined non-bonded cross params 8 ['table_PA_DA.xvg']
+Set tab potential DA-PA: table_PA_DA.xvg
+Using defined non-bonded cross params 8 ['table_FA_FA.xvg']
+Set tab potential FA-FA: table_FA_FA.xvg
+Using defined non-bonded cross params 8 ['table_MA_FA.xvg']
+Set tab potential FA-MA: table_MA_FA.xvg
+Set mixed tabulated potential 1-6 with conversion observable
+Set mixed tabulated potential 0-4 with conversion observable
+Adding lj-tab interaction
+Set up bond interactions
+(3, 4, 6) {'params': ['10', '1.0'], 'func': 8}
+(2, 5, 3) {'params': ['15', '1.0'], 'func': 8}
+(5, 5, 6) {'params': ['12', '1.0'], 'func': 8}
+(2, 6, 2) {'params': ['6', '1.0'], 'func': 8}
+(3, 6, 5) {'params': ['2', '1.0'], 'func': 8}
+(2, 3, 6) {'params': ['8', '1.0'], 'func': 8}
+(2, 5, 5) {'params': ['18', '1.0'], 'func': 8}
+(3, 6, 4) {'params': ['3', '1.0'], 'func': 8}
+(4, 6, 5) {'params': ['1', '1.0'], 'func': 8}
+(3, 2, 6) {'params': ['9', '1.0'], 'func': 8}
+(5, 2, 6) {'params': ['13', '1.0'], 'func': 8}
+(5, 5, 5) {'params': ['17', '1.0'], 'func': 8}
+(3, 6, 3) {'params': ['5', '1.0'], 'func': 8}
+(2, 5, 6) {'params': ['14', '1.0'], 'func': 8}
+(2, 6, 4) {'params': ['4', '1.0'], 'func': 8}
+(0, 1, 0) {'params': ['0', '1.0'], 'func': 8}
+(3, 5, 5) {'params': ['16', '1.0'], 'func': 8}
+(2, 6, 3) {'params': ['7', '1.0'], 'func': 8}
+(5, 3, 6) {'params': ['11', '1.0'], 'func': 8}
+Set up angle interactions
+Set up dihedral interactions
+Temperature: 343.0 (2.8518605003), gamma: 1.0
+Thermostat: lv
+Set Dynamic Exclusion lists.
+Set dynamic topology
+Register angles for type: (3, 4, 6)
+Register angles for type: (2, 5, 3)
+Register angles for type: (5, 5, 6)
+Register angles for type: (2, 6, 2)
+Register angles for type: (3, 6, 5)
+Register angles for type: (2, 3, 6)
+Register angles for type: (2, 5, 5)
+Register angles for type: (3, 6, 4)
+Register angles for type: (4, 6, 5)
+Register angles for type: (3, 2, 6)
+Register angles for type: (5, 2, 6)
+Register angles for type: (5, 5, 5)
+Register angles for type: (3, 6, 3)
+Register angles for type: (2, 5, 6)
+Register angles for type: (2, 6, 4)
+Register angles for type: (0, 1, 0)
+Register angles for type: (3, 5, 5)
+Register angles for type: (2, 6, 3)
+Register angles for type: (5, 3, 6)
+Energy saved to: cpc01_energy_3036.csv
+System analysis: adding dyn_angles_0
+System analysis: adding dyn_bonds_0
+System analysis: adding fpl_reaction_1
+System analysis: adding lj-mix_tab
+System analysis: adding lj-tab
+Configured system analysis, collect data every 200 steps
+Configure H5MD trajectory writer
+Set topology writer
+DumpTopol: observe bonds_8
+Collect topology every 200 steps
+Collect trajectory every 200 steps
+Collect energy data everey 200 steps
+Enable chemical reactions at 0 step
+Reset total velocity
+Type name    type id 
+MA                  0
+ML                  1
+DA                  2
+FA                  3
+PA                  4
+RA                  5
+PL                  6
+Running 20001000 steps
+Temperature: 2.8518605003 (343.0 K)
+Number of particles: 6000.0

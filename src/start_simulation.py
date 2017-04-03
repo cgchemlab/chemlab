@@ -77,6 +77,8 @@ def main():  #NOQA
     cg_cutoff = args.cg_cutoff
     max_cutoff = max([lj_cutoff, cg_cutoff])
     dt = args.dt
+    print('LJ cutoff: {} Tabulated cutoff: {} time-step: {}'.format(
+        lj_cutoff, cg_cutoff, dt))
 
     time0 = time.time()
 
@@ -711,7 +713,7 @@ def main():  #NOQA
             reactions_enabled = True
             # Saves coordinate output file.
             output_gro_file = '{}_{}_before_reaction_confout.gro'.format(args.output_prefix, args.rng_seed)
-            input_conf.update_position(system)
+            input_conf.update_position(system, unfolded=True)
             input_conf.write(output_gro_file, force=True)
             print('Save configuration before start of the reaction, filename: {}'.format(output_gro_file))
             if sc.exclusions_list:

@@ -10,6 +10,15 @@ Harmonic bond
 
    U(r) = K(r-r0)^2
 
+FENE bond
+++++++++++++++++
+
+.. _eqFENE:
+
+.. math::
+
+   U(r) = -\frac{1}{2} K b^2 log \left( 1 - \frac{r^2}{b^2} \right)
+
 Harmonic angle
 ++++++++++++++
 
@@ -49,6 +58,16 @@ Ryckaert Bellemans dihedral
    U(\phi) = \sum^{5}_{n=0} K_n cos^n(\phi)
 
 
+Dihedral Harmonic
+++++++++++++++++++++++++++++
+
+.. _eq7:
+
+.. math::
+   
+   U(\phi) = \frac{1}{2} K (\phi - \phi_0)^2
+
+
 Topology file
 -------------
 
@@ -58,7 +77,8 @@ Topology file
 ========================  =====  =======
 Name of interaction       func   params
 ========================  =====  =======
-Harmonic eq1_             1      K [1]_, r0
+Harmonic eq1_             1      r0, K [1]_
+FENE eqFENE_              7      r0, K
 Tabulated                 8      table index
 ========================  =====  =======
 
@@ -70,9 +90,9 @@ Tabulated                 8      table index
 ========================  =====  =======
 Name of interaction       func   params
 ========================  =====  =======
-Harmonic eq2_             1      K [2]_, theta0 (deg)
+Harmonic eq2_             1      theta0 (deg), K [2]_
 Tabulated                 8      table index
-Cosine   eq3_             11     K [2]_, theta0 (deg)
+Cosine   eq3_             11     theta0 (deg), K [2]_
 ========================  =====  =======
 
 .. [2] Force constant internally divided by 2.0
@@ -83,9 +103,10 @@ Cosine   eq3_             11     K [2]_, theta0 (deg)
 ========================  =====  =======
 Name of interaction       func   params
 ========================  =====  =======
-HarmonicNCos  eq4_        1      K, phi0 (deg), multiplicity
+HarmonicNCos  eq4_        1      phi0 (deg), K, multiplicity
 Ryckaert Bellemans  eq5_  3      K0, K1, K2, K3, K4, K5
 Tabulated                 8      table index
+Harmonic  eq7_            12     phi0 (deg), K
 ========================  =====  =======
 
 
