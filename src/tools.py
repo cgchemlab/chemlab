@@ -105,6 +105,10 @@ def _args():
                                  help='Name of output trajectory file')
     general_options.add_argument('--trj_collect', default=1000, type=int,
                                  help='Collect trajectory every (step)')
+    general_options.add_argument('--trj_flush', default=None, type=int,
+                                 help='Flush trajectory to storage')
+    general_options.add_argument('--gro_trj_collect', default=None, type=int,
+                                 help='Save trajectory in .gro file')
     general_options.add_argument('--energy_collect', default=1000, type=int,
                                  help='Collect energy every (step)')
     general_options.add_argument('--topol_collect', default=1000, type=int,
@@ -195,6 +199,8 @@ def _args():
                                       help='Compute and store pressure')
     args_storing_options.add_argument('--store_single_precision', default=True, type=ast.literal_eval,
                                       help='Write data in single precision format')
+    args_storing_options.add_argument('--store_angdih', default=False, type=ast.literal_eval,
+                                      help='Store angles, dihedrals')
 
     maximum_conversion_options = parser.add_argument_group('Maximum conversion')
     maximum_conversion_options.add_argument('--maximum_conversion',

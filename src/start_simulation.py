@@ -528,7 +528,7 @@ def main():  #NOQA
                 'qcount_{}'.format(bcount), espressopp.analysis.NFixedQuadrupleListEntries(system, fql))
             bcount += 1
         # Add counter on the exclude list pairs
-        system_analysis.add_observable('vl_excl', espressopp.analysis.NExcludeListEntries(system, verletlist))
+        #system_analysis.add_observable('vl_excl', espressopp.analysis.NExcludeListEntries(system, verletlist))
 
         # Observe ParticlePairsScale
         for pps_idx, pps in enumerate(particle_pair_scales, 1):
@@ -591,7 +591,7 @@ def main():  #NOQA
 
     bcount = acount = qcount = 0
     for (i, observe_tuple), f in dynamic_fpls.items():
-        if observe_tuple:
+        if observe_tuple and args.store_angdih:
             print('DumpTopol: observe dynamic_bonds_{}'.format(bcount))
             dump_topol.observe_tuple(f, 'dynamic_bonds_{}'.format(bcount))
         else:
@@ -600,7 +600,7 @@ def main():  #NOQA
         bcount += 1
 
     for (i, observe_triple), f in dynamic_ftls.items():
-        if False:
+        if observe_triple and args.store_angdih:
             print('DumpTopol: observe dynamic_angles_{}'.format(acount))
             dump_topol.observe_triple(f, 'dynamic_angles_{}'.format(acount))
         else:
@@ -609,7 +609,7 @@ def main():  #NOQA
         acount += 1
 
     for (i, observe_quadruple), f in dynamic_fqls.items():
-        if False:
+        if observe_quadruple and args.store_angdih:
             print('DumpTopol: observe dynamic_dihedrals_{}'.format(qcount))
             dump_topol.observe_quadruple(f, 'dynamic_dihedrals_{}'.format(qcount))
         else:
@@ -641,7 +641,10 @@ def main():  #NOQA
 
     trj_collect = min([args.trj_collect, cr_interval]) if cr_interval > 0 else args.trj_collect
     k_trj_collect = int(math.ceil(trj_collect/float(integrator_step)))
-    k_trj_flush = 25 if 25 < 10*k_trj_collect else 10*k_trj_collect
+    if args.trj_flush is None:
+        k_trj_flush = 25 if 25 < 10*k_trj_collect else 10*k_trj_collect
+    else:
+        k_trj_flush = int(math.ceil(args.trj_flush/float(integrator_step)))
     print('Collect trajectory every {} steps'.format(trj_collect))
     print('Collect energy data everey {} steps'.format(cr_interval))
     print('Flush trajectory and topology to disk every {} steps'.format(k_trj_flush*integrator_step))
@@ -666,6 +669,19 @@ def main():  #NOQA
     print('Reset total velocity')
     total_velocity = espressopp.analysis.CMVelocity(system)
     total_velocity.reset()
+
+    if args.gro_trj_collect:
+        dump_gro_trj_fname = '{}_{}_confout.gro'.format(args.output_prefix, rng_seed)
+        dump_gro_trj = espressopp.io.DumpGRO(
+            system,
+            integrator,
+            filename=dump_gro_trj_fname,
+            append=True)
+        ext_dump_gro = espressopp.integrator.ExtAnalyze(dump_gro_trj, args.gro_trj_collect)
+        integrator.addExtension(ext_dump_gro)
+        print('Set gro trajectory saver, save every {} steps'.format(args.gro_trj_collect))
+        print('Warning, this will slow down simulation.')
+        print('File save {}'.format(dump_gro_trj_fname))
 
     print('{:9}    {:8}'.format('Type name', 'type id'))
     for at_sym, type_id in sorted(gt.atomsym_atomtype.items(), key=lambda x: x[1]):
@@ -701,7 +717,7 @@ def main():  #NOQA
         system_analysis.info()
         if k_trj_collect > 0 and k % k_trj_collect == 0:
             traj_file.dump(k * integrator_step, k * integrator_step * args.dt)
-        if k_trj_flush > 0 and k % k_trj_flush == 0:
+        if k_trj_flush > 0 and k % k_trj_flush == 0 and k > 0:
             dump_topol.update()
             traj_file.flush()  # Write HDF5 to disk.
         if k_enable_reactions == k:
