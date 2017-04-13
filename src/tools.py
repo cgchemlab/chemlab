@@ -136,6 +136,8 @@ def _args():
     general_options.add_argument('--benchmark_data', default=None, help='Store time measurement in the file')
     general_options.add_argument('--system_monitor_filter', default=None,
                                  help='Print all (empty) or only selected elements in SystemMonitor')
+    general_options.add_argument('--gen_velocity', default=True, type=ast.literal_eval,
+                                 help='Generate velocity?')
 
     args_simulation_options = parser.add_argument_group('Simulation parameters')
     args_simulation_options.add_argument('--kb', type=float, default=0.0083144621,
@@ -149,8 +151,10 @@ def _args():
                                          default=random.randint(1000, 10000))
     args_simulation_options.add_argument('--thermostat',
                                          default='lv',
-                                         choices=('lv', 'vr', 'iso'),
-                                         help='Thermostat to use, lv: Langevine, vr: Stochastic velocity rescale')
+                                         choices=('lv', 'vr', 'iso', 'no'),
+                                         help=('Thermostat to use, '
+                                               'lv: Langevine, vr: Stochastic velocity rescale '
+                                               'no: no thermostat'))
     args_simulation_options.add_argument('--barostat', default='lv', choices=('lv', 'br'),
                                          help='Barostat to use, lv: Langevine, br: Berendsen')
     args_simulation_options.add_argument('--barostat_tau', default=5.0, type=float,

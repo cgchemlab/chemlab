@@ -131,16 +131,17 @@ def main():  #NOQA
     if args.temperature is None:
         raise RuntimeError('Temperature not defined!')
     temperature = args.temperature * kb
-    print('Generating velocities from Maxwell-Boltzmann distribution T={} ({})'.format(
-        args.temperature, args.temperature * kb))
-    vx, vy, vz = espressopp.tools.velocities.gaussian(
-        args.temperature,
-        len(particle_list),
-        [x[3] * mass_factor for x in particle_list],
-        kb=kb)
-    part_prop.append('v')
-    for i, p in enumerate(particle_list):
-        p.append(espressopp.Real3D(vx[i], vy[i], vz[i]))
+    if args.gen_velocity:
+        print('Generating velocities from Maxwell-Boltzmann distribution T={} ({})'.format(
+            args.temperature, args.temperature * kb))
+        vx, vy, vz = espressopp.tools.velocities.gaussian(
+            args.temperature,
+            len(particle_list),
+            [x[3] * mass_factor for x in particle_list],
+            kb=kb)
+        part_prop.append('v')
+        for i, p in enumerate(particle_list):
+            p.append(espressopp.Real3D(vx[i], vy[i], vz[i]))
 
     system = espressopp.System()
     system.rng = espressopp.esutil.RNG(rng_seed)
@@ -296,7 +297,7 @@ def main():  #NOQA
                 for fpl_def in chem_fpls:
                     if (type_id_1, type_id_2) in fpl_def.type_list or (type_id_2, type_id_1) in fpl_def.type_list:
                         obs_fpl = espressopp.analysis.NFixedPairListEntries(system, fpl_def.fpl)
-                        maximum_conversion.append((obs_fpl, max_number, None))
+                        maximum_conversion.append((obs_fpl, max_number))
                         break
             else:   # Observe count of types
                 type_id_symbol = gt.used_atomsym_atomtype[type_symbol]
@@ -350,6 +351,7 @@ def main():  #NOQA
     # Define the thermostat
     print('Temperature: {} ({}), gamma: {}'.format(args.temperature, temperature, args.thermostat_gamma))
     print('Thermostat: {}'.format(args.thermostat))
+    thermostat = None
     if args.thermostat == 'lv':
         thermostat = espressopp.integrator.LangevinThermostat(system)
         thermostat.temperature = temperature
@@ -365,9 +367,12 @@ def main():  #NOQA
         thermostat = espressopp.integrator.Isokinetic(system)
         thermostat.temperature = temperature
         thermostat.coupling = int(args.thermostat_gamma)
+    elif args.thermostat == 'no':
+        print('No thermostat selected, runing NVE simulation?')
     else:
         raise Exception('Wrong thermostat keyword: `{}`'.format(args.thermostat))
-    integrator.addExtension(thermostat)
+    if thermostat is not None:
+        integrator.addExtension(thermostat)
 
     # Pressure coupling if needed,
     pressure_comp = espressopp.analysis.Pressure(system)
@@ -671,17 +676,18 @@ def main():  #NOQA
     total_velocity.reset()
 
     if args.gro_trj_collect:
-        dump_gro_trj_fname = '{}_{}_confout.gro'.format(args.output_prefix, rng_seed)
+        dump_gro_trj_fname = '{}_{}_traj.gro'.format(args.output_prefix, rng_seed)
         dump_gro_trj = espressopp.io.DumpGRO(
             system,
             integrator,
             filename=dump_gro_trj_fname,
+            unfolded=True,
             append=True)
         ext_dump_gro = espressopp.integrator.ExtAnalyze(dump_gro_trj, args.gro_trj_collect)
         integrator.addExtension(ext_dump_gro)
         print('Set gro trajectory saver, save every {} steps'.format(args.gro_trj_collect))
         print('Warning, this will slow down simulation.')
-        print('File save {}'.format(dump_gro_trj_fname))
+        print('File saved to {}'.format(dump_gro_trj_fname))
 
     print('{:9}    {:8}'.format('Type name', 'type id'))
     for at_sym, type_id in sorted(gt.atomsym_atomtype.items(), key=lambda x: x[1]):
@@ -823,7 +829,7 @@ def main():  #NOQA
     out_topol.atomstate = gt.topol.atomstate
     out_topol.defaults = gt.topol.defaults
     out_topol.system_name = gt.topol.system_name
-    out_topol.moleculetype = {'name': 'MOL', 'nrexcl': 3}
+    out_topol.moleculetype = {'MOL': 3}
     out_topol.molecules = [('MOL', 1)]
     out_topol.content = None
 
@@ -875,7 +881,8 @@ def main():  #NOQA
                     name='X{}'.format(p.type),
                     chain_idx=p.res_id,
                     chain_name='C{}'.format(p.type),
-                    position=numpy.zeros(3))
+                    position=numpy.zeros(3),
+                    velocity=numpy.zeros(3))
 
     with open('{}_{}_bonds.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
         bond_lists = []
