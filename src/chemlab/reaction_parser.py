@@ -174,9 +174,10 @@ def process_reaction(reaction):
             raise RuntimeError('Please define cutoff of the reaction: {}'.format(reaction['reaction']))
     elif reaction_type == REACTION_DISSOCATION:
         if 'diss_rate' in reaction:
-            if not data['reverse']:
+            if not reaction['diss_rate']:
                 raise Exception('Invalid keyword `diss_rate` for non-dissociation reaction')
             data['diss_rate'] = float(reaction['diss_rate'])
+        data['alpha'] = float(reaction['alpha'])
 
     if 'active' in reaction:
         data['active'] = eval(reaction['active'])

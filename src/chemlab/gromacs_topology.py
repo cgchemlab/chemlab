@@ -234,7 +234,7 @@ class GromacsTopology:
             self.atoms.update({
                 atom_id_offset + k + (mol * n_atoms): v for mol in range(molecule_numbers)
                 for k, v in atom_id_params.items()})
-            atom_id_offset += molecule_numbers
+            atom_id_offset += molecule_numbers*n_atoms
 
         # Update non_bonded params
         for k, v in self.topol.nonbond_params.items():

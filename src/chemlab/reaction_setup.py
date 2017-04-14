@@ -246,6 +246,106 @@ class SetupReactions:
 
         return reaction, [(t1_old, t2_old), (t1_new, t2_new)]
 
+    def _setup_reaction_dissocation(self, chem_reaction, type2fpl):
+        """Setup dissociation reaction."""
+        rl = chem_reaction['reactant_list']
+
+        r_class = espressopp.integrator.DissociationReaction
+
+        rt1 = rl['type_1']['name']
+        rt2 = rl['type_2']['name']
+
+        # Get the correct fpl.
+        t1, t2 = self.name2type[rl['type_1']['name']], self.name2type[rl['type_2']['name']]
+        fpl = type2fpl.get((t1, t2))
+        if not fpl:
+            fpl = self.tm.get_fixed_pair_list(t1, t2)
+
+        if not fpl:
+            raise RuntimeError(
+                'Bond list for type pair {}-{} not defined'.format(rl['type_1']['name'], rl['type_2']['name']))
+
+        reaction = r_class(
+            type_1=t1,
+            type_2=t2,
+            delta_1=int(rl['type_1']['delta']),
+            delta_2=int(rl['type_2']['delta']),
+            min_state_1=int(rl['type_1']['min']),
+            max_state_1=int(rl['type_1']['max']),
+            min_state_2=int(rl['type_2']['min']),
+            max_state_2=int(rl['type_2']['max']),
+            rate=float(chem_reaction['rate']),
+            fpl=fpl,
+            cutoff=float(chem_reaction['cutoff']))
+
+        if 'diss_rate' in chem_reaction:
+            reaction.diss_rate = chem_reaction['diss_rate']
+
+        self.dynamic_types.add(self.name2type[rl['type_1']['name']])
+        self.dynamic_types.add(self.name2type[rl['type_2']['name']])
+
+        if 'active' in chem_reaction:
+            reaction.active = chem_reaction['active']
+
+        if 'min_cutoff' in chem_reaction:
+            reaction.get_reaction_cutoff().min_cutoff = float(chem_reaction['min_cutoff'])
+
+        if 'sigma' in chem_reaction:
+            reaction.set_reaction_cutoff(espressopp.integrator.ReactionCutoffRandom(
+                chem_reaction['eq_distance'], chem_reaction['sigma'], seed=random.randint(100, 100000)))
+
+        if 'alpha' not in chem_reaction:
+            raise RuntimeError('alpha parameter for DissociationReaction not found')
+        alpha = float(chem_reaction['alpha'])
+
+        reaction.is_virtual = bool(chem_reaction['virtual'])
+        print('Setup dissociation reaction of types: {}({})-{}({})'.format(
+            rt1, self.name2type[rt1], rt2, self.name2type[rt2]))
+
+        t1_old = self.name2type[rl['type_1']['name']]
+        t1_new = self.name2type[rl['type_1']['new_type']]
+        t2_old = self.name2type[rl['type_2']['name']]
+        t2_new = self.name2type[rl['type_2']['new_type']]
+        # Change type if necessary.
+        r_pp = espressopp.integrator.PostProcessChangeProperty()
+        self.dynamic_types.add(t1_old)
+        self.dynamic_types.add(t2_old)
+        basic_dynamic_res = espressopp.integrator.BasicDynamicResolution(
+            self.system, {t1_old: alpha, t2_old: alpha})
+        if t1_old != t1_new:
+            self.dynamic_types.add(t1_new)
+            new_property = self.topol.gt.atomtypes[rl['type_1']['new_type']]
+            tpp = espressopp.integrator.TopologyParticleProperties(
+                type=t1_new,
+                mass=new_property['mass'],
+                lambda_adr=1.0,
+                q=new_property['charge'])
+            basic_dynamic_res.add_postprocess(
+                espressopp.integrator.PostProcessChangeProperty(t1_old, tpp))
+
+        r_pp.add_change_property(
+            t1_old,
+            espressopp.integrator.TopologyParticleProperties(lambda_adr=0.0))
+
+        if t2_old != t2_new:
+            self.dynamic_types.add(t2_new)
+            new_property = self.topol.gt.atomtypes[rl['type_2']['new_type']]
+            tpp = espressopp.integrator.TopologyParticleProperties(
+                    type=t2_new,
+                    mass=new_property['mass'],
+                    lambda_adr=1.0,
+                    q=new_property['charge'])
+            basic_dynamic_res.add_postprocess(
+                espressopp.integrator.PostProcessChangeProperty(t2_old, tpp))
+        r_pp.add_change_property(
+            t2_old,
+            espressopp.integrator.TopologyParticleProperties(lambda_adr=0.0))
+
+        reaction.add_postprocess(r_pp)
+        self.system.integrator.addExtension(basic_dynamic_res)
+
+        return reaction, [(t1_old, t2_old), (t1_new, t2_new)]
+
 
     def _setup_reaction(self, chem_reaction, fpl):
         """Setup single reaction.
@@ -264,6 +364,7 @@ class SetupReactions:
         reaction_type2class = {
             REACTION_NORMAL: self._setup_reaction_normal,
             REACTION_EXCHANGE: self._setup_reaction_exchange,
+            REACTION_DISSOCATION: self._setup_reaction_dissocation
         }
 
         if chem_reaction['reaction_type'] not in reaction_type2class:
@@ -326,6 +427,8 @@ class SetupReactions:
         for group_name, reaction_group in self.cfg['reactions'].items():
             print('Setting reaction group {}'.format(group_name))
 
+            type2fpl = {}
+
             # Setting the interaction for the pairs created by this reaction group.
             if self.args.t_hybrid_bond > 0:
                 fpl = espressopp.FixedPairListLambda(self.system.storage, 0.0)
@@ -371,6 +474,9 @@ class SetupReactions:
             for chem_reaction in reaction_group['reaction_list']:
                 # Pass connectivity map from group level to reaction level
                 chem_reaction['connectivity_map'] = reaction_group['connectivity_map']
+                # Dissociation reaction will be done in second run.
+                if chem_reaction['reaction_type'] == REACTION_DISSOCATION:
+                    continue
                 r, reaction_types = self._setup_reaction(chem_reaction, fpl)
                 if r is not None:
                     reaction_type_list.extend(reaction_types)
@@ -389,6 +495,34 @@ class SetupReactions:
                     self.reaction_index[reaction_idx] = chem_reaction['equation']
                     reactions.append(r)
                     reaction_idx += 1
+                    for t1, t2 in reaction_types:
+                        type2fpl[(t1, t2)] = fpl
+                        type2fpl[(t2, t1)] = fpl
+
+            # Now process dissociation reactions.
+            # Pitfal, It can only sees fixed pair lists in given group
+            for chem_reaction in reaction_group['reaction_list']:
+                if chem_reaction['reaction_type'] != REACTION_DISSOCATION:
+                    continue
+                r, reaction_types = self._setup_reaction_dissocation(chem_reaction, type2fpl)
+                if r is not None:
+                    reaction_type_list.extend(reaction_types)
+                    for ext_name, extensions in extensions_to_reactions.items():
+                        if ext_name in chem_reaction['exclude_extensions']:
+                            print('Skip extension: {} ({})'.format(ext_name, chem_reaction['equation']))
+                        else:
+                            for extension in extensions:
+                                print('Add extension {} to {} ({}): {}'.format(
+                                    ext_name, chem_reaction['equation'], extension.pp_type, extension.ext))
+                                if extension.pp_type:
+                                    r.add_postprocess(extension.ext, extension.pp_type)
+                                else:
+                                    r.add_postprocess(extension.ext)
+                    ar.add_reaction(r)
+                    self.reaction_index[reaction_idx] = chem_reaction['equation']
+                    reactions.append(r)
+                    reaction_idx += 1
+
             fpls.append(fpl_def(fpl, set(reaction_type_list)))
 
         return ar, fpls, reactions, extensions_to_integrator
