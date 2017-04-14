@@ -1,0 +1,45 @@
+[ defaults ]
+1 3
+
+[ atomstate ]
+MA 1
+PA 1
+FA 5
+PL 1
+
+[ bondtypes ]
+; i j func
+MA ML 1 0.97 60.0
+PA PL 1 0.97 60.0
+FA PL 1 0.97 60.0
+RA PL 1 0.97 60.0
+DA PL 1 0.97 60.0
+FA RA 1 0.97 60.0
+FA DA 1 0.97 60.0
+DA RA 1 0.97 60.0
+RA RA 1 0.97 60.0
+
+[ angletypes ]
+; i j k func
+ MA ML MA 1 180.0 2.5
+ PA PL RA 1 180.0 2.5
+ FA PL RA 1 180.0 2.5
+ PA PL FA 1 180.0 2.5
+ PA PL DA 1 180.0 2.5
+ FA PL FA 1 180.0 2.5
+ DA PL DA 1 180.0 2.5
+ FA PL DA 1 180.0 2.5
+ DA FA PL 1 180.0 2.5
+ FA DA PL 1 180.0 2.5
+ FA PA PL 1 180.0 2.5
+ RA FA PL 1 180.0 2.5
+ RA RA PL 1 180.0 2.5
+ RA DA PL 1 180.0 2.5
+ DA RA PL 1 180.0 2.5
+ FA RA DA 1 180.0 2.5
+ FA RA RA 1 180.0 2.5
+ RA RA RA 1 180.0 2.5
+ RA RA DA 1 180.0 2.5
+
+[ dihedraltypes ]
+

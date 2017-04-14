@@ -33,7 +33,8 @@ Atom = collections.namedtuple(
         'name',
         'chain_name',
         'chain_idx',
-        'position'
+        'position',
+        'velocity'
     ])
 
 
@@ -183,13 +184,22 @@ class GROFile(CoordinateFile):
             pos_y = float(line[28:36].strip()) * self.scale_factor
             pos_z = float(line[36:44].strip()) * self.scale_factor
 
+            vel = (None, None, None)
+            # Velocity in the file
+            if len(line) > 45:
+                v_x = float(line[44:52].strip()) * self.scale_factor
+                v_y = float(line[52:60].strip()) * self.scale_factor
+                v_z = float(line[60:68].strip()) * self.scale_factor
+                vel = numpy.array([v_x, v_y, v_z])
+
             self.atoms[at_id] = (
                 Atom(
                     atom_id=at_id,
                     name=at_name,
                     chain_name=chain_name,
                     chain_idx=chain_idx,
-                    position=numpy.array([pos_x, pos_y, pos_z])
+                    position=numpy.array([pos_x, pos_y, pos_z]),
+                    velocity=vel
                 ))
             self.fragments[chain_name][at_name] = self.atoms[at_id]
             if chain_name not in self.chains:
@@ -221,17 +231,24 @@ class GROFile(CoordinateFile):
             output.append('%d' % len(self.atoms))
             # Puts the definition of the atoms, fixed format.
             fmt = "%5d%-5s%5s%5d%8.3f%8.3f%8.3f"
+            fmt_vel = "%5d%-5s%5s%5d%8.3f%8.3f%8.3f%8.3f%8.3f%8.3f"
             for at_id in sorted(self.atoms):
                 at = self.atoms[at_id]
-                output.append(fmt % (
-                    at.chain_idx,
-                    at.chain_name,
-                    at.name,
-                    at.atom_id,
-                    at.position[0],
-                    at.position[1],
-                    at.position[2]
-                    ))
+                if at.velocity[0] is None:
+                    output.append(fmt % (
+                        at.chain_idx,
+                        at.chain_name,
+                        at.name,
+                        at.atom_id,
+                        at.position[0], at.position[1], at.position[2]))
+                else:
+                    output.append(fmt_vel % (
+                        at.chain_idx,
+                        at.chain_name,
+                        at.name,
+                        at.atom_id,
+                        at.position[0], at.position[1], at.position[2],
+                        at.velocity[0], at.velocity[1], at.velocity[2]))
 
             output.append('%f %f %f\n' % tuple(self.box))
             write_file_path = prepare_path(file_name if file_name else self.file_name)
@@ -253,7 +270,8 @@ class GROFile(CoordinateFile):
             for pid in self.atoms:
                 p = system.storage.getParticle(pid)
                 self.atoms[pid] = self.atoms[pid]._replace(
-                    position=[p.pos[x] + p.imageBox[x]*boxL[x] for x in range(3)]
+                    position=[p.pos[x] + p.imageBox[x]*boxL[x] for x in range(3)],
+                    velocity=[p.v[x] for x in range(3)]
                 )
         else:
             for pid in self.atoms:
@@ -925,7 +943,11 @@ class GROMACSTopologyFile(TopologyFile):
         return []
 
     def _write_moleculetype(self):
-        return ['{name} {nrexcl}'.format(**self.moleculetype)]
+        return_data = []
+        for mol_name, nrexcl in self.moleculetype.items():
+            return_data.append('{} {}'.format(mol_name, nrexcl))
+
+        return return_data
 
     def _write_system(self):
         return [self.system_name]

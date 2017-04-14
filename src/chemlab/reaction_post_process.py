@@ -99,6 +99,7 @@ class PostProcessSetup(object):
                 self.dynamic_types.add(t1_new)
                 print('PostProcessChangeNeighbourProperties: {}->{}: {} at {}'.format(t1_old, t1_new, pp, nb_level))
                 pp.add_change_property(t1_old, new_property, nb_level)
+                #pp.add_change_property(t1_old, new_property, nb_level+1)
 
         return output_triplet(pp, invoke_on, EXT_POSTPROCESS)
 

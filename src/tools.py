@@ -105,6 +105,10 @@ def _args():
                                  help='Name of output trajectory file')
     general_options.add_argument('--trj_collect', default=1000, type=int,
                                  help='Collect trajectory every (step)')
+    general_options.add_argument('--trj_flush', default=None, type=int,
+                                 help='Flush trajectory to storage')
+    general_options.add_argument('--gro_trj_collect', default=None, type=int,
+                                 help='Save trajectory in .gro file')
     general_options.add_argument('--energy_collect', default=1000, type=int,
                                  help='Collect energy every (step)')
     general_options.add_argument('--topol_collect', default=1000, type=int,
@@ -132,6 +136,8 @@ def _args():
     general_options.add_argument('--benchmark_data', default=None, help='Store time measurement in the file')
     general_options.add_argument('--system_monitor_filter', default=None,
                                  help='Print all (empty) or only selected elements in SystemMonitor')
+    general_options.add_argument('--gen_velocity', default=True, type=ast.literal_eval,
+                                 help='Generate velocity?')
 
     args_simulation_options = parser.add_argument_group('Simulation parameters')
     args_simulation_options.add_argument('--kb', type=float, default=0.0083144621,
@@ -145,8 +151,10 @@ def _args():
                                          default=random.randint(1000, 10000))
     args_simulation_options.add_argument('--thermostat',
                                          default='lv',
-                                         choices=('lv', 'vr', 'iso'),
-                                         help='Thermostat to use, lv: Langevine, vr: Stochastic velocity rescale')
+                                         choices=('lv', 'vr', 'iso', 'no'),
+                                         help=('Thermostat to use, '
+                                               'lv: Langevine, vr: Stochastic velocity rescale '
+                                               'no: no thermostat'))
     args_simulation_options.add_argument('--barostat', default='lv', choices=('lv', 'br'),
                                          help='Barostat to use, lv: Langevine, br: Berendsen')
     args_simulation_options.add_argument('--barostat_tau', default=5.0, type=float,
@@ -195,6 +203,8 @@ def _args():
                                       help='Compute and store pressure')
     args_storing_options.add_argument('--store_single_precision', default=True, type=ast.literal_eval,
                                       help='Write data in single precision format')
+    args_storing_options.add_argument('--store_angdih', default=False, type=ast.literal_eval,
+                                      help='Store angles, dihedrals')
 
     maximum_conversion_options = parser.add_argument_group('Maximum conversion')
     maximum_conversion_options.add_argument('--maximum_conversion',

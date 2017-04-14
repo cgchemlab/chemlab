@@ -77,6 +77,8 @@ def main():  #NOQA
     cg_cutoff = args.cg_cutoff
     max_cutoff = max([lj_cutoff, cg_cutoff])
     dt = args.dt
+    print('LJ cutoff: {} Tabulated cutoff: {} time-step: {}'.format(
+        lj_cutoff, cg_cutoff, dt))
 
     time0 = time.time()
 
@@ -129,16 +131,17 @@ def main():  #NOQA
     if args.temperature is None:
         raise RuntimeError('Temperature not defined!')
     temperature = args.temperature * kb
-    print('Generating velocities from Maxwell-Boltzmann distribution T={} ({})'.format(
-        args.temperature, args.temperature * kb))
-    vx, vy, vz = espressopp.tools.velocities.gaussian(
-        args.temperature,
-        len(particle_list),
-        [x[3] * mass_factor for x in particle_list],
-        kb=kb)
-    part_prop.append('v')
-    for i, p in enumerate(particle_list):
-        p.append(espressopp.Real3D(vx[i], vy[i], vz[i]))
+    if args.gen_velocity:
+        print('Generating velocities from Maxwell-Boltzmann distribution T={} ({})'.format(
+            args.temperature, args.temperature * kb))
+        vx, vy, vz = espressopp.tools.velocities.gaussian(
+            args.temperature,
+            len(particle_list),
+            [x[3] * mass_factor for x in particle_list],
+            kb=kb)
+        part_prop.append('v')
+        for i, p in enumerate(particle_list):
+            p.append(espressopp.Real3D(vx[i], vy[i], vz[i]))
 
     system = espressopp.System()
     system.rng = espressopp.esutil.RNG(rng_seed)
@@ -294,7 +297,7 @@ def main():  #NOQA
                 for fpl_def in chem_fpls:
                     if (type_id_1, type_id_2) in fpl_def.type_list or (type_id_2, type_id_1) in fpl_def.type_list:
                         obs_fpl = espressopp.analysis.NFixedPairListEntries(system, fpl_def.fpl)
-                        maximum_conversion.append((obs_fpl, max_number, None))
+                        maximum_conversion.append((obs_fpl, max_number))
                         break
             else:   # Observe count of types
                 type_id_symbol = gt.used_atomsym_atomtype[type_symbol]
@@ -348,6 +351,7 @@ def main():  #NOQA
     # Define the thermostat
     print('Temperature: {} ({}), gamma: {}'.format(args.temperature, temperature, args.thermostat_gamma))
     print('Thermostat: {}'.format(args.thermostat))
+    thermostat = None
     if args.thermostat == 'lv':
         thermostat = espressopp.integrator.LangevinThermostat(system)
         thermostat.temperature = temperature
@@ -363,9 +367,12 @@ def main():  #NOQA
         thermostat = espressopp.integrator.Isokinetic(system)
         thermostat.temperature = temperature
         thermostat.coupling = int(args.thermostat_gamma)
+    elif args.thermostat == 'no':
+        print('No thermostat selected, runing NVE simulation?')
     else:
         raise Exception('Wrong thermostat keyword: `{}`'.format(args.thermostat))
-    integrator.addExtension(thermostat)
+    if thermostat is not None:
+        integrator.addExtension(thermostat)
 
     # Pressure coupling if needed,
     pressure_comp = espressopp.analysis.Pressure(system)
@@ -526,7 +533,7 @@ def main():  #NOQA
                 'qcount_{}'.format(bcount), espressopp.analysis.NFixedQuadrupleListEntries(system, fql))
             bcount += 1
         # Add counter on the exclude list pairs
-        system_analysis.add_observable('vl_excl', espressopp.analysis.NExcludeListEntries(system, verletlist))
+        #system_analysis.add_observable('vl_excl', espressopp.analysis.NExcludeListEntries(system, verletlist))
 
         # Observe ParticlePairsScale
         for pps_idx, pps in enumerate(particle_pair_scales, 1):
@@ -589,7 +596,7 @@ def main():  #NOQA
 
     bcount = acount = qcount = 0
     for (i, observe_tuple), f in dynamic_fpls.items():
-        if observe_tuple:
+        if observe_tuple and args.store_angdih:
             print('DumpTopol: observe dynamic_bonds_{}'.format(bcount))
             dump_topol.observe_tuple(f, 'dynamic_bonds_{}'.format(bcount))
         else:
@@ -598,7 +605,7 @@ def main():  #NOQA
         bcount += 1
 
     for (i, observe_triple), f in dynamic_ftls.items():
-        if False:
+        if observe_triple and args.store_angdih:
             print('DumpTopol: observe dynamic_angles_{}'.format(acount))
             dump_topol.observe_triple(f, 'dynamic_angles_{}'.format(acount))
         else:
@@ -607,7 +614,7 @@ def main():  #NOQA
         acount += 1
 
     for (i, observe_quadruple), f in dynamic_fqls.items():
-        if False:
+        if observe_quadruple and args.store_angdih:
             print('DumpTopol: observe dynamic_dihedrals_{}'.format(qcount))
             dump_topol.observe_quadruple(f, 'dynamic_dihedrals_{}'.format(qcount))
         else:
@@ -639,7 +646,10 @@ def main():  #NOQA
 
     trj_collect = min([args.trj_collect, cr_interval]) if cr_interval > 0 else args.trj_collect
     k_trj_collect = int(math.ceil(trj_collect/float(integrator_step)))
-    k_trj_flush = 25 if 25 < 10*k_trj_collect else 10*k_trj_collect
+    if args.trj_flush is None:
+        k_trj_flush = 25 if 25 < 10*k_trj_collect else 10*k_trj_collect
+    else:
+        k_trj_flush = int(math.ceil(args.trj_flush/float(integrator_step)))
     print('Collect trajectory every {} steps'.format(trj_collect))
     print('Collect energy data everey {} steps'.format(cr_interval))
     print('Flush trajectory and topology to disk every {} steps'.format(k_trj_flush*integrator_step))
@@ -664,6 +674,20 @@ def main():  #NOQA
     print('Reset total velocity')
     total_velocity = espressopp.analysis.CMVelocity(system)
     total_velocity.reset()
+
+    if args.gro_trj_collect:
+        dump_gro_trj_fname = '{}_{}_traj.gro'.format(args.output_prefix, rng_seed)
+        dump_gro_trj = espressopp.io.DumpGRO(
+            system,
+            integrator,
+            filename=dump_gro_trj_fname,
+            unfolded=True,
+            append=True)
+        ext_dump_gro = espressopp.integrator.ExtAnalyze(dump_gro_trj, args.gro_trj_collect)
+        integrator.addExtension(ext_dump_gro)
+        print('Set gro trajectory saver, save every {} steps'.format(args.gro_trj_collect))
+        print('Warning, this will slow down simulation.')
+        print('File saved to {}'.format(dump_gro_trj_fname))
 
     print('{:9}    {:8}'.format('Type name', 'type id'))
     for at_sym, type_id in sorted(gt.atomsym_atomtype.items(), key=lambda x: x[1]):
@@ -699,7 +723,7 @@ def main():  #NOQA
         system_analysis.info()
         if k_trj_collect > 0 and k % k_trj_collect == 0:
             traj_file.dump(k * integrator_step, k * integrator_step * args.dt)
-        if k_trj_flush > 0 and k % k_trj_flush == 0:
+        if k_trj_flush > 0 and k % k_trj_flush == 0 and k > 0:
             dump_topol.update()
             traj_file.flush()  # Write HDF5 to disk.
         if k_enable_reactions == k:
@@ -711,7 +735,7 @@ def main():  #NOQA
             reactions_enabled = True
             # Saves coordinate output file.
             output_gro_file = '{}_{}_before_reaction_confout.gro'.format(args.output_prefix, args.rng_seed)
-            input_conf.update_position(system)
+            input_conf.update_position(system, unfolded=True)
             input_conf.write(output_gro_file, force=True)
             print('Save configuration before start of the reaction, filename: {}'.format(output_gro_file))
             if sc.exclusions_list:
@@ -805,7 +829,7 @@ def main():  #NOQA
     out_topol.atomstate = gt.topol.atomstate
     out_topol.defaults = gt.topol.defaults
     out_topol.system_name = gt.topol.system_name
-    out_topol.moleculetype = {'name': 'MOL', 'nrexcl': 3}
+    out_topol.moleculetype = {'MOL': 3}
     out_topol.molecules = [('MOL', 1)]
     out_topol.content = None
 
@@ -857,7 +881,8 @@ def main():  #NOQA
                     name='X{}'.format(p.type),
                     chain_idx=p.res_id,
                     chain_name='C{}'.format(p.type),
-                    position=numpy.zeros(3))
+                    position=numpy.zeros(3),
+                    velocity=numpy.zeros(3))
 
     with open('{}_{}_bonds.dat'.format(args.output_prefix, args.rng_seed), 'w') as of:
         bond_lists = []
