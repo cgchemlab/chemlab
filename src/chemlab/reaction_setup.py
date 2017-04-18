@@ -37,6 +37,7 @@ class SetupReactions:
     """
 
     def __init__(self, system, vl, topol, topol_manager, config, args):
+        self.missing_fpls = []
         self.system = system
         self.vl = vl
         self.topol = topol
@@ -51,6 +52,9 @@ class SetupReactions:
 
         # Bond types that will change and has to be observed by dump topology
         self.observed_bondtypes = set()
+
+        # Bond types that has to be placed in separate FixedPairLists
+        self.separate_fpls = set()
 
         self.exclusions_list = []  # For restrict reactions, the exclusion lists has to be extended.
 
@@ -258,12 +262,6 @@ class SetupReactions:
         # Get the correct fpl.
         t1, t2 = self.name2type[rl['type_1']['name']], self.name2type[rl['type_2']['name']]
         fpl = type2fpl.get((t1, t2))
-        if not fpl:
-            fpl = self.tm.get_fixed_pair_list(t1, t2)
-
-        if not fpl:
-            raise RuntimeError(
-                'Bond list for type pair {}-{} not defined'.format(rl['type_1']['name'], rl['type_2']['name']))
 
         reaction = r_class(
             type_1=t1,
@@ -277,6 +275,10 @@ class SetupReactions:
             rate=float(chem_reaction['rate']),
             fpl=fpl,
             cutoff=float(chem_reaction['cutoff']))
+
+        if not fpl:
+            self.missing_fpls.append((reaction, (t1, t2)))
+
 
         if 'diss_rate' in chem_reaction:
             reaction.diss_rate = chem_reaction['diss_rate']
@@ -306,6 +308,9 @@ class SetupReactions:
         t1_new = self.name2type[rl['type_1']['new_type']]
         t2_old = self.name2type[rl['type_2']['name']]
         t2_new = self.name2type[rl['type_2']['new_type']]
+
+        self.observed_bondtypes.add((t1_old, t2_old))
+
         # Change type if necessary.
         r_pp = espressopp.integrator.PostProcessChangeProperty()
         self.dynamic_types.add(t1_old)
@@ -469,6 +474,7 @@ class SetupReactions:
                         else:
                             raise RuntimeError('Wrong ext_type={}'.format(x.ext_type))
 
+            # Process the reactions.
             reaction_type_list = []
             print('Setting chemical reactions in group')
             for chem_reaction in reaction_group['reaction_list']:
@@ -502,11 +508,12 @@ class SetupReactions:
             # Now process dissociation reactions.
             # Pitfal, It can only sees fixed pair lists in given group
             for chem_reaction in reaction_group['reaction_list']:
-                if chem_reaction['reaction_type'] != REACTION_DISSOCATION:
+                if chem_reaction['reaction_type'] != REACTION_DISSOCATION:  # only dissociation
                     continue
                 r, reaction_types = self._setup_reaction_dissocation(chem_reaction, type2fpl)
                 if r is not None:
-                    reaction_type_list.extend(reaction_types)
+                    #reaction_type_list.extend(reaction_types)
+                    self.separate_fpls.add(tuple(reaction_types[0]))
                     for ext_name, extensions in extensions_to_reactions.items():
                         if ext_name in chem_reaction['exclude_extensions']:
                             print('Skip extension: {} ({})'.format(ext_name, chem_reaction['equation']))
@@ -526,3 +533,16 @@ class SetupReactions:
             fpls.append(fpl_def(fpl, set(reaction_type_list)))
 
         return ar, fpls, reactions, extensions_to_integrator
+
+
+    def rebuild_fixed_pair_lists(self):
+        """If the tuple for dissociation reaction is not found then the TopologyManager has to be used"""
+        print self.missing_fpls
+
+        for r, (t1, t2) in self.missing_fpls:
+            fpl = self.tm.get_fixed_pair_list(t1, t2)
+            if fpl:
+                r.set_fixed_pair_list(fpl)
+                print fpl.getAllBonds()
+            else:
+                raise RuntimeError('Fixed pair list for {}-{} not found'.format(t1, t2))

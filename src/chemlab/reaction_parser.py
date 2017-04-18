@@ -160,7 +160,7 @@ def process_reaction(reaction):
 
     data['reaction_type'] = reaction_type
 
-    if reaction_type == REACTION_NORMAL or reaction_type == REACTION_EXCHANGE:
+    if reaction_type in [REACTION_NORMAL, REACTION_DISSOCATION, REACTION_EXCHANGE]:
         if 'min_cutoff' in reaction:
             data['min_cutoff'] = float(reaction['min_cutoff'])
 
@@ -172,7 +172,8 @@ def process_reaction(reaction):
             data['cutoff'] = float(reaction['cutoff'])
         else:
             raise RuntimeError('Please define cutoff of the reaction: {}'.format(reaction['reaction']))
-    elif reaction_type == REACTION_DISSOCATION:
+    # Additional parameters for dissociation
+    if reaction_type == REACTION_DISSOCATION:
         if 'diss_rate' in reaction:
             if not reaction['diss_rate']:
                 raise Exception('Invalid keyword `diss_rate` for non-dissociation reaction')

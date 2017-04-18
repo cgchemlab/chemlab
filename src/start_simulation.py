@@ -224,6 +224,7 @@ def main():  #NOQA
     # Set chemical reactions, parser in reaction_parser.py
     chem_dynamic_types = set()
     chem_dynamic_bond_types = set()
+    separate_fpls = set()
     chem_fpls = []
     reactions = []
     extensions_integrator = []
@@ -244,6 +245,7 @@ def main():  #NOQA
         ar, chem_fpls, reactions, extensions_integrator = sc.setup_reactions()
         chem_dynamic_types = sc.dynamic_types
         chem_dynamic_bond_types = sc.observed_bondtypes
+        separate_fpls = sc.separate_fpls
 
         if cr_observs is None:
             cr_observs = {}
@@ -323,8 +325,8 @@ def main():  #NOQA
     # Set potentials.
     cr_observs, particle_pair_scales = chemlab.gromacs_topology.set_nonbonded_interactions(
         system, gt, verletlist, lj_cutoff, cg_cutoff, tables=args.table_groups, cr_observs=cr_observs)
-    dynamic_fpls, static_fpls = chemlab.gromacs_topology.set_bonded_interactions(
-        system, gt, chem_dynamic_types, chem_dynamic_bond_types)
+    dynamic_fpls, static_fpls, registered_fpls = chemlab.gromacs_topology.set_bonded_interactions(
+        system, gt, chem_dynamic_types, chem_dynamic_bond_types, separate_fpls)
     dynamic_ftls, static_ftls = chemlab.gromacs_topology.set_angle_interactions(
         system, gt, chem_dynamic_types, chem_dynamic_bond_types)
     dynamic_fqls, static_fqls = chemlab.gromacs_topology.set_dihedral_interactions(
@@ -413,6 +415,7 @@ def main():  #NOQA
     print('Set dynamic topology')
     # Observe tuples, any new bond here trigger new angles, dihedrals.
     for static_fpl in static_fpls:
+        print('Observe tuple {}'.format(static_fpl))
         topology_manager.observe_tuple(static_fpl)
     for _, fpl in dynamic_fpls.items():
         topology_manager.observe_tuple(fpl)
@@ -451,6 +454,14 @@ def main():  #NOQA
         for t in def_f.type_list:
             print('Register chem_fpl for type: {} ({})'.format(t, def_f.fpl))
             topology_manager.register_tuple(def_f.fpl, *t)
+
+    for ptypes, fpl in registered_fpls:
+        print('Register fpls for type: {}-{} ({})'.format(ptypes[0], ptypes[1], fpl))
+        topology_manager.register_tuple(fpl, *ptypes)
+        dynamic_exclusion_list.observe_tuple(fpl)
+    # All data defined in topology manager, we can rebuild reactions
+    if has_reaction:
+        sc.rebuild_fixed_pair_lists()
 
     # Define SystemMonitor that will store data from observables into a .csv file.
     energy_file = '{}_energy_{}.csv'.format(args.output_prefix, rng_seed)
@@ -514,6 +525,11 @@ def main():  #NOQA
             system_analysis.add_observable(
                 'bcount_{}'.format(bcount), espressopp.analysis.NFixedPairListEntries(system, fpl))
             bcount += 1
+
+        for ptypes, fpls in registered_fpls:
+            system_analysis.add_observable(
+                'bcount_{}-{}'.format(*ptypes), espressopp.analysis.NFixedPairListEntries(system, fpls))
+
         bcount = 0
         for static_ftl in static_ftls:
             system_analysis.add_observable(
@@ -533,7 +549,7 @@ def main():  #NOQA
                 'qcount_{}'.format(bcount), espressopp.analysis.NFixedQuadrupleListEntries(system, fql))
             bcount += 1
         # Add counter on the exclude list pairs
-        #system_analysis.add_observable('vl_excl', espressopp.analysis.NExcludeListEntries(system, verletlist))
+        system_analysis.add_observable('vl_excl', espressopp.analysis.NExcludeListEntries(system, verletlist))
 
         # Observe ParticlePairsScale
         for pps_idx, pps in enumerate(particle_pair_scales, 1):
@@ -603,6 +619,10 @@ def main():  #NOQA
             print('DumpTopol: save static list from bonds_{}'.format(bcount))
             dump_topol.add_static_tuple(f, 'bonds_{}'.format(bcount))
         bcount += 1
+
+    for ptypes, fpl in registered_fpls:
+        print('DumpTopol: observe fpls for type: {}-{} ({})'.format(ptypes[0], ptypes[1], fpl))
+        dump_topol.observe_tuple(fpl, 'dynamic_bonds_{}_{}'.format(ptypes[0], ptypes[1]))
 
     for (i, observe_triple), f in dynamic_ftls.items():
         if observe_triple and args.store_angdih:
@@ -915,6 +935,12 @@ def main():  #NOQA
                         params['func'], ' '.join(params['params']), namet0, namet1)])
                 else:
                     bond_lists.append([p[0], p[1], '; chem MISSING params type: {}-{}'.format(namet0, namet1)])
+
+        for ptypes, fpl in registered_fpls:
+            for b in fpl.getAllBonds():
+                fpl_params = fpl.params
+                bond_lists.append([b[0], b[1], fpl_params[0]] + list(fpl_params[1]) + ['; special tuple types: {}-{}'.format(ptypes[0], ptypes[1])])
+
         for b in bond_lists:
             of.write('{}\n'.format(' '.join(map(str, b))))
             out_topol.new_data['bonds'][(b[0], b[1])] = b[2:]
