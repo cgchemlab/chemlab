@@ -276,41 +276,7 @@ def main():  #NOQA
     if args.maximum_conversion:
         if cr_observs is None:
             cr_observs = {}
-        re_max_conversion = re.compile(r'(?P<type>[A-Za-z0-9-]+)\(?(?P<state>\d?)\)?:(?P<maxnum>\d+):(?P<tot>\d+)')
-        for o in args.maximum_conversion.split(','):
-            vals = re_max_conversion.match(o)
-            if not vals:
-                raise RuntimeError('Problem with maximum conversion {}, not defined correctly'.format(o))
-            vals = vals.groupdict()
-            type_symbol = vals['type']
-            max_number = int(vals['maxnum'])
-            tot_number = int(vals['tot'])
-            if vals['state']:
-                type_state = int(vals['state'])
-            else:
-                type_state = None
-            max_number = int(max_number)
-            tot_number = int(tot_number)
-            stop_value = float(max_number) / tot_number
-            if '-' in type_symbol:  # Observe count of bonds
-                type_sym_1, type_sym_2 = type_symbol.split('-')
-                type_id_1 = gt.used_atomsym_atomtype[type_sym_1]
-                type_id_2 = gt.used_atomsym_atomtype[type_sym_2]
-                for fpl_def in chem_fpls:
-                    if (type_id_1, type_id_2) in fpl_def.type_list or (type_id_2, type_id_1) in fpl_def.type_list:
-                        obs_fpl = espressopp.analysis.NFixedPairListEntries(system, fpl_def.fpl)
-                        maximum_conversion.append((obs_fpl, max_number))
-                        break
-            else:   # Observe count of types
-                type_id_symbol = gt.used_atomsym_atomtype[type_symbol]
-                if (type_id_symbol, tot_number, type_state) not in cr_observs:
-                    if type_state is None:
-                        cr_observs[(type_id_symbol, tot_number, type_state)] = espressopp.analysis.ChemicalConversion(
-                            system, type_id_symbol, tot_number)
-                    else:
-                        cr_observs[(type_id_symbol, tot_number, type_state)] = espressopp.analysis.ChemicalConversionTypeState(
-                            system, type_id_symbol, type_state, tot_number)
-                    maximum_conversion.append((cr_observs[(type_id_symbol, tot_number, type_state)], stop_value))
+        maximum_conversion = tools.get_maximum_conversion(args, system, chem_fpls, gt, cr_observs)
         if args.eq_steps > 0:
             eq_run = int(args.eq_steps / sim_step)
 
@@ -497,12 +463,15 @@ def main():  #NOQA
         system_analysis.add_observable(
             label, espressopp.analysis.PotentialEnergy(system, interaction), show_in_system_info)
     for (cr_type, _, ts), obs in cr_observs.items():
+        if not isinstance(cr_type, collections.Iterable):
+            cr_type = [cr_type]
         if ts is None:
             system_analysis.add_observable(
-                'cr_{}'.format(cr_type), obs)
+                'cr_{}'.format('_'.join(map(str, cr_type))), obs)
         else:
             system_analysis.add_observable(
-                'cr_{}_{}'.format(cr_type, ts), obs)
+                'cr_{}_{}'.format('_'.join(map(str, cr_type)), ts), obs)
+
     for fidx, f in enumerate(chem_fpls):
         system_analysis.add_observable(
             'count_{}'.format(fidx), espressopp.analysis.NFixedPairListEntries(system, f.fpl))

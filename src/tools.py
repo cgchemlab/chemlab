@@ -24,6 +24,7 @@ import logging
 import numpy as np
 import random
 import re
+import espressopp
 
 __doc__ = "Tool functions."
 
@@ -263,3 +264,69 @@ def average_timers(timer_list):
             avg_timers[k] = sum(avg_timers[k]) / float(len(avg_timers[k]))
 
     return avg_timers
+
+def get_maximum_conversion(args, system, chem_fpls, gt, cr_observs=None):
+    if cr_observs is None:
+        cr_observs = {}
+
+    maximum_conversion = []
+
+    re_type_state = re.compile(r'(?P<type>[A-Za-z0-9-]+)\(?(?P<state>\d?)\)?')
+    re_max_conversion = re.compile(r'(?P<type>[A-Za-z0-9-]+)\(?(?P<state>\d?)\)?:(?P<maxnum>\d+):(?P<tot>\d+)')
+    for o in args.maximum_conversion.split(','):
+        type_symbols, max_number, tot_number = o.split(':')
+        max_number = int(max_number)
+        tot_number = int(tot_number)
+
+        if '-' in type_symbols:
+            vals = re_type_state.match(type_symbols)
+            vals = vals.groupdict()
+            type_symbol = vals['type']
+            type_sym_1, type_sym_2 = type_symbol.split('-')
+            type_id_1 = gt.used_atomsym_atomtype[type_sym_1]
+            type_id_2 = gt.used_atomsym_atomtype[type_sym_2]
+            for fpl_def in chem_fpls:
+                if ((type_id_1, type_id_2) in fpl_def.type_list or
+                        (type_id_2, type_id_1) in fpl_def.type_list):
+                    obs_fpl = espressopp.analysis.NFixedPairListEntries(system, fpl_def.fpl)
+                    maximum_conversion.append((obs_fpl, max_number))
+                    break
+        elif '+' in type_symbols:
+            type_symbols = type_symbols.split('+')
+            obs = espressopp.analysis.ChemicalConversionTypeState(system, total_count=tot_number)
+            stop_value = float(max_number) / tot_number
+            cr_types = []
+            for type_symbol in type_symbols:
+                vals = re_type_state.match(type_symbol)
+                vals = vals.groupdict()
+                if vals['state']:
+                    type_state = int(vals['state'])
+                else:
+                    type_state = None
+                type_name = vals['type']
+                type_id_symbol = gt.used_atomsym_atomtype[type_name]
+                obs.count_type(type_id_symbol, type_state)
+                cr_types.append(type_name)
+            cr_observs[(tuple(cr_types), tot_number, None)] = obs
+            maximum_conversion.append((obs, stop_value))
+        else:
+            vals = re_type_state.match(type_symbols)
+            vals = vals.groupdict()
+            type_symbol = vals['type']
+            if vals['state']:
+                type_state = int(vals['state'])
+            else:
+                type_state = None
+            stop_value = float(max_number) / tot_number
+            type_id_symbol = gt.used_atomsym_atomtype[type_symbol]
+            if (type_id_symbol, tot_number, type_state) not in cr_observs:
+                if type_state is None:
+                    obs = espressopp.analysis.ChemicalConversion(system, type_id_symbol, tot_number)
+                else:
+                    obs = espressopp.analysis.ChemicalConversionTypeState(system, type_id_symbol, type_state, tot_number)
+                cr_observs[(type_id_symbol, tot_number, type_state)] = obs
+            else:
+                obs = cr_observs[(type_id_symbol, tot_number, type_state)]
+            maximum_conversion.append((obs, stop_value))
+
+    return maximum_conversion
