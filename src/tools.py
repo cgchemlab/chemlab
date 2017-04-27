@@ -194,6 +194,8 @@ def _args():
                                       help='Compute and store pressure')
     args_storing_options.add_argument('--store_single_precision', default=True, type=ast.literal_eval,
                                       help='Write data in single precision format')
+    args_storing_options.add_argument('--save_before_reaction', default=False, type=ast.literal_eval,
+                                      help='If True then the trajectory and topology will be saved before reaction')
 
     maximum_conversion_options = parser.add_argument_group('Maximum conversion')
     maximum_conversion_options.add_argument('--maximum_conversion',

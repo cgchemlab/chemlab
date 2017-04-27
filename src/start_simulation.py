@@ -614,6 +614,7 @@ def main():  #NOQA
 
     stop_simulation = False
     reactions_enabled = False
+    save_traj_topology = args.save_before_reaction if k_enable_reactions > 0 else True
     energy0 = 0.0
     bonds0 = 0.0
 
@@ -633,9 +634,9 @@ def main():  #NOQA
 
     for k in range(sim_step):
         system_analysis.info()
-        if k_trj_collect > 0 and k % k_trj_collect == 0:
+        if save_traj_topology and k_trj_collect > 0 and k % k_trj_collect == 0:
             traj_file.dump(k * integrator_step, k * integrator_step * args.dt)
-        if k_trj_flush > 0 and k % k_trj_flush == 0:
+        if save_traj_topology and k_trj_flush > 0 and k % k_trj_flush == 0:
             dump_topol.update()
             traj_file.flush()  # Write HDF5 to disk.
         if k_enable_reactions == k:
@@ -656,6 +657,9 @@ def main():  #NOQA
 
             if not hook_init_reaction(system, integrator, ar, gt, args):
                 raise RuntimeError('hook_init_reaction return False')
+            if not save_traj_topology:
+                print('Enabling saving topology and trajectory')
+                save_traj_topology = True
 
         if reactions_enabled:
             for obs, stop_value in maximum_conversion:
