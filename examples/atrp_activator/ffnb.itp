@@ -76,3 +76,4 @@ I I 8 0 1.0 ; b0
 ; l j func=10 table1 table2 atom_type ntotal
  MA   PA   10  table_PA_PA.xvg   table_MA_MA.xvg   PL 2000
  ML   PL   10  table_PL_PL.xvg   table_MA_MA.xvg   PL 2000
+ I    I    

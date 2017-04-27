@@ -1,4 +1,4 @@
-#  Copyright (C) 2016
+#  Copyright (C) 2016,2017
 #      Jakub Krajniak (jkrajniak at gmail.com)
 #      Zidan Zhang (zidan.zhang at kuleuven.be)
 #
