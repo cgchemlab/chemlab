@@ -351,6 +351,7 @@ class PostProcessSetup(object):
     def _setup_atrp_activator(self, cfg):
         interval = int(cfg['interval'])
         num_particles = int(cfg['num_particles'])
+        select_from_all = bool(cfg['select_from_all'])
         ratio_activator = float(cfg['ratio_activator'])
         ratio_deactivator = float(cfg['ratio_deactivator'])
         delta_catalyst = float(cfg['delta_catalyst'])
@@ -363,9 +364,10 @@ class PostProcessSetup(object):
             self.system, interval, num_particles, ratio_activator, ratio_deactivator,
             delta_catalyst, k_activate, k_deactivate)
         atrp_activator.stats_filename = stats_file
+        atrp_activator.select_from_all = select_from_all
         options = [x.split('->') for x in cfg['options'].split(';')]
         print('Settings ATRP activator extension')
-        print('ATRPActivator.interval={} num_part={}'.format(interval, num_particles))
+        print('ATRPActivator.interval={} num_part={} select_from_all={}'.format(interval, num_particles, select_from_all))
         re_reactant = re.compile(r'(?P<name>\w+)\((?P<state>\d+),\s*(?P<flag>[AD]{1,2})\)')
         re_product = re.compile(r'(?P<new_type>\w+)\((?P<delta>[0-9-]+)\)')
         for to_process, after_process in options:
