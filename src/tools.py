@@ -206,6 +206,8 @@ def _args():
                                       help='Write data in single precision format')
     args_storing_options.add_argument('--store_angdih', default=False, type=ast.literal_eval,
                                       help='Store angles, dihedrals')
+    args_storing_options.add_argument('--save_before_reaction', default=False, type=ast.literal_eval,
+                                      help='If True then the trajectory and topology will be saved before reaction')
 
     maximum_conversion_options = parser.add_argument_group('Maximum conversion')
     maximum_conversion_options.add_argument('--maximum_conversion',
