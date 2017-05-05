@@ -1,4 +1,4 @@
-#  Copyright (C) 2016
+#  Copyright (C) 2016,2017
 #      Jakub Krajniak (jkrajniak at gmail.com)
 #
 #  This file is part of ChemLab.
@@ -234,7 +234,7 @@ class GromacsTopology:
             self.atoms.update({
                 atom_id_offset + k + (mol * n_atoms): v for mol in range(molecule_numbers)
                 for k, v in atom_id_params.items()})
-            atom_id_offset += molecule_numbers
+            atom_id_offset += molecule_numbers*n_atoms
 
         # Update non_bonded params
         for k, v in self.topol.nonbond_params.items():
@@ -284,7 +284,7 @@ class GromacsTopology:
                         self.gt.molecules_data[molecule_name][list_name],
                         atom_id_offset
                     ))
-            atom_id_offset += n_mols
+            atom_id_offset += n_mols*n_atoms
 
     def _prepare_exclusionlists(self):
         self.exclusions = {tuple(sorted(x)) for x in self.bonds.keys()}
@@ -818,7 +818,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
     return cr_observs, particle_pair_scales
 
 
-def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(), name='bonds'):
+def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(), separate_fpls=set(), name='bonds'):
     """Set bonded interactions.
 
         Args:
@@ -826,6 +826,7 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
             gt: The GromacsTopology object.
             dynamic_type_ids: The set of particle types that can change during the simulation.
             change_bond_types: The set of bond types that can be updated during the simulation.
+            separate_fpls: The set of bond types that should be put on separate FixedPairLists.
             name: The prefix for the interaction. (default: 'bonds')
 
         Return:
@@ -865,6 +866,8 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
         8: (espressopp.interaction.FixedPairListTabulated, espressopp.interaction.Tabulated)
     }
 
+    dfpls = collections.namedtuple('dfpls', ['func', 'is_observe_list'])
+
     dynamics_bonds_by_func = collections.defaultdict(list)
 
     bondparams_func = collections.defaultdict(list)
@@ -885,9 +888,11 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
 
     # Sort existing bond lists by functional type and select if it is dynamic bond or static.
     bonds_by_func = collections.defaultdict(dict)
+    bonds_by_func_types = collections.defaultdict(dict)
     for b, parameters in gt.bonds.items():
         ptypes = tuple(sorted(map(lambda x: gt.atoms[x]['type_id'], b)))
-        is_dynamic_bond = ptypes in dynamic_ptypes
+        is_separate_fpl = ptypes in separate_fpls
+        is_dynamic_bond = ptypes in dynamic_ptypes and not is_separate_fpl
         if parameters:  # Has parameters on the list.
             func = int(parameters[0])
             params = tuple(map(float, parameters[1:]))
@@ -897,8 +902,15 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
                 params = gt.bonds[tuple(reversed(ptypes))]
             func = int(params['func'])
             params = tuple(map(float, params['params']))
+
         if is_dynamic_bond:
             dynamics_bonds_by_func[func].append(b)
+        elif is_separate_fpl:
+            if ptypes not in bonds_by_func_types[func]:
+                bonds_by_func_types[func][ptypes] = {}
+            if params not in bonds_by_func_types[func][ptypes]:
+                bonds_by_func_types[func][ptypes][params] = []
+            bonds_by_func_types[func][ptypes][params].append(b)
         else:
             if params not in bonds_by_func[func]:
                 bonds_by_func[func][params] = []
@@ -927,7 +939,7 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
             fpl_params[t[1]][t[0]] = params
         system.addInteraction(interaction, 'dyn_{}_{}'.format(name, bond_count))
         bond_count += 1
-        dynamics_fpls[collections.namedtuple('dfpls', ['func', 'is_observe_list'])(func, observe_list)] = fpl
+        dynamics_fpls[dfpls(func, observe_list)] = fpl
 
     # Set first static bonds, those one that has explicitly the parameters
     for func in bonds_by_func:
@@ -942,8 +954,22 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
                 system.addInteraction(interaction, '{}_{}'.format(name, bond_count))
                 bond_count += 1
 
+    # Create a separate tuple lists
+    registered_fpls = []
+    for func in bonds_by_func_types:
+        interaction_class, potential_class = func2interaction_static.get(func)
+        for ptypes, param_blist in bonds_by_func_types[func].items():
+            for params, blist in param_blist.items():
+                fpl = espressopp.FixedPairList(system.storage)
+                fpl.addBonds(blist)
+                fpl.params = (func, params)
+                interaction = interaction_class(system, fpl, potential_class(**convert_params(func, params)))
+                system.addInteraction(interaction, '{}_{}_{}-{}'.format(name, bond_count, ptypes[0], ptypes[1]))
+                registered_fpls.append((ptypes, fpl))
+                print((fpl, blist))
+                bond_count += 1
     print('Set up bond interactions')
-    return dynamics_fpls, static_fpls
+    return dynamics_fpls, static_fpls, registered_fpls
 
 
 def set_angle_interactions(system, gt, dynamic_type_ids, change_angle_types=set(), name='angles'):

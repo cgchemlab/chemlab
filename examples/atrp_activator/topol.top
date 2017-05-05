@@ -9,6 +9,7 @@
   DA    104.536398     0.000     A        0            0
   RA    69.083399      0.000     A        0            0
   PL    60.052800      0.000     A        0            0
+  I     69.083399      0.000     A        0            0
 
 [ moleculetype ]
 EGD 3
@@ -29,10 +30,13 @@ EGD 3
 
 [ dihedrals ]
 
+#include "idd.itp"
+
 [ system ]
 ; Name
 CG_monomer
 
 [ molecules ]
 ; Compound        #mols
-EGD             2000
+EGD             1998
+IDD             3

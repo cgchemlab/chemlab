@@ -224,6 +224,7 @@ def main():  #NOQA
     # Set chemical reactions, parser in reaction_parser.py
     chem_dynamic_types = set()
     chem_dynamic_bond_types = set()
+    separate_fpls = set()
     chem_fpls = []
     reactions = []
     extensions_integrator = []
@@ -244,6 +245,7 @@ def main():  #NOQA
         ar, chem_fpls, reactions, extensions_integrator = sc.setup_reactions()
         chem_dynamic_types = sc.dynamic_types
         chem_dynamic_bond_types = sc.observed_bondtypes
+        separate_fpls = sc.separate_fpls
 
         if cr_observs is None:
             cr_observs = {}
@@ -274,41 +276,7 @@ def main():  #NOQA
     if args.maximum_conversion:
         if cr_observs is None:
             cr_observs = {}
-        re_max_conversion = re.compile(r'(?P<type>[A-Za-z0-9-]+)\(?(?P<state>\d?)\)?:(?P<maxnum>\d+):(?P<tot>\d+)')
-        for o in args.maximum_conversion.split(','):
-            vals = re_max_conversion.match(o)
-            if not vals:
-                raise RuntimeError('Problem with maximum conversion {}, not defined correctly'.format(o))
-            vals = vals.groupdict()
-            type_symbol = vals['type']
-            max_number = int(vals['maxnum'])
-            tot_number = int(vals['tot'])
-            if vals['state']:
-                type_state = int(vals['state'])
-            else:
-                type_state = None
-            max_number = int(max_number)
-            tot_number = int(tot_number)
-            stop_value = float(max_number) / tot_number
-            if '-' in type_symbol:  # Observe count of bonds
-                type_sym_1, type_sym_2 = type_symbol.split('-')
-                type_id_1 = gt.used_atomsym_atomtype[type_sym_1]
-                type_id_2 = gt.used_atomsym_atomtype[type_sym_2]
-                for fpl_def in chem_fpls:
-                    if (type_id_1, type_id_2) in fpl_def.type_list or (type_id_2, type_id_1) in fpl_def.type_list:
-                        obs_fpl = espressopp.analysis.NFixedPairListEntries(system, fpl_def.fpl)
-                        maximum_conversion.append((obs_fpl, max_number))
-                        break
-            else:   # Observe count of types
-                type_id_symbol = gt.used_atomsym_atomtype[type_symbol]
-                if (type_id_symbol, tot_number, type_state) not in cr_observs:
-                    if type_state is None:
-                        cr_observs[(type_id_symbol, tot_number, type_state)] = espressopp.analysis.ChemicalConversion(
-                            system, type_id_symbol, tot_number)
-                    else:
-                        cr_observs[(type_id_symbol, tot_number, type_state)] = espressopp.analysis.ChemicalConversionTypeState(
-                            system, type_id_symbol, type_state, tot_number)
-                    maximum_conversion.append((cr_observs[(type_id_symbol, tot_number, type_state)], stop_value))
+        maximum_conversion = tools.get_maximum_conversion(args, system, chem_fpls, gt, cr_observs)
         if args.eq_steps > 0:
             eq_run = int(args.eq_steps / sim_step)
 
@@ -323,8 +291,8 @@ def main():  #NOQA
     # Set potentials.
     cr_observs, particle_pair_scales = chemlab.gromacs_topology.set_nonbonded_interactions(
         system, gt, verletlist, lj_cutoff, cg_cutoff, tables=args.table_groups, cr_observs=cr_observs)
-    dynamic_fpls, static_fpls = chemlab.gromacs_topology.set_bonded_interactions(
-        system, gt, chem_dynamic_types, chem_dynamic_bond_types)
+    dynamic_fpls, static_fpls, registered_fpls = chemlab.gromacs_topology.set_bonded_interactions(
+        system, gt, chem_dynamic_types, chem_dynamic_bond_types, separate_fpls)
     dynamic_ftls, static_ftls = chemlab.gromacs_topology.set_angle_interactions(
         system, gt, chem_dynamic_types, chem_dynamic_bond_types)
     dynamic_fqls, static_fqls = chemlab.gromacs_topology.set_dihedral_interactions(
@@ -413,6 +381,7 @@ def main():  #NOQA
     print('Set dynamic topology')
     # Observe tuples, any new bond here trigger new angles, dihedrals.
     for static_fpl in static_fpls:
+        print('Observe tuple {}'.format(static_fpl))
         topology_manager.observe_tuple(static_fpl)
     for _, fpl in dynamic_fpls.items():
         topology_manager.observe_tuple(fpl)
@@ -452,6 +421,14 @@ def main():  #NOQA
             print('Register chem_fpl for type: {} ({})'.format(t, def_f.fpl))
             topology_manager.register_tuple(def_f.fpl, *t)
 
+    for ptypes, fpl in registered_fpls:
+        print('Register fpls for type: {}-{} ({})'.format(ptypes[0], ptypes[1], fpl))
+        topology_manager.register_tuple(fpl, *ptypes)
+        dynamic_exclusion_list.observe_tuple(fpl)
+    # All data defined in topology manager, we can rebuild reactions
+    if has_reaction:
+        sc.rebuild_fixed_pair_lists()
+
     # Define SystemMonitor that will store data from observables into a .csv file.
     energy_file = '{}_energy_{}.csv'.format(args.output_prefix, rng_seed)
     print('Energy saved to: {}'.format(energy_file))
@@ -486,12 +463,15 @@ def main():  #NOQA
         system_analysis.add_observable(
             label, espressopp.analysis.PotentialEnergy(system, interaction), show_in_system_info)
     for (cr_type, _, ts), obs in cr_observs.items():
+        if not isinstance(cr_type, collections.Iterable):
+            cr_type = [cr_type]
         if ts is None:
             system_analysis.add_observable(
-                'cr_{}'.format(cr_type), obs)
+                'cr_{}'.format('_'.join(map(str, cr_type))), obs)
         else:
             system_analysis.add_observable(
-                'cr_{}_{}'.format(cr_type, ts), obs)
+                'cr_{}_{}'.format('_'.join(map(str, cr_type)), ts), obs)
+
     for fidx, f in enumerate(chem_fpls):
         system_analysis.add_observable(
             'count_{}'.format(fidx), espressopp.analysis.NFixedPairListEntries(system, f.fpl))
@@ -514,6 +494,11 @@ def main():  #NOQA
             system_analysis.add_observable(
                 'bcount_{}'.format(bcount), espressopp.analysis.NFixedPairListEntries(system, fpl))
             bcount += 1
+
+        for ptypes, fpls in registered_fpls:
+            system_analysis.add_observable(
+                'bcount_{}-{}'.format(*ptypes), espressopp.analysis.NFixedPairListEntries(system, fpls))
+
         bcount = 0
         for static_ftl in static_ftls:
             system_analysis.add_observable(
@@ -533,7 +518,7 @@ def main():  #NOQA
                 'qcount_{}'.format(bcount), espressopp.analysis.NFixedQuadrupleListEntries(system, fql))
             bcount += 1
         # Add counter on the exclude list pairs
-        #system_analysis.add_observable('vl_excl', espressopp.analysis.NExcludeListEntries(system, verletlist))
+        system_analysis.add_observable('vl_excl', espressopp.analysis.NExcludeListEntries(system, verletlist))
 
         # Observe ParticlePairsScale
         for pps_idx, pps in enumerate(particle_pair_scales, 1):
@@ -603,6 +588,10 @@ def main():  #NOQA
             print('DumpTopol: save static list from bonds_{}'.format(bcount))
             dump_topol.add_static_tuple(f, 'bonds_{}'.format(bcount))
         bcount += 1
+
+    for ptypes, fpl in registered_fpls:
+        print('DumpTopol: observe fpls for type: {}-{} ({})'.format(ptypes[0], ptypes[1], fpl))
+        dump_topol.observe_tuple(fpl, 'dynamic_bonds_{}_{}'.format(ptypes[0], ptypes[1]))
 
     for (i, observe_triple), f in dynamic_ftls.items():
         if observe_triple and args.store_angdih:
@@ -700,6 +689,7 @@ def main():  #NOQA
 
     stop_simulation = False
     reactions_enabled = False
+    save_traj_topology = args.save_before_reaction if k_enable_reactions > 0 else True
     energy0 = 0.0
     bonds0 = 0.0
 
@@ -721,9 +711,9 @@ def main():  #NOQA
 
     for k in range(sim_step):
         system_analysis.info()
-        if k_trj_collect > 0 and k % k_trj_collect == 0:
+        if save_traj_topology and k_trj_collect > 0 and k % k_trj_collect == 0:
             traj_file.dump(k * integrator_step, k * integrator_step * args.dt)
-        if k_trj_flush > 0 and k % k_trj_flush == 0 and k > 0:
+        if save_traj_topology and k_trj_flush > 0 and k % k_trj_flush == 0:
             dump_topol.update()
             traj_file.flush()  # Write HDF5 to disk.
         if k_enable_reactions == k:
@@ -744,6 +734,9 @@ def main():  #NOQA
 
             if not hook_init_reaction(system, integrator, ar, gt, args):
                 raise RuntimeError('hook_init_reaction return False')
+            if not save_traj_topology:
+                print('Enabling saving topology and trajectory')
+                save_traj_topology = True
 
         if reactions_enabled:
             for obs, stop_value in maximum_conversion:
@@ -915,6 +908,12 @@ def main():  #NOQA
                         params['func'], ' '.join(params['params']), namet0, namet1)])
                 else:
                     bond_lists.append([p[0], p[1], '; chem MISSING params type: {}-{}'.format(namet0, namet1)])
+
+        for ptypes, fpl in registered_fpls:
+            for b in fpl.getAllBonds():
+                fpl_params = fpl.params
+                bond_lists.append([b[0], b[1], fpl_params[0]] + list(fpl_params[1]) + ['; special tuple types: {}-{}'.format(ptypes[0], ptypes[1])])
+
         for b in bond_lists:
             of.write('{}\n'.format(' '.join(map(str, b))))
             out_topol.new_data['bonds'][(b[0], b[1])] = b[2:]
