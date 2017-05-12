@@ -1,5 +1,54 @@
 Functionals
------------
+===========
+
+Nonbonded potentials
+--------------------
+
+Lennard-Jones
++++++++++++++
+
+.. _lj:
+
+.. math::
+
+   U(r_{ij}) = 4\epsilon\left [ \left ( \frac{\sigma}{r_{ij}} \right)^{12} - \left ( \frac{\sigma}{r_{ij}} \right)^6 \right ]
+
+
+Tabulated (conversion)
+++++++++++++++++++++++
+
+.. _tc:
+
+The appropriate table is selected, based on current chemical conversion.
+
+
+Tabulated (mixed, conversion)
++++++++++++++++++++++++++++++
+
+Arithmetic mixing of two tabulated potentials
+
+**Input**
+
+ - tab1: first tabulated potential
+ - tab2: second tabulated potential
+ - type: the type of particles to count in order to calculate conversion
+ - total_number: the total expected number of particles of given type **M**
+
+The conversion is defined as:
+
+.. math::
+
+   \Phi = \frac{N_{type}}{M}
+
+And the effective potential:
+
+.. math::
+
+   U(r_{ij}) = \Phi U^{tab1} + (1-\Phi) U^{tab2}
+
+
+Bonded potentials
+-----------------
 
 Harmonic bond
 +++++++++++++
@@ -68,6 +117,8 @@ Dihedral Harmonic
    U(\phi) = \frac{1}{2} K (\phi - \phi_0)^2
 
 
+
+
 Topology file
 -------------
 
@@ -116,12 +167,12 @@ Harmonic  eq7_            12     phi0 (deg), K
 ==============================  ====  ======
 Name of interaction             func  params
 ==============================  ====  ======
-Lennard-Jones                   1     sigma*, epsilon*
+Lennard-Jones       lj_         1     sigma*, epsilon*
 Tabulated                       8     filename*
-Tabulated (conversion)          9     filename*, type, total number, p_min, p_max, is_default*
+Tabulated (conversion) tc_      9     filename*, type, total number, p_min, p_max, is_default*
 Tabulated (mixed, conversion)   10    tab1, tab2, type, total_number
 Tabulated scaled by lambda      11    filename*, max_force*
-Tabulated (mixed)               12    tab1, tab2, mix value
+Tabulated (mixed, static)       12    tab1, tab2, mix value
 Tabulated (cap radius)          13    filename, cap radius
 Tabulated (scalled pairs)       14    filename, scale increment, max_force*
 Lennard-Jones scaled by lambda  15    sigma*, epsilon*, max_force*

@@ -128,6 +128,7 @@ class PostProcessSetup(object):
         target_type = cfg['target_type']
         target_type_id = self.topol.atomsym_atomtype[target_type]
         final_type_id = max(self.topol.atomsym_atomtype.values()) + 1
+
         print('Freeze region with particles of type {}, change type to {}'.format(target_type_id, final_type_id))
         self.topol.atomsym_atomtype['FREEZE_{}'.format(final_type_id)] = final_type_id
         boxL = self.system.bc.boxL
@@ -158,14 +159,14 @@ class PostProcessSetup(object):
                 dir_to_region[d][0],
                 dir_to_region[d][1])
             particle_region.add_type_id(target_type_id)
-            change_in_region = espressopp.integrator.ChangeInRegion(
-                self.system, particle_region)
+
+            change_in_region = espressopp.integrator.ChangeInRegion(self.system, particle_region)
             change_in_region.set_particle_properties(
                 target_type_id, espressopp.integrator.TopologyParticleProperties(type=final_type_id))
             change_in_region.set_flags(target_type_id, reset_velocity=True, reset_force=True,
                                        remove_particle=remove_particles)
-            self.system.integrator.addExtension(change_in_region)
-        return output_triplet(None, None, None)
+
+        return output_triplet(change_in_region, None, EXT_INTEGRATOR)
 
     def _setup_post_process_release_molecule(self, cfg):
         """Setup release molecules."""

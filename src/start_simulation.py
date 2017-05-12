@@ -36,6 +36,7 @@ import shutil
 
 import chemlab
 import tools
+import app_args
 
 import os
 
@@ -45,7 +46,7 @@ __doc__ = 'Run GROMACS-like simulation with chemical reactions'
 
 
 def main():  #NOQA
-    args = tools._args().parse_args()
+    args = app_args._args().parse_args()
 
     tools._args().save_to_file('{}params.out'.format(args.output_prefix), args)
 
@@ -632,6 +633,7 @@ def main():  #NOQA
     totalTime = time.time()
     integratorLoop = 0.0
 
+    # Main integrator loop
     for k in range(sim_step):
         system_analysis.info()
         if save_traj_topology and k_trj_collect > 0 and k % k_trj_collect == 0:
