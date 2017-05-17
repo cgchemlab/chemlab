@@ -36,6 +36,7 @@ import shutil
 
 import chemlab
 import tools
+import app_args
 
 import os
 
@@ -45,7 +46,7 @@ __doc__ = 'Run GROMACS-like simulation with chemical reactions'
 
 
 def main():  #NOQA
-    args = tools._args().parse_args()
+    args = app_args._args().parse_args()
 
     tools._args().save_to_file('{}params.out'.format(args.output_prefix), args)
 
