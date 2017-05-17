@@ -130,6 +130,8 @@ class PostProcessSetup(object):
         directions = cfg.get('directions', '-x,x,-y,y,-z,z').split(',')
         target_type = cfg['target_type']
         target_type_id = self.topol.atomsym_atomtype[target_type]
+        stats_file = cfg.get('stats_file', '{}_{}_freeze_stats.dat'.format(
+            self.simulation_args.output_prefix, self.simulation_args.rng_seed))
         final_type_id = max(self.topol.atomsym_atomtype.values()) + 1
         print('Freeze region with particles of type {}, change type to {}'.format(target_type_id, final_type_id))
         self.topol.atomsym_atomtype['FREEZE_{}'.format(final_type_id)] = final_type_id
@@ -140,8 +142,18 @@ class PostProcessSetup(object):
             width = espressopp.Real3D(float(cfg['width']))
 
         remove_particles = eval(cfg.get('remove_particles', 'False'))
-        prob = float(eval(cfg.get('prob', '1.0')))
-        print('Freeze region: prob {}'.format(prob))
+        prob = float(cfg.get('prob'))
+        p_num = int(cfg.get('p_num'))
+        p_percentage = float(cfg.get('p_percentage'))
+        if p_percentage and (p_percentage > 1.0 or p_percentage < 0.0):
+            raise RuntimeError('p_percentage not in the range (0.0, 1.0)')
+
+        if prob:
+            print('Freeze in region with prob: {}'.format(prob))
+        elif p_num:
+            print('Freeze in region with p_num: {}'.format(p_num))
+        elif p_percentage:
+            print('Freeze in region with percentage: {}'.format(p_percentage))
 
         dir_to_region = {
             '-x': (espressopp.Real3D(0.0), espressopp.Real3D(width[0], boxL[1], boxL[2])),
@@ -163,15 +175,16 @@ class PostProcessSetup(object):
                 dir_to_region[d][0],
                 dir_to_region[d][1])
             particle_region.add_type_id(target_type_id)
+
             change_in_region = espressopp.integrator.ChangeInRegion(
-                self.system, particle_region)
+                self.system, particle_region, prob=prob, p_num=p_num, p_num_percentage=p_percentage)
             change_in_region.set_particle_properties(
                 target_type_id, espressopp.integrator.TopologyParticleProperties(type=final_type_id))
             change_in_region.set_flags(target_type_id, reset_velocity=True, reset_force=True,
                                        remove_particle=remove_particles)
-            change_in_region.p = prob
-            self.system.integrator.addExtension(change_in_region)
-        return output_triplet(None, None, None)
+            change_in_region.stats_filename = stats_file
+
+        return output_triplet(change_in_region, None, EXT_INTEGRATOR)
 
     def _setup_post_process_release_molecule(self, cfg):
         """Setup release molecules."""
@@ -351,7 +364,7 @@ class PostProcessSetup(object):
     def _setup_atrp_activator(self, cfg):
         interval = int(cfg['interval'])
         num_particles = int(cfg['num_particles'])
-        select_from_all = bool(cfg['select_from_all'])
+        select_from_all = int(cfg['select_from_all'])
         ratio_activator = float(cfg['ratio_activator'])
         ratio_deactivator = float(cfg['ratio_deactivator'])
         delta_catalyst = float(cfg['delta_catalyst'])
@@ -367,7 +380,8 @@ class PostProcessSetup(object):
         atrp_activator.select_from_all = select_from_all
         options = [x.split('->') for x in cfg['options'].split(';')]
         print('Settings ATRP activator extension')
-        print('ATRPActivator.interval={} num_part={} select_from_all={}'.format(interval, num_particles, select_from_all))
+        print('ATRPActivator.interval={} num_part={} select_from_all={}'.format(
+            interval, num_particles, select_from_all))
         re_reactant = re.compile(r'(?P<name>\w+)\((?P<state>\d+),\s*(?P<flag>[AD]{1,2})\)')
         re_product = re.compile(r'(?P<new_type>\w+)\((?P<delta>[0-9-]+)\)')
         for to_process, after_process in options:
