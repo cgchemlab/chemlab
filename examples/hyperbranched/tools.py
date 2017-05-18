@@ -1,20 +1,20 @@
-"""
-Copyright (C) 2015-2016 Jakub Krajniak <jkrajniak@gmail.com>
-
-This file is distributed under free software licence:
-you can redistribute it and/or modify it under the terms of the
-GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-"""
+#  Copyright (C) 2016
+#      Jakub Krajniak (jkrajniak at gmail.com)
+#
+#  This file is part of ChemLab.
+#
+#  ChemLab is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  ChemLab is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import argparse
@@ -56,50 +56,14 @@ class MyArgParser(argparse.ArgumentParser):
                     of.write('{}={}\n'.format(k, v))
 
 
-def dump_topol(file_name, topol, system, particle_ids, bonds, angles, dihedrals, pairs):
-    # Get current atom set.
-    for atid in particle_ids:
-        p = system.storage.getParticle(atid)
-        atom_type_params = topol.gt.atomtypes[topol.atomtype_atomsym[p.type]]
-        topo_atom = espressopp.tools.chemlab.files_io.TopoAtom()
-        topo_atom.atom_id = atid
-        topo_atom.atom_type = atom_type_params['name']
-        topo_atom.chain_name = topol.gt.molecules.keys()[0]
-        topo_atom.name = 'T{}'.format(p.type)
-        topo_atom.mass = atom_type_params['mass']
-        topo_atom.charge = atom_type_params['charge']
-        topo_atom.chain_idx = p.res_id
-        topol.topol.atoms[atid] = topo_atom
-
-    for fpl in bonds:
-        for bp in fpl.getBonds():
-            for b12 in bp:
-                topol.topol.new_data['bonds'][b12] = []
-
-    for ftl in angles:
-        for bt in ftl.getTriples():
-            for b123 in bt:
-                topol.topol.angles[b123] = []
-
-    for fql in dihedrals:
-        for bq in fql.getQuadruples():
-            for b1234 in bq:
-                topol.topol.dihedrals[b1234] = []
-
-    for fpr in pairs:
-        for bl in fpr.getBonds():
-            for b12 in bl:
-                topol.topol.pairs[b12] = []
-
-    topol.topol.write(file_name)
-
 def save_forcefield(h5, gt):
     """Saves force-field to H5MD file under the /parameters/forcefield group."""
     if 'force_field' not in h5['/parameters']:
-        g_ff = h5['/parameters'].create_group('force_field')
+        h5['/parameters'].create_group('force_field')
     g_ff = h5['/parameters/force_field']
     atomtypes = []
-    for at_sym, atd in gt.topol.atomtypes.items():
+    for at_sym in gt.used_atomtypes:
+        atd = gt.topol.atomtypes[at_sym]
         atomtypes.append([
             gt.atomsym_atomtype[at_sym], at_sym, atd['mass'],
             atd['charge'], atd['epsilon'], atd['sigma'],
@@ -119,6 +83,8 @@ def _args():
     parser.add_argument('--node_grid')
     parser.add_argument('--skin', type=float, default=0.16,
                         help='Skin value for Verlet list')
+    parser.add_argument('--kb', type=float, default=0.0083144621, help='Boltzmann constant, default kJ/mol')
+    parser.add_argument('--mass_factor', type=float, default=1.6605402, help='Mass units, default a.u.')
     parser.add_argument('--run', type=int, default=10000,
                         help='Number of simulation steps')
     parser.add_argument('--int_step', default=1000, type=int, help='Steps in integrator')
@@ -132,7 +98,7 @@ def _args():
                         help='Name of output trajectory file')
     parser.add_argument('--thermostat',
                         default='lv',
-                        choices=('lv', 'vr'),
+                        choices=('lv', 'vr', 'iso'),
                         help='Thermostat to use, lv: Langevine, vr: Stochastic velocity rescale')
     parser.add_argument('--barostat', default='lv', choices=('lv', 'br'),
                         help='Barostat to use, lv: Langevine, br: Berendsen')
@@ -166,7 +132,7 @@ def _args():
                         help='Kappa paramter for coulomb interactions')
     parser.add_argument('--coulomb_cutoff', default=0.9, type=float,
                         help='Coulomb cut-off')
-    parser.add_argument('--reactions', default='reaction.cfg',
+    parser.add_argument('--reactions', default=None,
                         help='Configuration file with chemical reactions')
     parser.add_argument('--debug', default=None, help='Turn on logging mechanism')
     parser.add_argument('--start_ar', default=0, type=int, help='When to start chemical reactions')
@@ -176,5 +142,22 @@ def _args():
                         help='Store chemical state')
     parser.add_argument('--store_lambda', default=False, type=ast.literal_eval,
                         help='Store lambda parameter')
+    parser.add_argument('--store_force', default=False, type=ast.literal_eval,
+                        help='Store forces')
+    parser.add_argument('--store_position', default=True, type=ast.literal_eval,
+                        help='Store positions')
+    parser.add_argument('--store_velocity', default=False, type=ast.literal_eval,
+                        help='Store velocity')
+    parser.add_argument('--maximum_conversion',
+                        default=None,
+                        help=('The comma separated list of conditions on which '
+                              'the simulation will stop. (format: atom type symbol:max number:total number)'))
+    parser.add_argument('--eq_steps', default=0, help=('Run simulation after conversion reached for n-steps'), type=int)
+    parser.add_argument('--table_groups', default=None,
+                        help='The list of atom type names that should be simulated with tabulated potential.')
+    parser.add_argument('--max_force', default=-1, type=float,
+                        help='Maximum force in the system.')
+    parser.add_argument('--rate_arrhenius', default=False, help='Change rate based on the Arrhenius equation.',
+                        type=ast.literal_eval)
 
     return parser

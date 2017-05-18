@@ -122,6 +122,9 @@ def _args():
     args_simulation_options.add_argument('--int_step', default=1000, type=int, help='Steps in integrator')
     args_simulation_options.add_argument('--rng_seed', type=int, help='Seed for RNG', required=False,
                                          default=random.randint(1000, 10000))
+    args_simulation_options.add_argument('--thermal_groups', default=None, help='Thermal groups')
+    args_simulation_options.add_argument('--gen_velocity', default=False, type=ast.literal_eval,
+                                         help='Generate velocity or not')
     args_simulation_options.add_argument('--thermostat',
                                          default='lv',
                                          choices=('lv', 'vr', 'iso'),
@@ -176,6 +179,9 @@ def _args():
                                       help='Write data in single precision format')
     args_storing_options.add_argument('--save_before_reaction', default=False, type=ast.literal_eval,
                                       help='If True then the trajectory and topology will be saved before reaction')
+    args_storing_options.add_argument('--trj_flush', default=None, type=int)
+    args_storing_options.add_argument('--gro_trj_collect', default=None, type=int)
+    args_storing_options.add_argument('--store_angdih', default=False, type=ast.literal_eval)
 
     maximum_conversion_options = parser.add_argument_group('Maximum conversion')
     maximum_conversion_options.add_argument('--maximum_conversion',

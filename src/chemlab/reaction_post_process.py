@@ -130,8 +130,11 @@ class PostProcessSetup(object):
         directions = cfg.get('directions', '-x,x,-y,y,-z,z').split(',')
         target_type = cfg['target_type']
         target_type_id = self.topol.atomsym_atomtype[target_type]
-        stats_file = cfg.get('stats_file', '{}_{}_freeze_stats.dat'.format(
-            self.simulation_args.output_prefix, self.simulation_args.rng_seed))
+        if cfg.get('stats_file'):
+            stats_file = cfg.get('stats_file')
+        else:
+            stats_file = '{}_{}_freeze_stats.dat'.format(
+                self.simulation_args.output_prefix, self.simulation_args.rng_seed)
         final_type_id = max(self.topol.atomsym_atomtype.values()) + 1
         print('Freeze region with particles of type {}, change type to {}'.format(target_type_id, final_type_id))
         self.topol.atomsym_atomtype['FREEZE_{}'.format(final_type_id)] = final_type_id
@@ -142,9 +145,9 @@ class PostProcessSetup(object):
             width = espressopp.Real3D(float(cfg['width']))
 
         remove_particles = eval(cfg.get('remove_particles', 'False'))
-        prob = float(cfg.get('prob'))
-        p_num = int(cfg.get('p_num'))
-        p_percentage = float(cfg.get('p_percentage'))
+        prob = float(cfg.get('prob')) if cfg.get('prob') else None
+        p_num = int(cfg.get('p_num')) if cfg.get('p_num') else None
+        p_percentage = float(cfg.get('p_percentage')) if cfg.get('p_percentage') else None
         if p_percentage and (p_percentage > 1.0 or p_percentage < 0.0):
             raise RuntimeError('p_percentage not in the range (0.0, 1.0)')
 
