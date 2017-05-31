@@ -419,6 +419,8 @@ class SetupReactions:
         ar.nearest_mode = self.cfg['general']['nearest']
         if self.cfg['general']['pair_distances_filename']:
             ar.pair_distances_filename = self.cfg['general']['pair_distances_filename']
+        if self.cfg['general']['max_per_interval'] > 0:
+            ar.max_per_interval = self.cfg['general']['max_per_interval']
 
         fpls = []
         reactions = []
