@@ -200,7 +200,8 @@ def process_general(cfg):
     return {
         'interval': int(cfg['interval']),
         'nearest': bool(cfg.get('nearest', False)),
-        'pair_distances_filename': cfg.get('pair_distances_filename')
+        'pair_distances_filename': cfg.get('pair_distances_filename'),
+        'max_per_interval': int(cfg.get('max_per_interval', -1))
     }
 
 

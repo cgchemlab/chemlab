@@ -1209,7 +1209,7 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, change_dihedral_type
         for params, b_list in dihedrals_by_func[func].items():
             if b_list:
                 fql = espressopp.FixedQuadrupleList(system.storage)
-                fql.addTriples(b_list)
+                fql.addQuadruples(b_list)
                 fql.params = (func, params)
                 static_fqls.append(fql)
                 interaction = interaction_class(system, fql, potential_class(**convert_params(func, params)))
