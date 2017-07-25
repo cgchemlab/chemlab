@@ -553,7 +553,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                     cr_default,
                     cr_type,
                     cr_total])
-            elif func == 10:
+            elif func == 10:  # Dynamic scaling
                 tab1 = param['params'][0]
                 tab2 = param['params'][1]
                 cr_type = atomsym_atomtype[param['params'][2]]
