@@ -177,6 +177,7 @@ Tabulated (cap radius)          13    filename, cap radius
 Tabulated (scalled pairs)       14    filename, scale increment, max_force*
 Lennard-Jones scaled by lambda  15    sigma*, epsilon*, max_force*
 Lennard-Jones capped            16    sigma*, epsilon*, cap radius
+Tabulated (multi mixed)         17    type, total number, p_min:p_max:table1:table2, p_min:p_max:table1:table2, p_min:p_max:table1:table2, ...
 ==============================  ====  ======
 
 Parameters with * are optional.

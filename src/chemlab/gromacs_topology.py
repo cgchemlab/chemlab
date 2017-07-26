@@ -119,6 +119,12 @@ def convertc6c12(c6, c12, cr):
     else:
         return c6, c12
 
+def convertTable(tab_name):
+    espp_tab_name = '{}.pot'.format(tab_name.replace('.xvg', '').replace('.pot', ''))
+    if not os.path.exists(espp_tab_name):
+        print('Convert {} to {}'.format(tab_name, espp_tab_name))
+        espressopp.tools.convert.gromacs.convertTable(tab_name, espp_tab_name)
+    return espp_tab_name
 
 class GromacsTopology:
     def __init__(self, input_topol, generate_exclusions=True):
@@ -500,6 +506,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
 
     # Special case for MultiTabulated
     cr_multi = collections.defaultdict(list)
+    cr_multi_mix = collections.defaultdict(list)
     cr_mix_tab = collections.defaultdict(list)
     tab_scaled = {} # increment -> (t1, t2)
     dynamic_interactions = collections.defaultdict(dict)
@@ -542,7 +549,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 cr_min = float(param['params'][3])
                 cr_max = float(param['params'][4])
                 cr_default = bool(int(param['params'][5])) if len(param['params']) > 5 else False
-                if (cr_type, cr_total) not in cr_observs:
+                if (cr_type, cr_total, None) not in cr_observs:
                     cr_observs[(cr_type, cr_total, None)] = espressopp.analysis.ChemicalConversion(
                         system, cr_type, cr_total)
                 cr_multi[(t1, t2)].append([
@@ -558,7 +565,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 tab2 = param['params'][1]
                 cr_type = atomsym_atomtype[param['params'][2]]
                 cr_total = int(param['params'][3])
-                if (cr_type, cr_total) not in cr_observs:
+                if (cr_type, cr_total, None) not in cr_observs:
                     cr_observs[(cr_type, cr_total, None)] = espressopp.analysis.ChemicalConversion(
                         system, cr_type, cr_total
                     )
@@ -621,6 +628,30 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                     sig = float(param['params'][0])
                     eps = float(param['params'][1])
                     lj_cap = float(param['params'][2])
+            elif func == 17:  # MultpleMixedPotential
+                # Format t1 t2 cr_type cr_total start:stop:tab1:tab2 start:stop:tab2:tab3 ...
+                if len(param['params']) == 2:
+                    raise RuntimeError('Wrong number of parameters for non_bonded params, func=17')
+                cr_type = atomsym_atomtype[param['params'][0]]
+                cr_total = int(param['params'][1])
+                # Read the rest of parameters
+                mix_params = []
+                for p in param['params'][2:]:
+                    t = p.split(':')
+                    if len(t) != 4:
+                        raise RuntimeError('Wrong definition of the range for func=17, {}'.format(p))
+                    start_range = float(t[0])
+                    stop_range = float(t[1])
+                    tab1 = t[2]
+                    tab2 = t[3]
+                    mix_params.append((start_range, stop_range, tab1, tab2))
+                if (cr_type, cr_total, None) not in cr_observs:
+                    cr_observs[(cr_type, cr_total, None)] = espressopp.analysis.ChemicalConversion(
+                        system, cr_type, cr_total
+                    )
+                if (t1, t2) in cr_multi_mix:
+                    raise RuntimeError('Non-bonded interaction for types ({}) are already defined'.format((t1, t2)))
+                cr_multi_mix[(t1, t2)] = (cr_observs[(cr_type, cr_total, None)], mix_params)
             else:
                 raise RuntimeError('Functional {} not found'.format(func))
 
@@ -688,6 +719,19 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 type1=mt1, type2=mt2, potential=mp_tab)
             defined_types.add((mt1, mt2))
         system.addInteraction(multi_tab_interaction, 'lj-mtab')
+
+    if cr_multi_mix:
+        multi_mixed_tab_interaction = espressopp.interaction.VerletListMultiMixedTabulated(vl)
+        for (mt1, mt2), data in cr_multi_mix.items():
+            mp_tab = espressopp.interaction.MultiMixedTabulated(itype=1, cutoff=tab_cutoff)
+            chem_obs, mix_params = data
+            for start_range, stop_range, tab1, tab2 in mix_params:
+                espp_tab1 = convertTable(tab1)
+                espp_tab2 = convertTable(tab2)
+                mp_tab.register_table(espp_tab1, espp_tab2, chem_obs, start_range, stop_range)
+            multi_mixed_tab_interaction.setPotential(type1=mt1, type2=mt2, potential=mp_tab)
+            defined_types.add((mt1, mt2))
+        system.addInteraction(multi_mixed_tab_interaction, 'lj-mmtab')
 
     # Mixed Tabulated potentials.
     if cr_mix_tab:
