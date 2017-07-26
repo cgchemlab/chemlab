@@ -17,6 +17,7 @@ MA 1
 MB 1
 PA 1
 PB 1
+PL 0
 
 [ bondtypes ]
 ; i j func

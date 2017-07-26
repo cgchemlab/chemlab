@@ -6,6 +6,7 @@ MA 1
 PA 1
 FA 5
 PL 1
+I 0
 
 [ bondtypes ]
 ; i j func
@@ -18,6 +19,7 @@ FA RA 8 5 1.0 ;b5
 FA DA 8 6 1.0 ;b6
 DA RA 8 5 1.0 ;b7
 RA RA 8 6 1.0 ;b8
+I I 8 0 1.0 ; b0
 
 [ angletypes ]
 ; i j k func
@@ -74,3 +76,4 @@ RA RA 8 6 1.0 ;b8
 ; l j func=10 table1 table2 atom_type ntotal
  MA   PA   10  table_PA_PA.xvg   table_MA_MA.xvg   PL 2000
  ML   PL   10  table_PL_PL.xvg   table_MA_MA.xvg   PL 2000
+ I    I    

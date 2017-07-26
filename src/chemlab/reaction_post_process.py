@@ -1,4 +1,4 @@
-#  Copyright (C) 2016
+#  Copyright (C) 2016,2017
 #      Jakub Krajniak (jkrajniak at gmail.com)
 #      Zidan Zhang (zidan.zhang at kuleuven.be)
 #
@@ -19,7 +19,10 @@
 
 
 import collections
+
+import cPickle
 import espressopp
+import os
 import re
 
 from reaction_parser import EXT_INTEGRATOR, EXT_POSTPROCESS
@@ -127,6 +130,11 @@ class PostProcessSetup(object):
         directions = cfg.get('directions', '-x,x,-y,y,-z,z').split(',')
         target_type = cfg['target_type']
         target_type_id = self.topol.atomsym_atomtype[target_type]
+        if cfg.get('stats_file'):
+            stats_file = cfg.get('stats_file')
+        else:
+            stats_file = '{}_{}_freeze_stats.dat'.format(
+                self.simulation_args.output_prefix, self.simulation_args.rng_seed)
         final_type_id = max(self.topol.atomsym_atomtype.values()) + 1
         print('Freeze region with particles of type {}, change type to {}'.format(target_type_id, final_type_id))
         self.topol.atomsym_atomtype['FREEZE_{}'.format(final_type_id)] = final_type_id
@@ -137,6 +145,18 @@ class PostProcessSetup(object):
             width = espressopp.Real3D(float(cfg['width']))
 
         remove_particles = eval(cfg.get('remove_particles', 'False'))
+        prob = float(cfg.get('prob')) if cfg.get('prob') else None
+        p_num = int(cfg.get('p_num')) if cfg.get('p_num') else None
+        p_percentage = float(cfg.get('p_percentage')) if cfg.get('p_percentage') else None
+        if p_percentage and (p_percentage > 1.0 or p_percentage < 0.0):
+            raise RuntimeError('p_percentage not in the range (0.0, 1.0)')
+
+        if prob:
+            print('Freeze in region with prob: {}'.format(prob))
+        elif p_num:
+            print('Freeze in region with p_num: {}'.format(p_num))
+        elif p_percentage:
+            print('Freeze in region with percentage: {}'.format(p_percentage))
 
         dir_to_region = {
             '-x': (espressopp.Real3D(0.0), espressopp.Real3D(width[0], boxL[1], boxL[2])),
@@ -158,14 +178,16 @@ class PostProcessSetup(object):
                 dir_to_region[d][0],
                 dir_to_region[d][1])
             particle_region.add_type_id(target_type_id)
+
             change_in_region = espressopp.integrator.ChangeInRegion(
-                self.system, particle_region)
+                self.system, particle_region, prob=prob, p_num=p_num, p_num_percentage=p_percentage)
             change_in_region.set_particle_properties(
                 target_type_id, espressopp.integrator.TopologyParticleProperties(type=final_type_id))
             change_in_region.set_flags(target_type_id, reset_velocity=True, reset_force=True,
                                        remove_particle=remove_particles)
-            self.system.integrator.addExtension(change_in_region)
-        return output_triplet(None, None, None)
+            change_in_region.stats_filename = stats_file
+
+        return output_triplet(change_in_region, None, EXT_INTEGRATOR)
 
     def _setup_post_process_release_molecule(self, cfg):
         """Setup release molecules."""
@@ -175,6 +197,7 @@ class PostProcessSetup(object):
         alpha = float(cfg['alpha'])
         init_res = float(cfg['init_res'])
         final_type = cfg.get('final_type', target_type)
+        cache_file = cfg.get('cache_file')
 
         replicate = int(cfg.get('replicate', 1))
         release_on = cfg.get('release_on', 'type')  # bond or type
@@ -198,34 +221,47 @@ class PostProcessSetup(object):
         # Creates list of dummy particles.
         particle_list = []
         fix_list = []
-        dummy_idx = max_pid + 1
-        for idx, host_pid in enumerate(host_pids):
-            host_p = self.system.storage.getParticle(host_pid)
-            for _ in range(replicate):
-                dummy_pos = host_p.pos + espressopp.Real3D(eq_length, 0.0, 0.0)
-                fix_list.append((host_pid, dummy_idx, eq_length))
-                particle_list.append((
-                    dummy_idx,
-                    dummy_type_id,
-                    dummy_pos,
-                    target_properties['mass'],
-                    dummy_idx,
-                    init_res,
-                    target_properties.get('state', 0)))
-                dummy_idx += 1
         props = ['id', 'type', 'pos', 'mass', 'res_id', 'lambda_adr', 'state']
+        if cache_file is None or not os.path.exists(cache_file):
+            dummy_idx = max_pid + 1
+            for idx, host_pid in enumerate(host_pids):
+                host_p = self.system.storage.getParticle(host_pid)
+                for _ in range(replicate):
+                    dummy_pos = host_p.pos + espressopp.Real3D(eq_length, 0.0, 0.0)
+                    fix_list.append((host_pid, dummy_idx, eq_length))
+                    particle_list.append((
+                        dummy_idx,
+                        dummy_type_id,
+                        dummy_pos,
+                        target_properties['mass'],
+                        dummy_idx,
+                        init_res,
+                        target_properties.get('state', 0)))
+                    dummy_idx += 1
+        if cache_file:
+            if os.path.exists(cache_file):
+                print('Read dummy particles from {}'.format(cache_file))
+                with open(cache_file, 'rb') as in_file:
+                    particle_list, fix_list, props = cPickle.load(in_file)
+            else:
+                print('Save data to {}'.format(cache_file))
+                with open(cache_file, 'wb') as in_file:
+                    cPickle.dump((particle_list, fix_list, props), in_file)
+
         self.system.storage.addParticles(particle_list, *props)
         self.system.storage.decompose()
 
         reaction_post_process = None
 
         if release_on == 'type':
+            print('Release particle on type change {}-{}'.format(host_type, dummy_type_id))
             fix_distance = espressopp.integrator.FixDistances(
                 self.system,
                 fix_list,
                 self.topol.atomsym_atomtype[host_type],
                 dummy_type_id)
         else:  # do not remove fix when change of type
+            print('Release particle on new bond created, count: {}'.format(release_count))
             fix_distance = espressopp.integrator.FixDistances(self.system, fix_list)
             # Remove by post process in the reaction
             reaction_post_process = espressopp.integrator.PostProcessReleaseParticles(fix_distance, release_count)
