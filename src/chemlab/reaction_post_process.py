@@ -43,6 +43,7 @@ class PostProcessSetup(object):
         self.name2type = topol.atomsym_atomtype
         self.topol = topol
         self.dynamic_types = None
+        self.separate_fpls = None
         self.observed_bondtypes = None
         self.cr_observs = {}
         self.use_thermal_group = False
@@ -120,9 +121,9 @@ class PostProcessSetup(object):
             nb_level = int(nb_level)
             type_pid1 = self.topol.used_atomsym_atomtype[type_name1]
             type_pid2 = self.topol.used_atomsym_atomtype[type_name2]
-            print((anchor_type_id, nb_level, type_pid1, type_pid2))
             pp.add_bond_to_remove(anchor_type_id, nb_level, type_pid1, type_pid2)
-            self.observed_bondtypes.add(tuple(sorted([type_pid1, type_pid2])))
+            self.separate_fpls.add(tuple(sorted([type_pid1, type_pid2])))
+            #self.observed_bondtypes.add(tuple(sorted([type_pid1, type_pid2])))
         return output_triplet(pp, invoke_on, EXT_POSTPROCESS)
 
     def _setup_post_process_freeze_region(self, cfg):

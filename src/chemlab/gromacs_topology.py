@@ -897,9 +897,14 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
             func = int(parameters[0])
             params = tuple(map(float, parameters[1:]))
         else:  # Without parameters, take from bondtypes
-            params = gt.bondparams[ptypes]
-            if not params:
-                params = gt.bonds[tuple(reversed(ptypes))]
+            try:
+                params = gt.bondparams.get(ptypes)
+                if not params:
+                    params = gt.bondparams[tuple(reversed(ptypes))]
+            except KeyError as ex:
+                print('Missing parameter for bond: {} (ptypes: {}). Check your topology file'.format(
+                    b, ptypes))
+                raise ex
             func = int(params['func'])
             params = tuple(map(float, params['params']))
 
@@ -966,7 +971,6 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
                 interaction = interaction_class(system, fpl, potential_class(**convert_params(func, params)))
                 system.addInteraction(interaction, '{}_{}_{}-{}'.format(name, bond_count, ptypes[0], ptypes[1]))
                 registered_fpls.append((ptypes, fpl))
-                print((fpl, blist))
                 bond_count += 1
     print('Set up bond interactions')
     return dynamics_fpls, static_fpls, registered_fpls
@@ -1031,9 +1035,14 @@ def set_angle_interactions(system, gt, dynamic_type_ids, change_angle_types=set(
             func = int(parameters[0])
             params = tuple(map(float, parameters[1:]))
         else:  # Without parameters, take from angletypes
-            params = gt.angleparams[ptypes]
-            if not params:
-                params = gt.angles[tuple(reversed(ptypes))]
+            try:
+                params = gt.angleparams.get(ptypes)
+                if not params:
+                    params = gt.angles[tuple(reversed(ptypes))]
+            except KeyError as ex:
+                print('Missing parameter for angles: {} (types:{}). Check your topology file'.format(
+                    b, ptypes))
+                raise ex
             func = int(params['func'])
             params = tuple(map(float, params['params']))
         if is_dynamic_angle:
@@ -1161,9 +1170,14 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, change_dihedral_type
             func = int(parameters[0])
             params = tuple(map(float, parameters[1:]))
         else:  # Without parameters, take from dihedraltypes
-            params = gt.dihedralparams[ptypes]
-            if not params:
-                params = gt.dihedrals[tuple(reversed(ptypes))]
+            try:
+                params = gt.dihedralparams.get(ptypes)
+                if not params:
+                    params = gt.dihedralparams[tuple(reversed(ptypes))]
+            except KeyError as ex:
+                print('Missing parameter for dihedral: {} (types: {}). Check your topology file'.format(
+                    b, ptypes))
+                raise ex
             func = int(params['func'])
             params = tuple(map(float, params['params']))
         if is_dynamic_dihedral:

@@ -56,6 +56,9 @@ class SetupReactions:
         # Bond types that has to be placed in separate FixedPairLists
         self.separate_fpls = set()
 
+        # Link type tuple (sorted) with FixedPairList
+        self.type2fpl = {}
+
         self.exclusions_list = []  # For restrict reactions, the exclusion lists has to be extended.
 
         self.post_process_setup = reaction_post_process.PostProcessSetup(system, topol, topol_manager, args)
@@ -63,6 +66,8 @@ class SetupReactions:
         self.post_process_setup.observed_bondtypes = self.observed_bondtypes
         self.post_process_setup.cr_observs = self.cr_observs
         self.post_process_setup.fix_distances = self.fix_distances
+        self.post_process_setup.separate_fpls = self.separate_fpls
+        self.post_process_setup.type2fpl = self.type2fpl
 
     @property
     def use_thermal_group(self):
@@ -250,7 +255,7 @@ class SetupReactions:
 
         return reaction, [(t1_old, t2_old), (t1_new, t2_new)]
 
-    def _setup_reaction_dissocation(self, chem_reaction, type2fpl):
+    def _setup_reaction_dissocation(self, chem_reaction):
         """Setup dissociation reaction."""
         rl = chem_reaction['reactant_list']
 
@@ -261,7 +266,7 @@ class SetupReactions:
 
         # Get the correct fpl.
         t1, t2 = self.name2type[rl['type_1']['name']], self.name2type[rl['type_2']['name']]
-        fpl = type2fpl.get((t1, t2))
+        fpl = self.type2fpl.get((t1, t2))
 
         reaction = r_class(
             type_1=t1,
@@ -434,8 +439,6 @@ class SetupReactions:
         for group_name, reaction_group in self.cfg['reactions'].items():
             print('Setting reaction group {}'.format(group_name))
 
-            type2fpl = {}
-
             # Setting the interaction for the pairs created by this reaction group.
             if self.args.t_hybrid_bond > 0:
                 fpl = espressopp.FixedPairListLambda(self.system.storage, 0.0)
@@ -504,15 +507,15 @@ class SetupReactions:
                     reactions.append(r)
                     reaction_idx += 1
                     for t1, t2 in reaction_types:
-                        type2fpl[(t1, t2)] = fpl
-                        type2fpl[(t2, t1)] = fpl
+                        self.type2fpl[(t1, t2)] = fpl
+                        self.type2fpl[(t2, t1)] = fpl
 
             # Now process dissociation reactions.
             # Pitfal, It can only sees fixed pair lists in given group
             for chem_reaction in reaction_group['reaction_list']:
                 if chem_reaction['reaction_type'] != REACTION_DISSOCATION:  # only dissociation
                     continue
-                r, reaction_types = self._setup_reaction_dissocation(chem_reaction, type2fpl)
+                r, reaction_types = self._setup_reaction_dissocation(chem_reaction)
                 if r is not None:
                     #reaction_type_list.extend(reaction_types)
                     self.separate_fpls.add(tuple(reaction_types[0]))
@@ -539,8 +542,6 @@ class SetupReactions:
 
     def rebuild_fixed_pair_lists(self):
         """If the tuple for dissociation reaction is not found then the TopologyManager has to be used"""
-        print self.missing_fpls
-
         for r, (t1, t2) in self.missing_fpls:
             fpl = self.tm.get_fixed_pair_list(t1, t2)
             if fpl:
