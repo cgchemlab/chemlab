@@ -331,7 +331,7 @@ class PostProcessSetup(object):
     def _setup_atrp_activator(self, cfg):
         interval = int(cfg['interval'])
         num_particles = int(cfg['num_particles'])
-        select_from_all = int(cfg['select_from_all'])
+        select_from_all = int(cfg.get('select_from_all', 1))
         ratio_activator = float(cfg['ratio_activator'])
         ratio_deactivator = float(cfg['ratio_deactivator'])
         delta_catalyst = float(cfg['delta_catalyst'])

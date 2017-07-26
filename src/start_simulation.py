@@ -568,7 +568,14 @@ def main():  #NOQA
         dump_topol.add_static_tuple(static_fpl, 'bonds_{}'.format(bcount))
         bcount += 1
 
-    if args.topol_collect > 0:
+    if args.start_ar >= 0 and has_reaction:
+        k_enable_reactions = int(math.ceil(args.start_ar/float(integrator_step)))
+        print('Enable chemical reactions at {} step'.format(args.start_ar))
+    else:
+        k_enable_reactions = -1
+    save_traj_topology = args.save_before_reaction if k_enable_reactions > 0 else True
+
+    if args.topol_collect > 0 and save_traj_topology:
         print('Collect topology every {} steps'.format(args.topol_collect))
         ext_dump = espressopp.integrator.ExtAnalyze(dump_topol, args.topol_collect)
         integrator.addExtension(ext_dump)
@@ -581,12 +588,6 @@ def main():  #NOQA
     print('Collect trajectory every {} steps'.format(trj_collect))
     print('Collect energy data everey {} steps'.format(cr_interval))
     print('Flush trajectory and topology to disk every {} steps'.format(k_trj_flush*integrator_step))
-
-    if args.start_ar >= 0 and has_reaction:
-        k_enable_reactions = int(math.ceil(args.start_ar/float(integrator_step)))
-        print('Enable chemical reactions at {} step'.format(args.start_ar))
-    else:
-        k_enable_reactions = -1
 
     if args.stop_ar >= 0 and has_reaction:
         k_stop_reactions = int(math.ceil(args.stop_ar/float(integrator_step)))
@@ -614,7 +615,6 @@ def main():  #NOQA
 
     stop_simulation = False
     reactions_enabled = False
-    save_traj_topology = args.save_before_reaction if k_enable_reactions > 0 else True
     energy0 = 0.0
     bonds0 = 0.0
 
@@ -660,6 +660,10 @@ def main():  #NOQA
             if not save_traj_topology:
                 print('Enabling saving topology and trajectory')
                 save_traj_topology = True
+                ext_dump = espressopp.integrator.ExtAnalyze(dump_topol, args.topol_collect)
+                integrator.addExtension(ext_dump)
+                dump_topol.dump()
+                dump_topol.update()
 
         if reactions_enabled:
             for obs, stop_value in maximum_conversion:
