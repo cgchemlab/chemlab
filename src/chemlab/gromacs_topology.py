@@ -1,4 +1,4 @@
-#  Copyright (C) 2016
+#  Copyright (C) 2016,2017
 #      Jakub Krajniak (jkrajniak at gmail.com)
 #
 #  This file is part of ChemLab.
@@ -234,11 +234,11 @@ class GromacsTopology:
             self.atoms.update({
                 atom_id_offset + k + (mol * n_atoms): v for mol in range(molecule_numbers)
                 for k, v in atom_id_params.items()})
-            atom_id_offset += molecule_numbers
+            atom_id_offset += molecule_numbers*n_atoms
 
         # Update non_bonded params
         for k, v in self.topol.nonbond_params.items():
-            if v['func'] == 1 and self.topol.defaults['combinationrule'] == 1:
+            if v['func'] == 1 and self.topol.defaults['combinationrule'] == 1 and v['params']:
                 c6 = float(v['params'][0])
                 c12 = float(v['params'][1])
                 sig, eps = convertc6c12(c6, c12, combinationrule)
@@ -284,7 +284,7 @@ class GromacsTopology:
                         self.gt.molecules_data[molecule_name][list_name],
                         atom_id_offset
                     ))
-            atom_id_offset += n_mols
+            atom_id_offset += n_mols*n_atoms
 
     def _prepare_exclusionlists(self):
         self.exclusions = {tuple(sorted(x)) for x in self.bonds.keys()}
@@ -489,11 +489,14 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
             type_pairs.add(tuple(sorted([type_1, type_2])))
 
     has_lj_interaction = False
-    lj_interaction = espressopp.interaction.VerletListLennardJones(vl)
+    has_lj_capped_interaction = False
     has_tab_interaction = False
-    tab_interaction = espressopp.interaction.VerletListTabulated(vl)
     has_tab_capped_interaction = False
+
+    lj_interaction = espressopp.interaction.VerletListLennardJones(vl)
+    tab_interaction = espressopp.interaction.VerletListTabulated(vl)
     tab_capped_interaction = espressopp.interaction.VerletListTabulatedCapped(vl)
+    lj_capped_interaction = espressopp.interaction.VerletListLennardJonesEnergyCapped(vl)
 
     # Special case for MultiTabulated
     cr_multi = collections.defaultdict(list)
@@ -514,6 +517,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
         param = gt.gt.nonbond_params.get((type_1, type_2))
         table_name = None
         table_cap = None
+        lj_cap = None
         sig, eps = -1, -1
         if param:
             func = param['func']
@@ -549,7 +553,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                     cr_default,
                     cr_type,
                     cr_total])
-            elif func == 10:
+            elif func == 10:  # Dynamic scaling
                 tab1 = param['params'][0]
                 tab2 = param['params'][1]
                 cr_type = atomsym_atomtype[param['params'][2]]
@@ -569,12 +573,31 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                     tn = 'table_{}_{}.xvg'.format(type_1, type_2)
                 sig, eps = 0.0, 0.0
                 dynamic_interactions[func][(t1, t2)] = (tn, max_force)
+            elif func == 15:
+                max_force = -1
+                gen_sig_eps = False
+                if param['params']:
+                    if len(param['params']) == 1:
+                        max_force = float(param['params'][0])
+                        gen_sig_eps = True
+                    else:
+                        sig = float(param['params'][0])
+                        eps = float(param['params'][1])
+                        if len(param['params']) == 3:
+                            max_force = float(param['params'][2])
+                else:
+                    gen_sig_eps = False
+
+                if gen_sig_eps:
+                    sig_1, eps_1 = atomparams[type_1]['sigma'], atomparams[type_1]['epsilon']
+                    sig_2, eps_2 = atomparams[type_2]['sigma'], atomparams[type_2]['epsilon']
+                    sig, eps = combination(sig_1, eps_1, sig_2, eps_2, combinationrule)
+                dynamic_interactions[func][(t1, t2)] = (sig, eps, max_force)
             elif func == 12:  # MixedTabulated with static x
                 tab1 = param['params'][0]
                 tab2 = param['params'][1]
                 mix_value = float(param['params'][2])
                 cr_mix_tab[(t1, t2)].append(Func12(mix_value, tab1, tab2))
-                print t1, t2, param
             elif func == 13:
                 table_name = param['params'][0]
                 table_cap = float(param['params'][1])
@@ -588,6 +611,18 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 if scale_increment not in tab_scaled:
                     tab_scaled[scale_increment] = {}
                 tab_scaled[scale_increment][(t1, t2)] = (tab1, max_force)
+            elif func == 16:  # LJ capped
+                if len(param['params']) == 1:
+                    lj_cap = float(param['params'][0])
+                    sig_1, eps_1 = atomparams[type_1]['sigma'], atomparams[type_1]['epsilon']
+                    sig_2, eps_2 = atomparams[type_2]['sigma'], atomparams[type_2]['epsilon']
+                    sig, eps = combination(sig_1, eps_1, sig_2, eps_2, combinationrule)
+                elif len(param['params']) == 3:
+                    sig = float(param['params'][0])
+                    eps = float(param['params'][1])
+                    lj_cap = float(param['params'][2])
+            else:
+                raise RuntimeError('Functional {} not found'.format(func))
 
         elif type_1 in tables and type_2 in tables:
             table_name = 'table_{}_{}.xvg'.format(type_1, type_2)
@@ -620,6 +655,13 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 type1=t1, type2=t2,
                 potential=espressopp.interaction.Tabulated(
                     itype=1, filename=espp_tab_name, cutoff=tab_cutoff))
+            defined_types.add((t1, t2))
+        elif sig > 0.0  and lj_cap is not None:
+            print('Set LJ potential {}-{}, eps={}, sig={}, caprad={}'.format(type_1, type_2, eps, sig, lj_cap))
+            ljpot = espressopp.interaction.LennardJonesEnergyCapped(
+                epsilon=eps, sigma=sig, cutoff=lj_cutoff, caprad=lj_cap)
+            lj_capped_interaction.setPotential(type1=t1, type2=t2, potential=ljpot)
+            has_lj_capped_interaction = True
             defined_types.add((t1, t2))
         elif sig > 0.0:
             print('Set LJ potential {}-{}, eps={}, sig={}'.format(type_1, type_2, eps, sig))
@@ -736,12 +778,35 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                         interDynamicTab.setMaxForce(max_force)
                     system.addInteraction(interDynamicTab, 'tab-dynamic_{}'.format(bn))
                     bn += 1
+            elif func == 15:
+                max_forces_group = collections.defaultdict(dict)
+                for (t1, t2), (sig, eps, max_force) in data_list.items():
+                    max_forces_group[max_force][(t1, t2)] = (sig, eps)
+                bn = 0
+                for max_force, data in max_forces_group.items():
+                    interDynamicLJ = espressopp.interaction.VerletListDynamicResolutionLennardJones(vl, False)
+                    for (t1, t2), (sig, eps) in data.items():
+                        interDynamicLJ.setPotential(
+                            type1=t1,
+                            type2=t2,
+                            potential=espressopp.interaction.LennardJones(epsilon=eps, sigma=sig, cutoff=lj_cutoff))
+                        print('Set dynamic resolution potential {}-{} (sig: {}, eps: {}, max_force: {})'.format(
+                            t1, t2, sig, eps, max_force))
+                    if max_force != -1:
+                        interDynamicLJ.setMaxForce(max_force)
+                    system.addInteraction(interDynamicLJ, 'lj-dynamic_{}'.format(bn))
+                    bn += 1
             else:
                 raise RuntimeError('Currently {} not supported'.format(func))
 
     if has_lj_interaction:
         print('Adding lj interaction')
         system.addInteraction(lj_interaction, 'lj')
+
+    if has_lj_capped_interaction:
+        print('Adding lj-capped interaction')
+        system.addInteraction(lj_capped_interaction, 'lj-cap')
+
     if has_tab_interaction:
         print('Adding lj-tab interaction')
         system.addInteraction(tab_interaction, 'lj-tab')
@@ -753,7 +818,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
     return cr_observs, particle_pair_scales
 
 
-def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(), name='bonds'):
+def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(), separate_fpls=set(), name='bonds'):
     """Set bonded interactions.
 
         Args:
@@ -761,6 +826,7 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
             gt: The GromacsTopology object.
             dynamic_type_ids: The set of particle types that can change during the simulation.
             change_bond_types: The set of bond types that can be updated during the simulation.
+            separate_fpls: The set of bond types that should be put on separate FixedPairLists.
             name: The prefix for the interaction. (default: 'bonds')
 
         Return:
@@ -800,6 +866,8 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
         8: (espressopp.interaction.FixedPairListTabulated, espressopp.interaction.Tabulated)
     }
 
+    dfpls = collections.namedtuple('dfpls', ['func', 'is_observe_list'])
+
     dynamics_bonds_by_func = collections.defaultdict(list)
 
     bondparams_func = collections.defaultdict(list)
@@ -820,9 +888,11 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
 
     # Sort existing bond lists by functional type and select if it is dynamic bond or static.
     bonds_by_func = collections.defaultdict(dict)
+    bonds_by_func_types = collections.defaultdict(dict)
     for b, parameters in gt.bonds.items():
         ptypes = tuple(sorted(map(lambda x: gt.atoms[x]['type_id'], b)))
-        is_dynamic_bond = ptypes in dynamic_ptypes
+        is_separate_fpl = ptypes in separate_fpls
+        is_dynamic_bond = ptypes in dynamic_ptypes and not is_separate_fpl
         if parameters:  # Has parameters on the list.
             func = int(parameters[0])
             params = tuple(map(float, parameters[1:]))
@@ -832,8 +902,15 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
                 params = gt.bonds[tuple(reversed(ptypes))]
             func = int(params['func'])
             params = tuple(map(float, params['params']))
+
         if is_dynamic_bond:
             dynamics_bonds_by_func[func].append(b)
+        elif is_separate_fpl:
+            if ptypes not in bonds_by_func_types[func]:
+                bonds_by_func_types[func][ptypes] = {}
+            if params not in bonds_by_func_types[func][ptypes]:
+                bonds_by_func_types[func][ptypes][params] = []
+            bonds_by_func_types[func][ptypes][params].append(b)
         else:
             if params not in bonds_by_func[func]:
                 bonds_by_func[func][params] = []
@@ -862,7 +939,7 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
             fpl_params[t[1]][t[0]] = params
         system.addInteraction(interaction, 'dyn_{}_{}'.format(name, bond_count))
         bond_count += 1
-        dynamics_fpls[collections.namedtuple('dfpls', ['func', 'is_observe_list'])(func, observe_list)] = fpl
+        dynamics_fpls[dfpls(func, observe_list)] = fpl
 
     # Set first static bonds, those one that has explicitly the parameters
     for func in bonds_by_func:
@@ -877,11 +954,25 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
                 system.addInteraction(interaction, '{}_{}'.format(name, bond_count))
                 bond_count += 1
 
+    # Create a separate tuple lists
+    registered_fpls = []
+    for func in bonds_by_func_types:
+        interaction_class, potential_class = func2interaction_static.get(func)
+        for ptypes, param_blist in bonds_by_func_types[func].items():
+            for params, blist in param_blist.items():
+                fpl = espressopp.FixedPairList(system.storage)
+                fpl.addBonds(blist)
+                fpl.params = (func, params)
+                interaction = interaction_class(system, fpl, potential_class(**convert_params(func, params)))
+                system.addInteraction(interaction, '{}_{}_{}-{}'.format(name, bond_count, ptypes[0], ptypes[1]))
+                registered_fpls.append((ptypes, fpl))
+                print((fpl, blist))
+                bond_count += 1
     print('Set up bond interactions')
-    return dynamics_fpls, static_fpls
+    return dynamics_fpls, static_fpls, registered_fpls
 
 
-def set_angle_interactions(system, gt, dynamic_type_ids, name='angles'):
+def set_angle_interactions(system, gt, dynamic_type_ids, change_angle_types=set(), name='angles'):
     """Set angle interactions."""
     def convert_params(func, raw_data):
         if func == 1:
@@ -893,45 +984,92 @@ def set_angle_interactions(system, gt, dynamic_type_ids, name='angles'):
                 print('Convert {} to {}'.format(tab_name, espp_tab_name))
                 espressopp.tools.convert.gromacs.convertTable(tab_name, espp_tab_name)
             return {'itype': 1, 'filename': espp_tab_name}
+        elif func == 11:
+            return {'K': float(raw_data[1]), 'theta0': float(raw_data[0])*2*math.pi/360.0}
         else:
             raise RuntimeError('Unknown func type')
 
     func2interaction_dynamic = {
         1: (espressopp.interaction.FixedTripleListTypesAngularHarmonic, espressopp.interaction.AngularHarmonic),
-        8: (espressopp.interaction.FixedTripleListTypesTabulatedAngular, espressopp.interaction.TabulatedAngular)
+        8: (espressopp.interaction.FixedTripleListTypesTabulatedAngular, espressopp.interaction.TabulatedAngular),
+        11: (espressopp.interaction.FixedTripleListTypesCosine, espressopp.interaction.Cosine)
     }
 
     func2interaction_static = {
         1: (espressopp.interaction.FixedTripleListAngularHarmonic, espressopp.interaction.AngularHarmonic),
-        8: (espressopp.interaction.FixedTripleListTabulatedAngular, espressopp.interaction.TabulatedAngular)
+        8: (espressopp.interaction.FixedTripleListTabulatedAngular, espressopp.interaction.TabulatedAngular),
+        11: (espressopp.interaction.FixedTripleListCosine, espressopp.interaction.Cosine)
     }
 
-    # Sort existing angle lists by functional type.
-    angles_by_func = collections.defaultdict(dict)
     dynamics_angles_by_func = collections.defaultdict(list)
+
+    angleparams_func = collections.defaultdict(list)
+    dynamic_ptypes = {}
+    for pt, p in gt.angleparams.items():
+        # Bond types are not in the list of dynamic angle types or in set of change
+        if (set(pt) - dynamic_type_ids == set(pt) and ((pt[0], pt[1]) not in change_angle_types
+            or (pt[1], pt[2]) not in change_angle_types
+            or (pt[1], pt[0]) not in change_angle_types
+            or (pt[2], pt[1]) not in change_angle_types)):
+            continue
+        params = p['params']
+        if tuple(params) not in set(dynamic_ptypes.values()):
+            dynamic_ptypes[tuple((pt))] = tuple(params)
+            angleparams_func[p['func']].append((pt, p))
+            if p['func'] not in dynamics_angles_by_func:
+                dynamics_angles_by_func[p['func']] = []
+        else:
+            dynamic_ptypes = {k: v for k, v in dynamic_ptypes.items() if v != tuple(params)}
+            angleparams_func[p['func']] = [x for x in angleparams_func[p['func']][:] if x != (pt, p)]
+
+    # Sort existing angle lists by functional type and select if it is dynamic angle or static.
+    angles_by_func = collections.defaultdict(dict)
     for b, parameters in gt.angles.items():
-        ptypes = map(lambda x: gt.atoms[x]['type_id'], b)
-        s_ptypes = set(ptypes)
-        is_dynamic_bond = s_ptypes - dynamic_type_ids != s_ptypes
-        if parameters:
+        ptypes = tuple(map(lambda x: gt.atoms[x]['type_id'], b))
+        is_dynamic_angle = ptypes in dynamic_ptypes
+        if parameters:  # Has parameters on the list.
             func = int(parameters[0])
             params = tuple(map(float, parameters[1:]))
-        else:
-            params = gt.angleparams[tuple(ptypes)]
+        else:  # Without parameters, take from angletypes
+            params = gt.angleparams[ptypes]
             if not params:
                 params = gt.angles[tuple(reversed(ptypes))]
             func = int(params['func'])
             params = tuple(map(float, params['params']))
-        if is_dynamic_bond:
+        if is_dynamic_angle:
             dynamics_angles_by_func[func].append(b)
         else:
             if params not in angles_by_func[func]:
                 angles_by_func[func][params] = []
             angles_by_func[func][params].append(b)
 
-    # Set first static angles, those one that has explicitly the parameters
-    static_ftls = []
     angle_count = 0
+    # Process the dynamic angles, those are stored in the FixedTripleTypesList where
+    # potential is choose depends on the type of particles.
+    dynamics_ftls = collections.defaultdict(dict)
+    static_ftls = []
+    for func, b_list in dynamics_angles_by_func.items():
+        ftl = espressopp.FixedTripleList(system.storage)
+        ftl_params = lambda: collections.defaultdict(ftl_params)
+        ftl.params = ftl_params()
+        ftl.addTriples(b_list)
+        interaction_class, potential_class = func2interaction_dynamic.get(func)
+        interaction = interaction_class(system, ftl)
+        observe_list = False
+        for t, params in angleparams_func[func]:
+            observe_list = observe_list or (
+                (t[0], t[1]) in change_angle_types or (t[1], t[2]) in change_angle_types
+                or (t[1], t[0]) in change_angle_types or (t[2], t[1]) in change_angle_types)
+            interaction.setPotential(
+                type1=t[0], type2=t[1], type3=t[2],
+                potential=potential_class(**convert_params(func, params['params'])))
+            ftl.params[t[0]][t[1]][t[2]] = params
+            ftl.params[t[2]][t[1]][t[0]] = params
+        system.addInteraction(interaction, 'dyn_{}_{}'.format(name, angle_count))
+        angle_count += 1
+        dynamics_ftls[collections.namedtuple('dftls', ['func', 'is_observe_list'])(func, observe_list)] = ftl
+
+    # Set first static angles, those one that has explicitly the parameters
     for func in angles_by_func:
         interaction_class, potential_class = func2interaction_static.get(func)
         for params, b_list in angles_by_func[func].items():
@@ -944,36 +1082,10 @@ def set_angle_interactions(system, gt, dynamic_type_ids, name='angles'):
                 system.addInteraction(interaction, '{}_{}'.format(name, angle_count))
                 angle_count += 1
 
-    dynamics_ftls = collections.defaultdict(dict)
-    angleparams_func = collections.defaultdict(list)
-    for pt, p in gt.angleparams.items():
-        if set(pt) - dynamic_type_ids == set(pt):
-            continue
-        angleparams_func[p['func']].append((pt, p))
-        if p['func'] not in dynamics_angles_by_func:
-            dynamics_angles_by_func[p['func']] = []
-
-    for func, b_list in dynamics_angles_by_func.items():
-        ftl = espressopp.FixedTripleList(system.storage)
-        ftl.addTriples(b_list)
-        ftl_params = lambda: collections.defaultdict(ftl_params)
-        ftl.params = ftl_params()
-        interaction_class, potential_class = func2interaction_dynamic.get(func)
-        interaction = interaction_class(system, ftl)
-        for t, params in angleparams_func[func]:
-            interaction.setPotential(
-                type1=t[0], type2=t[1], type3=t[2],
-                potential=potential_class(**convert_params(func, params['params'])))
-            ftl.params[t[0]][t[1]][t[2]] = params
-            ftl.params[t[2]][t[1]][t[0]] = params
-        system.addInteraction(interaction, 'dyn_{}_{}'.format(name, angle_count))
-        angle_count += 1
-        dynamics_ftls[func] = ftl
     print('Set up angle interactions')
     return dynamics_ftls, static_ftls
 
-
-def set_dihedral_interactions(system, gt, dynamic_type_ids, name='dihedrals'):
+def set_dihedral_interactions(system, gt, dynamic_type_ids, change_dihedral_types=set(), name='dihedrals'):
     """Set dihedral interactions."""
     def convert_params(func, raw_data):
         if func == 1:
@@ -1017,60 +1129,71 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, name='dihedrals'):
             espressopp.interaction.DihedralHarmonic)
     }
 
-    # Sort existing dihedral lists by functional type.
-    dihedrals_by_func = collections.defaultdict(dict)
     dynamics_dihedrals_by_func = collections.defaultdict(list)
+
+    dihedralparams_func = collections.defaultdict(list)
+    dynamic_ptypes = {}
+    for pt, p in gt.dihedralparams.items():
+        # Bond types are not in the list of dynamic dihedral types or in set of change
+        if (set(pt) - dynamic_type_ids == set(pt) and ((pt[0], pt[1]) not in change_dihedral_types
+            or (pt[1], pt[2]) not in change_dihedral_types
+            or (pt[2], pt[3]) not in change_dihedral_types
+            or (pt[1], pt[0]) not in change_dihedral_types
+            or (pt[2], pt[1]) not in change_dihedral_types
+            or (pt[3], pt[2]) not in change_dihedral_types)):
+            continue
+        params = p['params']
+        if tuple(params) not in set(dynamic_ptypes.values()):
+            dynamic_ptypes[tuple((pt))] = tuple(params)
+            dihedralparams_func[p['func']].append((pt, p))
+            if p['func'] not in dynamics_dihedrals_by_func:
+                dynamics_dihedrals_by_func[p['func']] = []
+        else:
+            dynamic_ptypes = {k: v for k, v in dynamic_ptypes.items() if v != tuple(params)}
+            dihedralparams_func[p['func']] = [x for x in dihedralparams_func[p['func']][:] if x != (pt, p)]
+
+    # Sort existing dihedral lists by functional type and select if it is dynamic dihedral or static.
+    dihedrals_by_func = collections.defaultdict(dict)
     for b, parameters in gt.dihedrals.items():
-        ptypes = map(lambda x: gt.atoms[x]['type_id'], b)
-        s_ptypes = set(ptypes)
-        is_dynamic_bond = s_ptypes - dynamic_type_ids != s_ptypes
-        if parameters:
+        ptypes = tuple(map(lambda x: gt.atoms[x]['type_id'], b))
+        is_dynamic_dihedral = ptypes in dynamic_ptypes
+        if parameters:  # Has parameters on the list.
             func = int(parameters[0])
             params = tuple(map(float, parameters[1:]))
-        else:
-            params = gt.dihedralparams.get(tuple(ptypes))
+        else:  # Without parameters, take from dihedraltypes
+            params = gt.dihedralparams[ptypes]
             if not params:
-                params = gt.dihedralparams[tuple(reversed(ptypes))]
+                params = gt.dihedrals[tuple(reversed(ptypes))]
             func = int(params['func'])
             params = tuple(map(float, params['params']))
-        if is_dynamic_bond:
+        if is_dynamic_dihedral:
             dynamics_dihedrals_by_func[func].append(b)
         else:
             if params not in dihedrals_by_func[func]:
                 dihedrals_by_func[func][params] = []
             dihedrals_by_func[func][params].append(b)
 
-    # Set first static dihedrals, those one that has explicitly the parameters
-    static_fqls = []
     dihedral_count = 0
-    for func in dihedrals_by_func:
-        interaction_class, potential_class = func2interaction_static.get(func)
-        for params, b_list in dihedrals_by_func[func].items():
-            fql = espressopp.FixedQuadrupleList(system.storage)
-            fql.addQuadruples(b_list)
-            fql.params = (func, params)
-            static_fqls.append(fql)
-            interaction = interaction_class(system, fql, potential_class(**convert_params(func, params)))
-            system.addInteraction(interaction, '{}_{}'.format(name, dihedral_count))
-            dihedral_count += 1
-
+    # Process the dynamic dihedrals, those are stored in the FixedTripleTypesList where
+    # potential is choose depends on the type of particles.
     dynamics_fqls = collections.defaultdict(dict)
-    dihedralparams_func = collections.defaultdict(list)
-    for pt, p in gt.dihedralparams.items():
-        if set(pt) - dynamic_type_ids == set(pt):
-            continue
-        dihedralparams_func[p['func']].append((pt, p))
-        if p['func'] not in dynamics_dihedrals_by_func:
-            dynamics_dihedrals_by_func[p['func']] = []
-
+    static_fqls = []
     for func, b_list in dynamics_dihedrals_by_func.items():
         fql = espressopp.FixedQuadrupleList(system.storage)
-        fql.addQuadruples(b_list)
         fql_params = lambda: collections.defaultdict(fql_params)
         fql.params = fql_params()
+        fql.addQuadruples(b_list)
         interaction_class, potential_class = func2interaction_dynamic.get(func)
         interaction = interaction_class(system, fql)
+        observe_list = False
         for t, params in dihedralparams_func[func]:
+            observe_list = observe_list or (
+                (t[0], t[1]) in change_dihedral_types
+                or (t[1], t[2]) in change_dihedral_types
+                or (t[2], t[3]) in change_dihedral_types
+                or (t[1], t[0]) in change_dihedral_types
+                or (t[2], t[1]) in change_dihedral_types
+                or (t[3], t[2]) in change_dihedral_types)
             interaction.setPotential(
                 type1=t[0], type2=t[1], type3=t[2], type4=t[3],
                 potential=potential_class(**convert_params(func, params['params'])))
@@ -1078,7 +1201,20 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, name='dihedrals'):
             fql.params[t[3]][t[2]][t[1]][t[0]] = params
         system.addInteraction(interaction, 'dyn_{}_{}'.format(name, dihedral_count))
         dihedral_count += 1
-        dynamics_fqls[func] = fql
+        dynamics_fqls[collections.namedtuple('dfqls', ['func', 'is_observe_list'])(func, observe_list)] = fql
+
+    # Set first static dihedrals, those one that has explicitly the parameters
+    for func in dihedrals_by_func:
+        interaction_class, potential_class = func2interaction_static.get(func)
+        for params, b_list in dihedrals_by_func[func].items():
+            if b_list:
+                fql = espressopp.FixedQuadrupleList(system.storage)
+                fql.addQuadruples(b_list)
+                fql.params = (func, params)
+                static_fqls.append(fql)
+                interaction = interaction_class(system, fql, potential_class(**convert_params(func, params)))
+                system.addInteraction(interaction, '{}_{}'.format(name, dihedral_count))
+                dihedral_count += 1
 
     print('Set up dihedral interactions')
     return dynamics_fqls, static_fqls
@@ -1208,7 +1344,5 @@ def gen_particle_list(coordinate, topol):
              top_data['charge'],
              data.chain_idx,
              top_data.get('state', 0),
-             1.0]
-        )
-
+             1.0])
     return props, particle_list

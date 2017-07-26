@@ -1,4 +1,4 @@
-#  Copyright (C) 2016
+#  Copyright (C) 2016-2017
 #      Jakub Krajniak (jkrajniak at gmail.com)
 #
 #  This file is part of ChemLab.
@@ -17,8 +17,12 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import argparse
+import ast
 import collections
+import logging
 import numpy as np
+import random
 import re
 import espressopp
 
@@ -41,6 +45,7 @@ def save_forcefield(h5, gt):
     d_atomtypes = g_ff.create_dataset('atomtypes', data=atomtypes)
     d_atomtypes.attrs['keys'] = [
         'type_id', 'name', 'mass', 'charge', 'epsilon', 'sigma', 'type']
+
 
 def get_integrator_timers(alltimers, system):
     skip_timers = ['timeRun']
