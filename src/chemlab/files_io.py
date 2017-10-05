@@ -88,7 +88,7 @@ def prepare_path(file_path):
             max_copy_id = max([int(x.strip('_').split('.')[-1]) for x in existing_copies])
         else:
             max_copy_id = 0
-        new_file_name = '_%s.%d_' % (file_name, max_copy_id+1)
+        new_file_name = '_%s.%d_' % (file_name, max_copy_id + 1)
         new_file_path = os.path.join(dir_name, new_file_name)
         logger.warning('Found: %s, backup on: %s', file_path, new_file_path)
         os.rename(file_path, new_file_path)
@@ -139,7 +139,7 @@ class TopologyFile(object):
             'dihedrals': {},
             'improper_dihedrals': {},
             'pairs': {}
-            }
+        }
         self.parsers = {}
         self.writers = {}
 
@@ -211,7 +211,7 @@ class GROFile(CoordinateFile):
         # Reads the box size, the last line.
         self.box = numpy.array(
             map(float, filter(None, self.content[number_of_atoms + 2].split(' ')))
-            ) * self.scale_factor
+        ) * self.scale_factor
 
     def write(self, file_name=None, force=False):
         """Writes the content to the output file.
@@ -270,7 +270,7 @@ class GROFile(CoordinateFile):
             for pid in self.atoms:
                 p = system.storage.getParticle(pid)
                 self.atoms[pid] = self.atoms[pid]._replace(
-                    position=[p.pos[x] + p.imageBox[x]*boxL[x] for x in range(3)],
+                    position=[p.pos[x] + p.imageBox[x] * boxL[x] for x in range(3)],
                     velocity=[p.v[x] for x in range(3)]
                 )
         else:
@@ -326,7 +326,7 @@ class PDBFile(CoordinateFile):
                 # Box size
                 self.box = numpy.array(
                     map(float, filter(None, line.split(' '))[1:4])
-                    ) * self.scale_factor
+                ) * self.scale_factor
             elif line.startswith('ATOM') or line.startswith('HETATM'):
                 atom_id = int(line[6:11].strip())
                 atom_name = line[12:16].strip()
@@ -342,7 +342,7 @@ class PDBFile(CoordinateFile):
                         chain_name=chain_name,
                         chain_idx=chain_idx,
                         position=numpy.array([pos_x, pos_y, pos_z])
-                        ))
+                    ))
                 self.fragments[chain_name][atom_name] = self.atoms[atom_id]
 
         if len([x for x in self.box if x == self.box[0]]) != 3:
@@ -367,7 +367,7 @@ class PDBFile(CoordinateFile):
                 90,
                 'P 1',
                 1
-                ))
+            ))
 
             # Puts the number of atoms
             output.append('%d' % len(self.atoms))
@@ -385,7 +385,7 @@ class PDBFile(CoordinateFile):
                     at.position[1] / self.scale_factor,
                     at.position[2] / self.scale_factor,
                     at.name
-                    ))
+                ))
 
             output.append('TER')
             output.append('ENDMDL')
@@ -421,7 +421,7 @@ class GROMACSTopologyFile(TopologyFile):
             'moleculetype': self._parse_moleculetype,
             'system': self._parse_system,
             'molecules': self._parse_molecules
-            }
+        }
 
         self.writers = {
             'defaults': self._write_defaults,
@@ -447,7 +447,7 @@ class GROMACSTopologyFile(TopologyFile):
                 [self.new_data.get('cross_dihedrals'), self.cross_dihedrals]),
             'cross_pairs': lambda: self._write_default(
                 [self.new_data.get('cross_pairs'), self.cross_pairs])
-            }
+        }
         self.current_charges = {}
         self.atomtypes = {}
         self.atomnr2atom_name = collections.defaultdict(list)
@@ -477,7 +477,7 @@ class GROMACSTopologyFile(TopologyFile):
             'dihedrals': {},
             'improper_dihedrals': {},
             'pairs': {}
-            }
+        }
         if '__state' in self.__dict__:
             del self.__dict__['__state']
         self.current_charges = {}
@@ -526,12 +526,12 @@ class GROMACSTopologyFile(TopologyFile):
                     print('Parser for section {} not defined'.format(section_name))
                 visited_sections.add(previous_section)
             else:
-                if current_parser is not None: # and section_name not in visited_sections:
+                if current_parser is not None:  # and section_name not in visited_sections:
                     raw_data = filter(None, line.split())
                     if raw_data:
                         current_parser(raw_data)  # pylint:disable=E1102
 
-    def write(self, filename=None):  #NOQA
+    def write(self, filename=None):  # NOQA
         """Updates the topology file.
 
         Args:
@@ -614,7 +614,7 @@ class GROMACSTopologyFile(TopologyFile):
         self.defaults = {
             'func': int(raw_data[0]),
             'combinationrule': int(raw_data[1])
-            }
+        }
         if len(raw_data) > 2:
             self.defaults['gen-pairs'] = raw_data[2] == 'yes'
             self.defaults['fudgeLJ'] = float(raw_data[3])
@@ -667,10 +667,9 @@ class GROMACSTopologyFile(TopologyFile):
                 'sigma': sigma,
                 'epsilon': epsilon
             }
-            #print self.atomtypes[atom_name]
+            # print self.atomtypes[atom_name]
             if atom_name in self.atomstate:
                 self.atomtypes[atom_name]['state'] = self.atomstate[atom_name]
-
 
     def _parse_nonbond_params(self, raw_data):
         k = tuple(sorted(raw_data[:2]))
@@ -806,7 +805,6 @@ class GROMACSTopologyFile(TopologyFile):
         if 'pairs' not in self.molecules_data[self.current_molecule]:
             self.molecules_data[self.current_molecule]['pairs'] = {}
         self.molecules_data[self.current_molecule]['pairs'][atom_tuple] = raw_data[2:]
-
 
     def _parse_moleculetype(self, raw_data):
         self.current_molecule = raw_data[0]
@@ -980,6 +978,7 @@ class GROMACSTopologyFile(TopologyFile):
 
 class LammpsReader(object):
     """Very simple LAMMPS data file and input parser."""
+
     def __init__(self):
         self.data_parsers = {
             'Atoms': self._read_atom,
@@ -1014,7 +1013,7 @@ class LammpsReader(object):
             'angles': collections.defaultdict(list),
             'dihedrals': collections.defaultdict(list),
             'impropers': collections.defaultdict(list),
-            }
+        }
         self.distance_scale_factor = 0.1
 
     def read_data(self, file_name, scale_factor=None, update=False):
@@ -1155,13 +1154,13 @@ class LammpsReader(object):
                 raise RuntimeError('Cannot update atom with id {}. Not found.'.format(at_id))
             update_dict = {
                 'position': (
-                    x*self.distance_scale_factor - self._box_translate['x'],
-                    y*self.distance_scale_factor - self._box_translate['y'],
-                    z*self.distance_scale_factor - self._box_translate['z']),
+                    x * self.distance_scale_factor - self._box_translate['x'],
+                    y * self.distance_scale_factor - self._box_translate['y'],
+                    z * self.distance_scale_factor - self._box_translate['z']),
                 'atom_type': at_type,
                 'res_id': at_tag,
                 'charge': q
-                }
+            }
             if nx is not None:
                 update_dict['image'] = (nx, ny, nz)
             self.atoms[at_id].update(update_dict)
@@ -1172,9 +1171,9 @@ class LammpsReader(object):
                 'atom_type': at_type,
                 'res_id': at_tag,
                 'position': (
-                    x*self.distance_scale_factor - self._box_translate['x'],
-                    y*self.distance_scale_factor - self._box_translate['y'],
-                    z*self.distance_scale_factor - self._box_translate['z']),
+                    x * self.distance_scale_factor - self._box_translate['x'],
+                    y * self.distance_scale_factor - self._box_translate['y'],
+                    z * self.distance_scale_factor - self._box_translate['z']),
                 'image': (nx, ny, nz),
                 'charge': q,
                 'vel': (0.0, 0.0, 0.0),
@@ -1187,9 +1186,9 @@ class LammpsReader(object):
         sp_line[1:] = map(float, sp_line[1:])
         at_id, vx, vy, vz = sp_line
         self.atoms[at_id]['vel'] = (
-            vx*self.distance_scale_factor,
-            vy*self.distance_scale_factor,
-            vz*self.distance_scale_factor)
+            vx * self.distance_scale_factor,
+            vy * self.distance_scale_factor,
+            vz * self.distance_scale_factor)
 
     def _read_bond(self, input_line):
         idd, bond_type, at_1, at_2 = map(int, input_line.split())
@@ -1241,7 +1240,7 @@ def read_coordinates(file_name):
     file_suffix_class = {
         'pdb': PDBFile,
         'gro': GROFile
-        }
+    }
     file_suffix = file_name.split('.')[-1]
     return file_suffix_class[file_suffix](file_name)
 
@@ -1249,6 +1248,6 @@ def read_coordinates(file_name):
 def read_topology(file_name, settings):
     file_suffix_class = {
         'top': GROMACSTopologyFile,
-        }
+    }
     file_suffix = file_name.split('.')[-1]
     return file_suffix_class[file_suffix](file_name, settings)

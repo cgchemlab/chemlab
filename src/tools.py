@@ -80,6 +80,7 @@ def average_timers(timer_list):
 
     return avg_timers
 
+
 def get_maximum_conversion(args, system, chem_fpls, gt, cr_observs=None):
     if cr_observs is None:
         cr_observs = {}
@@ -138,7 +139,8 @@ def get_maximum_conversion(args, system, chem_fpls, gt, cr_observs=None):
                 if type_state is None:
                     obs = espressopp.analysis.ChemicalConversion(system, type_id_symbol, tot_number)
                 else:
-                    obs = espressopp.analysis.ChemicalConversionTypeState(system, type_id_symbol, type_state, tot_number)
+                    obs = espressopp.analysis.ChemicalConversionTypeState(
+                        system, type_id_symbol, type_state, tot_number)
                 cr_observs[(type_id_symbol, tot_number, type_state)] = obs
             else:
                 obs = cr_observs[(type_id_symbol, tot_number, type_state)]

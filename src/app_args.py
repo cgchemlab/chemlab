@@ -68,7 +68,6 @@ class RegexpFilter(logging.Filter):
         return self.regexp.match(record.msg) or self.regexp.match(record.funcName)
 
 
-
 def _args():
     parser = MyArgParser(description='Runs classical MD simulation',
                          fromfile_prefix_chars='@')
@@ -198,7 +197,8 @@ def _args():
     args_counters.add_argument('--count_types', default=None, help='List of particle types to count; eq. A,B')
     args_counters.add_argument('--count_tuples', default=False, type=ast.literal_eval, help='Count tuples')
     args_counters.add_argument('--count_types_state', default=None, help='List of particle types, state; eq. A:3,B:4')
-    args_counters.add_argument('--count_fix_distances', default=False, type=ast.literal_eval, help='Count size of fix distances')
+    args_counters.add_argument('--count_fix_distances', default=False,
+                               type=ast.literal_eval, help='Count size of fix distances')
 
     args_hybrid_bonds = parser.add_argument_group('Hybrid bonds')
     args_hybrid_bonds.add_argument('--t_hybrid_bond', default=0, type=int)

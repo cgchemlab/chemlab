@@ -45,7 +45,7 @@ h5md_group = 'atoms'
 __doc__ = 'Run GROMACS-like simulation with chemical reactions'
 
 
-def main():  #NOQA
+def main():  # NOQA
     args = app_args._args().parse_args()
 
     app_args._args().save_to_file('{}params.out'.format(args.output_prefix), args)
@@ -284,7 +284,7 @@ def main():  #NOQA
     if args.t_hybrid_bond > 0:
         list_dynamic_resolution = espressopp.integrator.FixedListDynamicResolution(system)
         for fpl in chem_fpls:
-            list_dynamic_resolution.register_pair_list(fpl.fpl, 1.0/args.t_hybrid_bond)
+            list_dynamic_resolution.register_pair_list(fpl.fpl, 1.0 / args.t_hybrid_bond)
         integrator.addExtension(list_dynamic_resolution)
 
     system.storage.decompose()
@@ -628,7 +628,7 @@ def main():  #NOQA
         qcount += 1
 
     if args.start_ar >= 0 and has_reaction:
-        k_enable_reactions = int(math.ceil(args.start_ar/float(integrator_step)))
+        k_enable_reactions = int(math.ceil(args.start_ar / float(integrator_step)))
         print('Enable chemical reactions at {} step'.format(args.start_ar))
     else:
         k_enable_reactions = -1
@@ -642,17 +642,17 @@ def main():  #NOQA
         dump_topol.update()
 
     trj_collect = min([args.trj_collect, cr_interval]) if cr_interval > 0 else args.trj_collect
-    k_trj_collect = int(math.ceil(trj_collect/float(integrator_step)))
+    k_trj_collect = int(math.ceil(trj_collect / float(integrator_step)))
     if args.trj_flush is None:
-        k_trj_flush = 25 if 25 < 10*k_trj_collect else 10*k_trj_collect
+        k_trj_flush = 25 if 25 < 10 * k_trj_collect else 10 * k_trj_collect
     else:
-        k_trj_flush = int(math.ceil(args.trj_flush/float(integrator_step)))
+        k_trj_flush = int(math.ceil(args.trj_flush / float(integrator_step)))
     print('Collect trajectory every {} steps'.format(trj_collect))
     print('Collect energy data every {} steps'.format(cr_interval))
-    print('Flush trajectory and topology to disk every {} steps'.format(k_trj_flush*integrator_step))
+    print('Flush trajectory and topology to disk every {} steps'.format(k_trj_flush * integrator_step))
 
     if args.stop_ar >= 0 and has_reaction:
-        k_stop_reactions = int(math.ceil(args.stop_ar/float(integrator_step)))
+        k_stop_reactions = int(math.ceil(args.stop_ar / float(integrator_step)))
         print('Disable reactions at {} step'.format(args.stop_ar))
     else:
         k_stop_reactions = -1
@@ -766,7 +766,7 @@ def main():  #NOQA
         integrator.run(integrator_step)
         integratorLoop += (time.time() - loopTimer)
 
-        hook_at_step(system, integrator, ar, gt, args, k*integrator_step)
+        hook_at_step(system, integrator, ar, gt, args, k * integrator_step)
 
         if args.rate_arrhenius and reactions_enabled:
             bonds1 = sum(f.fpl.totalSize() for f in chem_fpls)  # TODO(jakub): this is terrible.
@@ -835,7 +835,7 @@ def main():  #NOQA
     if args.table_groups:
         valid_type_ids = map(gt.atomsym_atomtype.get, args.table_groups.split(','))
 
-    for at_pid in xrange(1, int(max_pid)+1):
+    for at_pid in xrange(1, int(max_pid) + 1):
         p = system.storage.getParticle(at_pid)
         if p:
             if valid_type_ids and p.type not in valid_type_ids:
@@ -917,7 +917,8 @@ def main():  #NOQA
         for ptypes, fpl in registered_fpls:
             for b in fpl.getAllBonds():
                 fpl_params = fpl.params
-                bond_lists.append([b[0], b[1], fpl_params[0]] + list(fpl_params[1]) + ['; special tuple types: {}-{}'.format(ptypes[0], ptypes[1])])
+                bond_lists.append([b[0], b[1], fpl_params[0]] + list(fpl_params[1]) +
+                                  ['; special tuple types: {}-{}'.format(ptypes[0], ptypes[1])])
 
         for b in bond_lists:
             of.write('{}\n'.format(' '.join(map(str, b))))
@@ -941,7 +942,8 @@ def main():  #NOQA
                 if ftl_params:
                     angle_lists.append(list(p) + [ftl_params['func']] + list(ftl_params['params']) + ['; dynamic'])
                 else:
-                    angle_lists.append(list(p) + ['; MISSING params type: {}-{}-{} dynamic'.format(namet0, namet1, namet2)])
+                    angle_lists.append(
+                        list(p) + ['; MISSING params type: {}-{}-{} dynamic'.format(namet0, namet1, namet2)])
         for a in angle_lists:
             of.write('{}\n'.format(' '.join(map(str, a))))
             out_topol.new_data['angles'][tuple(a[:3])] = a[3:]
