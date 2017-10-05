@@ -1,5 +1,5 @@
-Functionals
-===========
+Topology file format
+====================
 
 Nonbonded potentials
 --------------------
@@ -122,6 +122,8 @@ Dihedral Harmonic
 Topology file
 -------------
 
+In principle, ChemLab uses GROMACS-like topology file format. However, some functional types are different.
+
 [ bondtypes ]
 +++++++++++++
 
@@ -129,8 +131,8 @@ Topology file
 Name of interaction       func   params
 ========================  =====  =======
 Harmonic eq1_             1      r0, K [1]_
-FENE eqFENE_              7      r0, K
-Tabulated                 8      table index
+FENE eqFENE_              7      r0, K [1]_
+Tabulated                 8      table index [2]_
 ========================  =====  =======
 
 .. [1] Force constant internally divided by 2.0
@@ -180,4 +182,4 @@ Lennard-Jones capped            16    sigma*, epsilon*, cap radius
 Tabulated (multi mixed)         17    type, total number, p_min:p_max:table1:table2, p_min:p_max:table1:table2, p_min:p_max:table1:table2, ...
 ==============================  ====  ======
 
-Parameters with * are optional.
+Parameters with * are optional. If not set then the values are taken from the included force-field.

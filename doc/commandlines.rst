@@ -1,6 +1,8 @@
 Command lines
 ==============
 
+.. _commandlines:
+
 .. toctree::
    :maxdepth: 1
 
