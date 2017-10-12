@@ -91,7 +91,7 @@ class PostProcessSetup(object):
                 }
                 if options:
                     additional_properties = {}
-                    exec (options, {}, additional_properties)
+                    exec(options, {}, additional_properties)
                     new_properties_args.update(additional_properties)
                 new_property = espressopp.integrator.TopologyParticleProperties(**new_properties_args)
 
@@ -108,7 +108,7 @@ class PostProcessSetup(object):
         pp = espressopp.integrator.PostProcessRemoveNeighbourBond(self.tm)
         bond_types = [
             x.split('->') for x in cfg['bonds_to_remove'].split(',')
-            ]
+        ]
         invoke_on = cfg.get('invoke_on', 'both')
         # bonds_to_remove=opls_220->opls_220:opls_154:1,opls_268->opls_268:opls_270:1
         for anchor_type, pairs_to_remove in bond_types:

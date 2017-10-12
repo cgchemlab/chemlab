@@ -68,7 +68,6 @@ class RegexpFilter(logging.Filter):
         return self.regexp.match(record.msg) or self.regexp.match(record.funcName)
 
 
-
 def _args():
     parser = MyArgParser(description='Runs classical MD simulation',
                          fromfile_prefix_chars='@')
@@ -179,9 +178,10 @@ def _args():
                                       help='Write data in single precision format')
     args_storing_options.add_argument('--save_before_reaction', default=False, type=ast.literal_eval,
                                       help='If True then the trajectory and topology will be saved before reaction')
-    args_storing_options.add_argument('--trj_flush', default=None, type=int)
-    args_storing_options.add_argument('--gro_trj_collect', default=None, type=int)
-    args_storing_options.add_argument('--store_angdih', default=False, type=ast.literal_eval)
+    args_storing_options.add_argument('--trj_flush', default=None, type=int, help='Flush data to disk every n-steps')
+    args_storing_options.add_argument('--gro_trj_collect', default=None, type=int, help='Save trajectory in .gro file')
+    args_storing_options.add_argument('--store_angdih', default=False, type=ast.literal_eval,
+                                      help='Save angles and dihedrals in the topology')
 
     maximum_conversion_options = parser.add_argument_group('Maximum conversion')
     maximum_conversion_options.add_argument('--maximum_conversion',
@@ -198,11 +198,12 @@ def _args():
     args_counters.add_argument('--count_types', default=None, help='List of particle types to count; eq. A,B')
     args_counters.add_argument('--count_tuples', default=False, type=ast.literal_eval, help='Count tuples')
     args_counters.add_argument('--count_types_state', default=None, help='List of particle types, state; eq. A:3,B:4')
-    args_counters.add_argument('--count_fix_distances', default=False, type=ast.literal_eval, help='Count size of fix distances')
+    args_counters.add_argument('--count_fix_distances', default=False,
+                               type=ast.literal_eval, help='Count size of fix distances')
 
-    args_hybrid_bonds = parser.add_argument_group('Hybrid bonds')
-    args_hybrid_bonds.add_argument('--t_hybrid_bond', default=0, type=int)
-    args_hybrid_bonds.add_argument('--t_hybrid_angle', default=0, type=int)
-    args_hybrid_bonds.add_argument('--t_hybrid_dihedral', default=0, type=int)
+    args_hybrid_bonds = parser.add_argument_group('Hybrid bonded terms')
+    args_hybrid_bonds.add_argument('--t_hybrid_bond', default=0, type=int, help='Use hybrid bonds')
+    args_hybrid_bonds.add_argument('--t_hybrid_angle', default=0, type=int, help='Use hybrid angles')
+    args_hybrid_bonds.add_argument('--t_hybrid_dihedral', default=0, type=int, help='Use hybrid dihedrals')
 
     return parser
