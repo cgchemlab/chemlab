@@ -729,6 +729,8 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 espp_tab1 = convertTable(tab1)
                 espp_tab2 = convertTable(tab2)
                 mp_tab.register_table(espp_tab1, espp_tab2, chem_obs, start_range, stop_range)
+                print('Set mixed tabulated potential {}-{} with conversion observable (U=x*{} + (1-x)*{}) in range {}:{}'.format(
+                    mt1, mt2, espp_tab1, espp_tab2, start_range, stop_range))
             multi_mixed_tab_interaction.setPotential(type1=mt1, type2=mt2, potential=mp_tab)
             defined_types.add((mt1, mt2))
         system.addInteraction(multi_mixed_tab_interaction, 'lj-mmtab')
