@@ -730,7 +730,7 @@ def main():  # NOQA
             input_conf.write(output_gro_file, force=True)
             print('Save configuration before start of the reaction, filename: {}'.format(output_gro_file))
             if sc.exclusions_list:
-                dynamic_exclusion_list.exclude(sc.exclusions_list)
+                dynamic_exclusion_list.exclude_from(sc.exclusions_list)
                 print('Add {} new exclusions from restrict reactions'.format(len(sc.exclusions_list)))
 
             if not hook_init_reaction(system, integrator, ar, gt, args):

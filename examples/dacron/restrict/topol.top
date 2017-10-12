@@ -1,0 +1,77 @@
+; configuration for polyester dicor
+
+[ defaults ]
+; nbfunc        comb-rule       gen-pairs       fudgeLJ fudgeQQ
+1               1               no             1.0     1.0
+
+[ atomtypes ]
+A 44.999   0.000  A   1.0   1.0
+B 76.098   0.000  A   1.0   1.0
+C 44.009   0.000  A   1.0   1.0  ; A->C
+D 62.050   0.000  A   1.0   1.0
+E 28.053   0.000  A   1.0   1.0  ; D->E
+W 18.006   0.000  A   1.0   1.0  ; water
+Z 18.006   0.000  A   1.0   1.0  ; dummy water
+
+[ bondtypes ]
+A B 1 0.34479 31000.5
+B C 1 0.33874 39324.0
+
+[ angletypes ]
+A B A 8 1 1.0
+A B C 8 0 1.0
+B C E 8 2 1.0
+C E C 8 3 1.0
+
+[ dihedraltypes ]
+A B C E 8 0 1.0
+B C E C 8 1 1.0
+
+[ nonbond_params ]
+A A 8 table_A_A.xvg
+A B 8 table_A_B.xvg
+A C 8 table_A_C.xvg
+A D 8 table_A_D.xvg
+A E 8 table_A_E.xvg
+B B 8 table_B_B.xvg
+B C 8 table_B_C.xvg
+B D 8 table_B_D.xvg
+B E 8 table_B_E.xvg
+C C 8 table_C_C.xvg
+C D 8 table_C_D.xvg
+C E 8 table_C_E.xvg
+D D 8 table_D_D.xvg
+D E 8 table_D_E.xvg
+E E 8 table_E_E.xvg
+A W 8 table_A_W.xvg
+B W 8 table_B_W.xvg
+D W 8 table_D_W.xvg
+C W 8 table_C_W.xvg
+E W 8 table_E_W.xvg
+W W 8 table_W_W.xvg
+A Z 11 table_A_W.xvg 1000.0
+B Z 11 table_B_W.xvg 1000.0
+D Z 11 table_D_W.xvg 1000.0
+C Z 11 table_C_W.xvg 1000.0
+E Z 11 table_E_W.xvg 1000.0
+W Z 11 table_W_W.xvg 1000.0
+Z Z 11 table_W_W.xvg 1000.0
+
+[ atomstate ]
+A 1
+B 0
+C 0
+D 2
+E 0
+
+#include "./diol_cg.itp"
+#include "./ter_cg.itp"
+
+[ system ]
+; Name
+DICOR
+
+[ molecules ]
+; Compound        #mols
+DIO                1000
+TER                1000

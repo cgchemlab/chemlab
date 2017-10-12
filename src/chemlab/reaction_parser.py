@@ -30,7 +30,6 @@ __doc__ = """This is a reaction parser."""
 REACTION_NORMAL = 'normal'
 REACTION_DISSOCATION = 'diss'
 REACTION_EXCHANGE = 'exchange'
-REACTION_RESTRICT = 'restricted'
 EXT_POSTPROCESS = 'PP'
 EXT_INTEGRATOR = 'Integrator'
 
@@ -184,9 +183,6 @@ def process_reaction(reaction):
         data['active'] = eval(reaction['active'])
     else:
         data['active'] = True
-
-    if 'connectivity_map' in reaction:
-        data['reaction_type'] = REACTION_RESTRICT
 
     return (group, data)
 
