@@ -113,13 +113,13 @@ class SetupReactions:
             reaction.active = chem_reaction['active']
 
         if chem_reaction.get('connectivity_map'):
-            print('Reading connectivity map {}, reaction will be restricted'.format(
+            print('Reading connectivity map {}, reaction will be restricted to form connections only from the map'.format(
                 chem_reaction['connectivity_map']))
             connectivity_map = open(chem_reaction['connectivity_map'])
             ex_list = set()
             for l in connectivity_map.readlines():
                 b1, b2 = map(int, l.strip().split())
-                ex_list.add(tuple(sorted(b1, b2)))
+                ex_list.add(tuple(sorted((b1, b2))))
             for b1, b2 in ex_list:
                 reaction.define_connection(b1, b2)
             self.exclusions_list.extend(list(ex_list))
