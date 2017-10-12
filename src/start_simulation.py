@@ -632,7 +632,7 @@ def main():  #NOQA
         print('Enable chemical reactions at {} step'.format(args.start_ar))
     else:
         k_enable_reactions = -1
-    save_traj_topology = args.save_before_reaction if k_enable_reactions > 2 else True
+    save_traj_topology = args.save_before_reaction if k_enable_reactions > 1 else True
 
     if args.topol_collect > 0 and save_traj_topology:
         print('Collect topology every {} steps'.format(args.topol_collect))
@@ -744,11 +744,12 @@ def main():  #NOQA
                 dump_topol.update()
 
         if reactions_enabled:
-            for obs, stop_value in maximum_conversion:
-                val = obs.compute()
-                if val >= stop_value:
-                    print('Reaches {} of the conversion => Stop simulation'.format(val))
-                    stop_simulation = True
+            if not stop_simulation:
+                for obs, stop_value in maximum_conversion:
+                    val = obs.compute()
+                    if val >= stop_value:
+                        print('Reaches {} of the conversion => Stop simulation'.format(val))
+                        stop_simulation = True
             if stop_simulation:
                 if eq_run == 0:
                     break
@@ -759,7 +760,7 @@ def main():  #NOQA
                 bonds0 = sum(f.fpl.totalSize() for f in chem_fpls)  # TODO(jakub): this is terrible.
                 energy0 = system_analysis.potential_energy
 
-            if k_stop_reactions == k:
+            if k_stop_reactions == k or stop_simulation:
                 ar.disconnect()
 
         loopTimer = time.time()
