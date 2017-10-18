@@ -515,6 +515,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
     cr_mix_tab = collections.defaultdict(list)
     tab_scaled = {}  # increment -> (t1, t2)
     dynamic_interactions = collections.defaultdict(dict)
+    tab_connection_scaled = collections.defaultdict(dict)
 
     Func10 = collections.namedtuple('Func10', ['cr_observers', 'tab1', 'tab2'])
     Func12 = collections.namedtuple('Func12', ['mix_value', 'tab1', 'tab2'])
@@ -657,8 +658,13 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 if (t1, t2) in cr_multi_mix:
                     raise RuntimeError('Non-bonded interaction for types ({}) are already defined'.format((t1, t2)))
                 cr_multi_mix[(t1, t2)] = (cr_observs[(cr_type, cr_total, None)], mix_params)
-            elif func == 18:
-                pass
+            elif func == 18:  # Scaled tabulated potential with the connectivity map.
+                if len(param['params']) != 3:
+                    raise RuntimeError('Wrong number of parameters')
+                tab1 = param['params'][0]
+                connection_map = param['params'][1]
+                scaling_factor = float(param['params'][2])
+                tab_connection_scaled[connection_map] = (tab1, connection_map, scaling_factor)
             else:
                 raise RuntimeError('Functional {} not found'.format(func))
 
@@ -852,6 +858,9 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
             else:
                 raise RuntimeError('Currently {} not supported'.format(func))
 
+    if tab_connection_scaled:
+        pass
+
     if has_lj_interaction:
         print('Adding lj interaction')
         system.addInteraction(lj_interaction, 'lj')
@@ -903,20 +912,33 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
                 return {'K': K, 'r0': r0, 'rMax': rMax}
             except:
                 raise RuntimeError(
-                    'Wrong FENE definition, (expect r0 K rMax) found ({})'.format(raw_data))
+                    'Wrong FENE definition, (expected rMax K) found ({})'.format(raw_data))
+        elif func == 9:
+            try:
+                rMax = float(raw_data[0])
+                K = float(raw_data[1])
+                sigma = float(raw_data[2])
+                epsilon = float(raw_data[3])
+                r0 = 0.0  # Following GROMACS convention.
+                return {'K': K, 'r0': r0, 'rMax': rMax, 'sigma': sigma, 'epsilon': epsilon}
+            except:
+                raise RuntimeError(
+                    'Wrong FENE definition, (expected rMax K sigma epsilon) found ({})'.format(raw_data))
         else:
             raise RuntimeError('Unknown func type {}'.format(func))
 
     func2interaction_dynamic = {
         1: (espressopp.interaction.FixedPairListTypesHarmonic, espressopp.interaction.Harmonic),
         7: (espressopp.interaction.FixedPairListTypesFENE, espressopp.interaction.FENE),
-        8: (espressopp.interaction.FixedPairListTypesTabulated, espressopp.interaction.Tabulated)
+        8: (espressopp.interaction.FixedPairListTypesTabulated, espressopp.interaction.Tabulated),
+        9: (espressopp.interaction.FixedPairListTypesFENELennardJones, espressopp.interaction.FENELennardJones),
     }
 
     func2interaction_static = {
         1: (espressopp.interaction.FixedPairListHarmonic, espressopp.interaction.Harmonic),
         7: (espressopp.interaction.FixedPairListFENE, espressopp.interaction.FENE),
-        8: (espressopp.interaction.FixedPairListTabulated, espressopp.interaction.Tabulated)
+        8: (espressopp.interaction.FixedPairListTabulated, espressopp.interaction.Tabulated),
+        9: (espressopp.interaction.FixedPairListFENELennardJones, espressopp.interaction.FENELennardJones),
     }
 
     dfpls = collections.namedtuple('dfpls', ['func', 'is_observe_list'])
