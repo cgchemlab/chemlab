@@ -82,6 +82,16 @@ def average_timers(timer_list):
 
 
 def get_maximum_conversion(args, system, chem_fpls, gt, cr_observs=None):
+    """
+    Set the maximum conversion object
+
+    :param args: The input argument list.
+    :param system: The espressopp system object.
+    :param chem_fpls:
+    :param gt: The GROMACS topology object
+    :param cr_observs:
+    :return:
+    """
     if cr_observs is None:
         cr_observs = {}
 
