@@ -174,15 +174,16 @@ def main():  # NOQA
         exclusion_file = open(args.exclusion_list, 'r')
         exclusions = [map(int, x.split()) for x in exclusion_file.readlines()]
         print('Read exclusion list from {} (total: {})'.format(args.exclusion_list, len(exclusions)))
-        if len(exclusions) == 0 and gt.bonds and any([x > 0 for x in gt.gt.moleculetype.values()]):
+        if len(exclusions) == 0 and gt.bonds and any([x > 0 for x in gt.gt.moleculetype.values()]) and not args.do_not_exclude_bonds:
             raise RuntimeError('Exclusion list in {} is empty'.format(args.exclusion_list))
         gt.exclusions = exclusions
 
-    topol_file = os.path.basename(args.top)
-    output_filename = 'exclusion_{}.list'.format(topol_file.split('.')[0])
-    out_file = open(output_filename, 'w')
-    out_file.writelines('\n'.join(['{} {}'.format(*d) for d in sorted(gt.exclusions)]))
-    out_file.close()
+    if gt.exclusions:
+        topol_file = os.path.basename(args.top)
+        output_filename = 'exclusion_{}.list'.format(topol_file.split('.')[0])
+        out_file = open(output_filename, 'w')
+        out_file.writelines('\n'.join(['{} {}'.format(*d) for d in sorted(gt.exclusions)]))
+        out_file.close()
 
     dynamic_exclusion_list = espressopp.DynamicExcludeList(integrator, gt.exclusions)
     print('Excluded pairs from LJ interaction: {}'.format(len(gt.exclusions)))
@@ -199,7 +200,7 @@ def main():  # NOQA
     print('Angles: {}'.format(len(gt.angles)))
     print('Dihedrals: {}'.format(len(gt.dihedrals)))
 
-    print("Decomposing now ...")
+    print('Decomposing now ...')
     system.storage.decompose()
 
     # Conditional break of the reactions.
@@ -412,9 +413,11 @@ def main():  # NOQA
 
     # Add fpls defined by chemical reactions to exclude lists and topology_manager.
     for f in chem_fpls:
-        print("TopologyManager: Observe tuple {}".format(f.fpl))
+        print('TopologyManager: Observe tuple {}'.format(f.fpl))
         topology_manager.observe_tuple(f.fpl)
-        dynamic_exclusion_list.observe_tuple(f.fpl)
+        if not args.do_not_exclude_bonds:
+            print('Exclusion list, observe tuple {}'.format(f.fpl))
+            dynamic_exclusion_list.observe_tuple(f.fpl)
 
     # Register chemistry tuples in topology_manager
     for def_f in chem_fpls:
@@ -726,13 +729,11 @@ def main():  # NOQA
             reactions_enabled = True
             # Saves coordinate output file.
             output_gro_file = '{}_{}_before_reaction_confout.gro'.format(args.output_prefix, args.rng_seed)
+            print('Save configuration before start of the reaction, filename: {}'.format(output_gro_file))
             input_conf.update_position(system, unfolded=True)
             input_conf.write(output_gro_file, force=True)
-            print('Save configuration before start of the reaction, filename: {}'.format(output_gro_file))
-            if sc.exclusions_list:
-                dynamic_exclusion_list.exclude_from(sc.exclusions_list)
-                print('Add {} new exclusions from restrict reactions'.format(len(sc.exclusions_list)))
 
+            print('Processing hook_init_reaction')
             if not hook_init_reaction(system, integrator, ar, gt, args):
                 raise RuntimeError('hook_init_reaction return False')
             if not save_traj_topology:

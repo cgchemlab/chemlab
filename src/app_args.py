@@ -23,7 +23,7 @@ import logging
 import random
 import re
 
-__doc__ = "Tool functions."
+__doc__ = 'Tool functions.'
 
 
 class MyArgParser(argparse.ArgumentParser):
@@ -43,13 +43,13 @@ class MyArgParser(argparse.ArgumentParser):
 
     @staticmethod
     def save_to_file(output_file, namespace):
-        """Saves arguments to file so it can be read again.
+        '''Saves arguments to file so it can be read again.
 
         Args:
             output_file: The string with the name of output file.
             namespace: The namespace with arguements.
-        """
-        with open(output_file, "w") as of:
+        '''
+        with open(output_file, 'w') as of:
             keys = sorted(namespace.__dict__.keys())
             for k in keys:
                 v = namespace.__dict__[k]
@@ -58,7 +58,7 @@ class MyArgParser(argparse.ArgumentParser):
 
 
 class RegexpFilter(logging.Filter):
-    """This filter allows only messages that matches regexp to pass to user."""
+    '''This filter allows only messages that matches regexp to pass to user.'''
 
     def __init__(self, regexp, name=''):
         self.regexp = re.compile(regexp)
@@ -110,6 +110,8 @@ def _args():
     general_options.add_argument('--benchmark_data', default=None, help='Store time measurement in the file')
     general_options.add_argument('--system_monitor_filter', default=None,
                                  help='Print all (empty) or only selected elements in SystemMonitor')
+    general_options.add_argument('--do_not_exclude_bonds', default=False, type=ast.literal_eval,
+                                 help='Do not exclude newly created bonds')
 
     args_simulation_options = parser.add_argument_group('Simulation parameters')
     args_simulation_options.add_argument('--kb', type=float, default=0.0083144621,

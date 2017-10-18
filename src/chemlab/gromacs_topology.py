@@ -701,14 +701,14 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                     itype=1, filename=espp_tab_name, cutoff=tab_cutoff))
             defined_types.add((t1, t2))
         elif sig > 0.0 and lj_cap is not None:
-            print('Set LJ potential {}-{}, eps={}, sig={}, caprad={}'.format(type_1, type_2, eps, sig, lj_cap))
+            print('Set LJ potential {}-{}, eps={}, sig={}, caprad={}, cutoff='.format(type_1, type_2, eps, sig, lj_cap, lj_cutoff))
             ljpot = espressopp.interaction.LennardJonesEnergyCapped(
                 epsilon=eps, sigma=sig, cutoff=lj_cutoff, caprad=lj_cap)
             lj_capped_interaction.setPotential(type1=t1, type2=t2, potential=ljpot)
             has_lj_capped_interaction = True
             defined_types.add((t1, t2))
         elif sig > 0.0:
-            print('Set LJ potential {}-{}, eps={}, sig={}'.format(type_1, type_2, eps, sig))
+            print('Set LJ potential {}-{}, eps={}, sig={}, cutoff={}'.format(type_1, type_2, eps, sig, lj_cutoff))
             ljpot = espressopp.interaction.LennardJones(
                 epsilon=eps, sigma=sig, cutoff=lj_cutoff)
             lj_interaction.setPotential(type1=t1, type2=t2, potential=ljpot)
@@ -849,8 +849,8 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                             type1=t1,
                             type2=t2,
                             potential=espressopp.interaction.LennardJones(epsilon=eps, sigma=sig, cutoff=lj_cutoff))
-                        print('Set dynamic resolution potential {}-{} (sig: {}, eps: {}, max_force: {})'.format(
-                            t1, t2, sig, eps, max_force))
+                        print('Set dynamic resolution potential {}-{} (sig: {}, eps: {}, max_force: {}, cutoff=)'.format(
+                            t1, t2, sig, eps, max_force, lj_cutoff))
                     if max_force != -1:
                         interDynamicLJ.setMaxForce(max_force)
                     system.addInteraction(interDynamicLJ, 'lj-dynamic_{}'.format(bn))
