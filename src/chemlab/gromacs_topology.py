@@ -534,7 +534,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
         sig, eps = -1, -1
         if param:
             func = param['func']
-            #print('Using defined non-bonded cross params {} {}'.format(func, param['params']))
+            print('Using defined non-bonded cross params {} {}'.format(func, param['params']))
             if func == 1:
                 if param['params']:
                     sig = float(param['params'][0])
