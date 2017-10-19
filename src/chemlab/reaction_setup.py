@@ -134,30 +134,34 @@ class SetupReactions:
         # Change type if necessary.
         if (rl['type_1']['name'] != rl['type_1']['new_type'] or
                     rl['type_2']['name'] != rl['type_2']['new_type']):
-            r_pp = espressopp.integrator.PostProcessChangeProperty()
             if t1_old != t1_new:
+                r_pp = espressopp.integrator.PostProcessChangeProperty()
                 self.dynamic_types.add(t1_old)
                 self.dynamic_types.add(t1_new)
-                print('Reaction: {}-{}, change type {}->{}'.format(rt1, rt2, t1_old, t1_new))
+                print('Reaction: {}-{}, change type {} ({}) -> {} ({})'.format(
+                    rt1, rt2, rl['type_1']['name'], t1_old, rl['type_1']['new_type'], t1_new))
                 new_property = self.topol.gt.atomtypes[rl['type_1']['new_type']]
                 r_pp.add_change_property(
                     t1_old,
                     espressopp.integrator.TopologyParticleProperties(
                         type=t1_new, mass=new_property['mass'],
                         q=new_property['charge']))
+                reaction.add_postprocess(r_pp, 'type_1')
+
             if t2_old != t2_new:
+                r_pp = espressopp.integrator.PostProcessChangeProperty()
                 self.dynamic_types.add(t2_old)
                 self.dynamic_types.add(t2_new)
-                print('Reaction: {}-{}, change type {}->{}'.format(rt1, rt2, t2_old, t2_new))
+                print('Reaction: {}-{}, change type {} ({}) -> {} ({})'.format(
+                    rt1, rt2, rl['type_2']['name'], t2_old, rl['type_2']['new_type'], t2_new))
                 new_property = self.topol.gt.atomtypes[rl['type_2']['new_type']]
                 r_pp.add_change_property(
                     t2_old,
                     espressopp.integrator.TopologyParticleProperties(
                         type=t2_new, mass=new_property['mass'],
                         q=new_property['charge']))
+                reaction.add_postprocess(r_pp, 'type_2')
 
-
-            reaction.add_postprocess(r_pp)
         return reaction, [(t1_old, t2_old), (t1_new, t2_new)]
 
     def _setup_reaction_exchange(self, chem_reaction, fpl):
