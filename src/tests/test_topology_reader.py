@@ -20,8 +20,6 @@ import os
 import unittest
 import sys
 
-import espressopp
-
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/')))
 print sys.path[0]
 
@@ -70,13 +68,6 @@ class TestTopologyReader(unittest.TestCase):
             mol_pairs = len(self.gt.gt.molecules_data[mol_name].get('pairs', []))
             expected_nr_pairs += nmols * mol_pairs
         self.assertEqual(total_nr_pairs, expected_nr_pairs)
-
-    def test_bond_potentials(self):
-        system, integrator = espressopp.standard_system.Minimal(10, (10, 10, 10))
-        chem_dynamic_types = set([self.gt.atomsym_atomtype[x] for x in ['A', 'C']])
-        chem_dynamic_bond_types = set()
-        dynamic_fpls, static_fpls = chemlab.gromacs_topology.set_bonded_interactions(
-            system, self.gt, chem_dynamic_types, chem_dynamic_bond_types)
 
 
 if __name__ == '__main__':

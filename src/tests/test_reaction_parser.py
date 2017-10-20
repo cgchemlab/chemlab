@@ -20,12 +20,10 @@ import os
 import unittest
 import sys
 
-import espressopp
-
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/')))
 print sys.path[0]
 
-import chemlab
+from .. import chemlab
 
 class TestTopologyReader(unittest.TestCase):
     def test_parse_exchange_reaction(self):
