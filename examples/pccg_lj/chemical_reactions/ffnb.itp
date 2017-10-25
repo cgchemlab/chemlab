@@ -1,0 +1,76 @@
+[ defaults ]
+1 1
+
+[ atomstate ]
+MA 1
+PA 1
+FA 5
+PL 1
+
+[ bondtypes ]
+; i j func
+MA ML 8 0 1.0 ;b0
+PA PL 8 1 1.0 ;b1
+FA PL 8 2 1.0 ;b2
+RA PL 8 3 1.0 ;b3
+DA PL 8 4 1.0 ;b4
+FA RA 8 5 1.0 ;b5
+FA DA 8 6 1.0 ;b6
+DA RA 8 5 1.0 ;b7
+RA RA 8 6 1.0 ;b8
+
+[ angletypes ]
+; i j k func
+ MA ML MA 8 0 1.0 ;a0
+ PA PL RA 8 1 1.0 ;a1
+ FA PL RA 8 2 1.0 ;a2
+ PA PL FA 8 3 1.0 ;a3
+ PA PL DA 8 4 1.0 ;a4
+ FA PL FA 8 5 1.0 ;a5
+ DA PL DA 8 6 1.0 ;a6
+ FA PL DA 8 7 1.0 ;a7
+ DA FA PL 8 8 1.0 ;a8
+ FA DA PL 8 9 1.0 ;a9
+ FA PA PL 8 10 1.0 ;a10
+ RA FA PL 8 11 1.0 ;a11
+ RA RA PL 8 12 1.0 ;a12
+ RA DA PL 8 13 1.0 ;a13
+ DA RA PL 8 14 1.0 ;a14
+ FA RA DA 8 15 1.0 ;a15
+ FA RA RA 8 16 1.0 ;a16
+ RA RA RA 8 17 1.0 ;a17
+ RA RA DA 8 18 1.0 ;a18
+
+[ dihedraltypes ]
+
+[ nonbond_params ]
+; i    j func = 8, reads from table: table_{i}_{j}.xvg
+ MA   MA   8   table_MA_MA.xvg
+ MA   ML   8   table_MA_ML.xvg
+ MA   DA   8   table_MA_DA.xvg
+ MA   FA   8   table_MA_FA.xvg
+ MA   RA   8   table_MA_RA.xvg
+ ML   ML   8   table_ML_ML.xvg
+ ML   DA   8   table_ML_DA.xvg
+ ML   FA   8   table_ML_FA.xvg
+ ML   RA   8   table_ML_RA.xvg
+ PA   PA   8   table_PA_PA.xvg
+ PA   FA   8   table_PA_FA.xvg
+ PA   DA   8   table_PA_DA.xvg
+ PA   RA   8   table_PA_RA.xvg
+ PA   PL   8   table_PA_PL.xvg
+ FA   FA   8   table_FA_FA.xvg
+ FA   DA   8   table_FA_DA.xvg
+ FA   RA   8   table_FA_RA.xvg
+ FA   PL   8   table_FA_PL.xvg
+ DA   DA   8   table_DA_DA.xvg
+ DA   RA   8   table_DA_RA.xvg
+ DA   PL   8   table_DA_PL.xvg
+ RA   RA   8   table_RA_RA.xvg
+ RA   PL   8   table_RA_PL.xvg
+ PL   PL   8   table_PL_PL.xvg
+; list of mixed tables
+; i j func=9 nr tab_prefix atom_type ntotal min_cr max_cr default
+; l j func=10 table1 table2 atom_type ntotal
+ MA   PA   10  table_PA_PA.xvg   table_MA_MA.xvg   PL 2000
+ ML   PL   10  table_PL_PL.xvg   table_MA_MA.xvg   PL 2000
