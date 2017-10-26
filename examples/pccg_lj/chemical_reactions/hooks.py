@@ -29,8 +29,33 @@
 import collections
 import espressopp
 import random
+import numpy
 
 random.seed(None)
+
+class AngleDistribution:
+    def __init__(self):
+        self.histogram = numpy.zeros(100)
+        self.steps = 0
+
+angle_dist = AngleDistribution()
+
+def hook_before_sim(system, integrator, ar, gt):
+    global angle_dist
+    analysis_angles = espressopp.analysis.AngleDistribution(system)
+    analysis_angles.load_from_topology_manager(system.topology_manager)
+    angle_dist.analysis_angles = analysis_angles
+
+def hook_at_step(system, integrator, ar, gt, args, step):
+    global angle_dist
+    histogram = numpy.array(angle_dist.analysis_angles.compute(100))
+    angle_dist.histogram += histogram
+    angle_dist.steps += 1
+
+def hook_end(system, integrator, ar, gt, args):
+    global angle_dist
+    theta = numpy.arange(0.0, numpy.pi, numpy.pi/100)
+    numpy.savetxt('output_angle.csv', numpy.column_stack((theta, angle_dist.histogram)))
 
 def hook_init_reaction(system, integrator, ar, topol, args):
     name2type = topol.atomsym_atomtype

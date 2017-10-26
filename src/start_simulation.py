@@ -208,11 +208,13 @@ def main():  # NOQA
 
     print('Set topology manager')
     topology_manager = espressopp.integrator.TopologyManager(system)
+    system.topology_manager = topology_manager
 
     # Hooks
     hook_init_reaction = lambda *_, **__: True
     hook_postsetup_reaction = lambda *_, **__: True
     hook_at_step = lambda *_, **__: True
+    hook_end = lambda *_, **__: True
     hook_before_sim = lambda *_, **__: True
     if os.path.exists('hooks.py'):
         print('Found hooks.py')
@@ -222,6 +224,7 @@ def main():  # NOQA
         hook_postsetup_reaction = locals.get('hook_postsetup_reaction', hook_postsetup_reaction)
         hook_at_step = locals.get('hook_at_step', hook_at_step)
         hook_before_sim = locals.get('hook_before_sim', hook_before_sim)
+        hook_end = locals.get('hook_end', hook_end)
 
     # Set chemical reactions, parser in reaction_parser.py
     chem_dynamic_types = set()
@@ -729,9 +732,9 @@ def main():  # NOQA
             reactions_enabled = True
             # Saves coordinate output file.
             output_gro_file = '{}_{}_before_reaction_confout.gro'.format(args.output_prefix, args.rng_seed)
-            print('Save configuration before start of the reaction, filename: {}'.format(output_gro_file))
-            input_conf.update_position(system, unfolded=True)
-            input_conf.write(output_gro_file, force=True)
+            #print('Save configuration before start of the reaction, filename: {}'.format(output_gro_file))
+            #input_conf.update_position(system, unfolded=True)
+            #input_conf.write(output_gro_file, force=True)
 
             print('Processing hook_init_reaction')
             if not hook_init_reaction(system, integrator, ar, gt, args):
@@ -784,6 +787,8 @@ def main():  # NOQA
                     r.rate = new_rate
     totalTime = time.time() - totalTime
     ##### END of main integrator loop ###########
+
+    hook_end(system, integrator, ar, gt, args)
 
     system_analysis.info()
     traj_file.dump(sim_step * integrator_step, sim_step * integrator_step * args.dt)
