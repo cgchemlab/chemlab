@@ -350,7 +350,7 @@ def main():  # NOQA
     # Pressure coupling if needed,
     pressure_comp = espressopp.analysis.Pressure(system)
     pressure = 0.0
-    if args.pressure:
+    if args.pressure is not None and args.pressure > 0.0:
         pressure = args.pressure * 0.060221374  # convert from bars to gromacs units kj/mol/nm^3
         if args.barostat == 'lv':
             print('Barostat: Langevin with P={}, gamma={}, mass={}'.format(
@@ -367,6 +367,7 @@ def main():  # NOQA
         else:
             raise Exception('Wrong barostat keyword: `{}`'.format(args.barostat))
         integrator.addExtension(barostat)
+        args.store_pressure = True
 
     print('Set Dynamic Exclusion lists.')
     for static_fpl in static_fpls:
@@ -458,6 +459,8 @@ def main():  # NOQA
             system, temp_comp))
     if args.store_pressure:
         system_analysis.add_observable('P', pressure_comp)
+        box_size = espressopp.analysis.BoxSize(system)
+        system_analysis.add_observable('L', box_size)
     for label, interaction in sorted(system.getAllInteractions().items()):
         print('System analysis: adding {}'.format(label))
         show_in_system_info = True

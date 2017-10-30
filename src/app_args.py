@@ -141,7 +141,7 @@ def _args():
     args_simulation_options.add_argument('--thermostat_gamma', type=float, default=5.0,
                                          help='Thermostat coupling constant')
     args_simulation_options.add_argument('--temperature', default=458.0, type=float, help='Temperature')
-    args_simulation_options.add_argument('--pressure', help='Pressure', type=float)
+    args_simulation_options.add_argument('--pressure', help='Pressure', type=float, default=None)
     args_simulation_options.add_argument('--dt', default=0.001, type=float,
                                          help='Integrator time step')
     args_simulation_options.add_argument('--lj_cutoff', default=1.2, type=float,
