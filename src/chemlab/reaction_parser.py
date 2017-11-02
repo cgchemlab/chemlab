@@ -18,7 +18,6 @@
 
 
 import collections
-import espressopp
 import ConfigParser
 import random
 import re

@@ -9,6 +9,9 @@ python:
 install:
     - pip install sphinx sphinx_rtd_theme sphinx-argparse
 
+script:
+    - python setup.py test
+
 after_success:
     - shopt -s extglob && [[ ${TRAVIS_BRANCH} = @(master|v1.*) ]] && DEPLOY=yes
     - if [[ ${TRAVIS_PULL_REQUEST} = false && ${DEPLOY} = yes && ${TRAVIS_JOB_NUMBER} = *.1 ]]; then

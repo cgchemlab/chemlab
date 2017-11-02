@@ -49,6 +49,9 @@ class PostProcessSetup(object):
         self.simulation_args = args
 
     def setup_post_process(self, post_process_type):
+        """Process post-processing options"""
+
+        # The entry points
         pp_type_to_cfg = {
             'ChangeNeighboursProperty': self._setup_post_process_change_neighbour,
             'RemoveNeighboursBonds': self._setup_post_process_remove_neighbour_bonds,

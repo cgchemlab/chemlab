@@ -1,5 +1,5 @@
 """
-Copyright (C) 2016 Jakub Krajniak <jkrajniak@gmail.com>
+Copyright (C) 2016,2017 Jakub Krajniak <jkrajniak@gmail.com>
 
 This file is part of ChemLab.
 
@@ -33,5 +33,4 @@ setup(
     author='Jakub Krajniak',
     author_email='jkrajniak@gmail.com',
     version='1.5.0',
-    license='GPLv3+',
-    test_suite='src.tests')
+    license='GPLv3+')

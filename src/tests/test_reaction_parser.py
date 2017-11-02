@@ -20,16 +20,16 @@ import os
 import unittest
 import sys
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 print sys.path[0]
 
-from .. import chemlab
+from chemlab import reaction_parser
 
 class TestTopologyReader(unittest.TestCase):
     def test_parse_exchange_reaction(self):
         input_string = 'C(0,1):E(0,1) + W(0,1) -> A(1):Z(1) + E(1)'
-        reactants, r_type = chemlab.reaction_parser.parse_exchange_equation(input_string)
-        self.assertEqual(r_type, chemlab.reaction_parser.REACTION_EXCHANGE)
+        reactants, r_type = reaction_parser.parse_exchange_equation(input_string)
+        self.assertEqual(r_type, reaction_parser.REACTION_EXCHANGE)
 
         # Check reactants structure
         self.assertEqual(reactants['type_1']['name'], 'C')
