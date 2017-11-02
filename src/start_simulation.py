@@ -735,9 +735,9 @@ def main():  # NOQA
             reactions_enabled = True
             # Saves coordinate output file.
             output_gro_file = '{}_{}_before_reaction_confout.gro'.format(args.output_prefix, args.rng_seed)
-            #print('Save configuration before start of the reaction, filename: {}'.format(output_gro_file))
-            #input_conf.update_position(system, unfolded=True)
-            #input_conf.write(output_gro_file, force=True)
+            print('Save configuration before start of the reaction, filename: {}'.format(output_gro_file))
+            input_conf.update_position(system, unfolded=True)
+            input_conf.write(output_gro_file, force=True)
 
             print('Processing hook_init_reaction')
             if not hook_init_reaction(system, integrator, ar, gt, args):

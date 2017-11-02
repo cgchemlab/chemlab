@@ -972,9 +972,9 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
             func = int(parameters[0])
             params = tuple(map(float, parameters[1:]))
         else:  # Without parameters, take from bondtypes
-            params = gt.bondparams[ptypes]
+            params = gt.bondparams.get(ptypes)
             if not params:
-                params = gt.bonds[tuple(reversed(ptypes))]
+                params = gt.bondparams[tuple(reversed(ptypes))]
             func = int(params['func'])
             params = tuple(map(float, params['params']))
 
@@ -1106,9 +1106,9 @@ def set_angle_interactions(system, gt, dynamic_type_ids, change_angle_types=set(
             func = int(parameters[0])
             params = tuple(map(float, parameters[1:]))
         else:  # Without parameters, take from angletypes
-            params = gt.angleparams[ptypes]
+            params = gt.angleparams.get(ptypes)
             if not params:
-                params = gt.angles[tuple(reversed(ptypes))]
+                params = gt.angleparams[tuple(reversed(ptypes))]
             func = int(params['func'])
             params = tuple(map(float, params['params']))
         if is_dynamic_angle:
@@ -1238,9 +1238,9 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, change_dihedral_type
             func = int(parameters[0])
             params = tuple(map(float, parameters[1:]))
         else:  # Without parameters, take from dihedraltypes
-            params = gt.dihedralparams[ptypes]
+            params = gt.dihedralparams.get(ptypes)
             if not params:
-                params = gt.dihedrals[tuple(reversed(ptypes))]
+                params = gt.dihedralparams[tuple(reversed(ptypes))]
             func = int(params['func'])
             params = tuple(map(float, params['params']))
         if is_dynamic_dihedral:
