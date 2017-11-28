@@ -34,7 +34,7 @@ this file are related to the particular extension.
 Change neighbour property
 ----------------------------
 
-It allows changing property at certain topological distance from the reactant.
+It allows changing property at certain topological distance from the reacted particle..
 
 .. glossary::
 
@@ -52,3 +52,109 @@ It allows changing property at certain topological distance from the reactant.
        - state: new chemical state
 
       The parameters set here will override the one defined in the topology file.
+
+
+Remove neighbour bond
+----------------------------
+
+Remove a bond that is at certain topological distance from the reacted particle.
+
+.. glossary::
+
+   ext_type
+      RemoveNeighboursBonds
+
+   bonds_to_remove
+      The comma separated list of ``bonds_to_remove`` definitions.
+      The syntax of single ``bonds_to_remove``:
+      ``anchor_type -> type1:type2:distance``
+      where ``anchor_type`` is the type of *root* particle, from where the distance is measured,
+      ``type1:type2`` is the bond to remove (in terms of particle types) at ``distance``.
+
+
+Release molecule
+----------------------------
+
+Remove the distance constraint and release a molecule linked to host molecule.
+
+.. glossary::
+
+   ext_type
+      ReleaseMolecule
+
+   host_type
+      The type of host particle.
+
+   target_type
+      The type of dummy non-released particle.
+
+   eq_length
+      The distance at which the dummy particle is placed from the host particle.
+
+   alpha
+      The rate constant used to fade in the dummy particle after released.
+
+   init_res
+      The initial resolution of the dummy particle after released.
+
+   final_type
+      The final type of the dummy particle after completely fade in (resolution 1)
+
+   cache_file
+      The cache file for dummy particles (optional)
+
+   replicate
+      How many dummy particles should be attached to a single host particle (default: 1)
+
+   release_on
+
+      - ``type`` then the particle will be released whenever the host particle change a type (default)
+      - ``release_on`` remove whenever host particle react with other particle
+
+   release_count
+      number of particles to release (default: 1)
+
+
+Join molecule
+----------------------------
+
+Add the distance constraint and make invisible one of the particles.
+
+.. glossary::
+
+   ext_type
+      JoinMolecule
+
+
+Freeze regions
+----------------------------
+
+Define that the box edges will play a role a freeze regions. Whenever a particle of given
+type reaches this region, it becomes invisible.
+
+.. glossary::
+
+   ext_type
+      FreezeRegion
+
+
+Change randomly particle type
+----------------------------
+
+Chang randomly particle types during the simulation
+
+.. glossary::
+
+   ext_type
+      ChangeParticleType
+
+
+Simulate ATRP class of the reactions
+----------------------------
+
+Chang randomly particle types during the simulation
+
+.. glossary::
+
+   ext_type
+      ATRPActivator

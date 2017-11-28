@@ -215,7 +215,7 @@ class PostProcessSetup(object):
         if release_on not in ['bond', 'type']:
             raise RuntimeError('Wrong keyword release_on {}, only: bond or type'.format(release_on))
         release_count = int(cfg.get('release_count', 1))
-        release_host = cfg.get('release_host', 'both')
+        release_host = cfg.get('invoke_on', 'both')
         if release_host not in ['type_1', 'type_2', 'both']:
             raise RuntimeError('Wrong keyword release_host {}, only left, right, both'.format(release_host))
 
