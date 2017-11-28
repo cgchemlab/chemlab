@@ -233,6 +233,7 @@ def process_extension(cfg):
 
 
 def parse_config(input_file):
+    """Parse .cfg INI file."""
     parser = ConfigParser.SafeConfigParser()
     parser.read(input_file)
 

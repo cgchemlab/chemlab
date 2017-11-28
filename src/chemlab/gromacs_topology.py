@@ -523,6 +523,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
     print('Number of non-bonded type pairs: {}'.format(len(type_pairs)))
     defined_types = set()
     all_type_pairs = set()
+    # Iterates over all pair types and set non-bonded interactions.
     for type_1, type_2 in type_pairs:
         t1 = atomsym_atomtype[type_1]
         t2 = atomsym_atomtype[type_2]
@@ -883,16 +884,16 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
 def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(), separate_fpls=set(), name='bonds'):
     """Set bonded interactions.
 
-        Args:
-            system: The espressopp.System object.
-            gt: The GromacsTopology object.
-            dynamic_type_ids: The set of particle types that can change during the simulation.
-            change_bond_types: The set of bond types that can be updated during the simulation.
-            separate_fpls: The set of bond types that should be put on separate FixedPairLists.
-            name: The prefix for the interaction. (default: 'bonds')
+    Args:
+        system: The espressopp.System object.
+        gt: The GromacsTopology object.
+        dynamic_type_ids: The set of particle types that can change during the simulation.
+        change_bond_types: The set of bond types that can be updated during the simulation.
+        separate_fpls: The set of bond types that should be put on separate FixedPairLists.
+        name: The prefix for the interaction. (default: 'bonds')
 
-        Return:
-            tuple with dictionary of dynamic bond fixed pair list and list of static fixed pair list.
+    Return:
+        tuple with dictionary of dynamic bond fixed pair list and list of static fixed pair list.
     """
     def convert_params(func, raw_data):
         if func == 1:
@@ -1299,6 +1300,8 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, change_dihedral_type
 
 
 def set_pair_interactions(system, gt, args, dynamic_type_ids):
+    """Sets 1-4 interactions"""
+
     fudgeLJ = gt.gt.defaults.get('fudgeLJ', 1.0)
     fudgeQQ = gt.gt.defaults.get('fudgeQQ', 1.0)
 
