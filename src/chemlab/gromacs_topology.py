@@ -25,6 +25,7 @@ import math
 
 import files_io
 
+
 class FileBuffer():
     def __init__(self):
         self.linecount = 0
@@ -44,7 +45,7 @@ class FileBuffer():
 
     def readlastline(self):
         try:
-            line = self.lines[self.pos-1]
+            line = self.lines[self.pos - 1]
         except:
             return ''
         return line
@@ -110,14 +111,22 @@ def convertc6c12(c6, c12, cr):
     if cr == 1:
         if c12 == 0.0:
             return 1.0, 0.0
-        sig = pow(c12/c6, 1.0/6.)
+        sig = pow(c12 / c6, 1.0 / 6.)
         if sig > 0.0:
-            eps = 0.25*c6*pow(sig, -6.0)
+            eps = 0.25 * c6 * pow(sig, -6.0)
         else:
             eps = 0.0
         return sig, eps
     else:
         return c6, c12
+
+
+def convertTable(tab_name):
+    espp_tab_name = '{}.pot'.format(tab_name.replace('.xvg', '').replace('.pot', ''))
+    if not os.path.exists(espp_tab_name):
+        print('Convert {} to {}'.format(tab_name, espp_tab_name))
+        espressopp.tools.convert.gromacs.convertTable(tab_name, espp_tab_name)
+    return espp_tab_name
 
 
 class GromacsTopology:
@@ -155,7 +164,7 @@ class GromacsTopology:
         print('Reading master topology file...')
         self.master_topol = files_io.GROMACSTopologyFile(self.input_file)
         self.master_topol.read()
-        #if len(self.gt.molecules) > 1:
+        # if len(self.gt.molecules) > 1:
         #    raise RuntimeError('Multiple molecules are not supported')
         print('Preparing topology data for simulation...')
         self._prepare_data()
@@ -234,7 +243,7 @@ class GromacsTopology:
             self.atoms.update({
                 atom_id_offset + k + (mol * n_atoms): v for mol in range(molecule_numbers)
                 for k, v in atom_id_params.items()})
-            atom_id_offset += molecule_numbers*n_atoms
+            atom_id_offset += molecule_numbers * n_atoms
 
         # Update non_bonded params
         for k, v in self.topol.nonbond_params.items():
@@ -284,7 +293,7 @@ class GromacsTopology:
                         self.gt.molecules_data[molecule_name][list_name],
                         atom_id_offset
                     ))
-            atom_id_offset += n_mols*n_atoms
+            atom_id_offset += n_mols * n_atoms
 
     def _prepare_exclusionlists(self):
         self.exclusions = {tuple(sorted(x)) for x in self.bonds.keys()}
@@ -297,7 +306,7 @@ class GromacsTopology:
             if 'bonds' in self.gt.molecules_data[molecule_name]:
                 mol_excl = self._generate_exclusions(self.gt.molecules_data[molecule_name]['bonds'], nrexcl)
                 self.exclusions.update({
-                    tuple(sorted(map(lambda x: atom_id_offset + x + (mol*n_atoms), l)))
+                    tuple(sorted(map(lambda x: atom_id_offset + x + (mol * n_atoms), l)))
                     for mol in range(n_mols) for l in mol_excl
                 })
             else:
@@ -337,7 +346,8 @@ class GromacsTopology:
             # Recursively call the function with numberNeighbours-1
             for n in root.neighbours:
                 if not n in visited_nodes:
-                    if n not in neighbours: neighbours.append(n)  # avoid double counting in rings
+                    if n not in neighbours:
+                        neighbours.append(n)  # avoid double counting in rings
                     get_next_neighbour(n, nr_neighbours - 1, neighbours, visited_nodes)
 
         nodes = []
@@ -431,25 +441,26 @@ class GromacsTopology:
              The replicated list.
         """
         return {
-            tuple(map(lambda x: shift+x+(mol*n_atoms), l)): v
+            tuple(map(lambda x: shift + x + (mol * n_atoms), l)): v
             for mol in range(n_mols) for l, v in input_list.items()
-            }
+        }
 
 
 Molecule = collections.namedtuple('Molecule', ['pid', 'pos', 'mass', 'type'])
 
+
 def combination(sig_1, eps_1, sig_2, eps_2, cr):
     if cr == 2:
-        sig = 0.5*(sig_1 + sig_2)
-        eps = (eps_1*eps_2)**(1.0/2.0)
+        sig = 0.5 * (sig_1 + sig_2)
+        eps = (eps_1 * eps_2)**(1.0 / 2.0)
     else:
-        sig = (sig_1*sig_2)**(1.0/2.0)
-        eps = (eps_1*eps_2)**(1.0/2.0)
+        sig = (sig_1 * sig_2)**(1.0 / 2.0)
+        eps = (eps_1 * eps_2)**(1.0 / 2.0)
 
     return sig, eps
 
 
-def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, tables=None, cr_observs=None):  #NOQA
+def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, tables=None, cr_observs=None):  # NOQA
     """Sets the non-bonded interactions
     Args:
         system: The espressopp.System object.
@@ -500,9 +511,11 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
 
     # Special case for MultiTabulated
     cr_multi = collections.defaultdict(list)
+    cr_multi_mix = collections.defaultdict(list)
     cr_mix_tab = collections.defaultdict(list)
-    tab_scaled = {} # increment -> (t1, t2)
+    tab_scaled = {}  # increment -> (t1, t2)
     dynamic_interactions = collections.defaultdict(dict)
+    tab_connection_scaled = collections.defaultdict(dict)
 
     Func10 = collections.namedtuple('Func10', ['cr_observers', 'tab1', 'tab2'])
     Func12 = collections.namedtuple('Func12', ['mix_value', 'tab1', 'tab2'])
@@ -510,6 +523,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
     print('Number of non-bonded type pairs: {}'.format(len(type_pairs)))
     defined_types = set()
     all_type_pairs = set()
+    # Iterates over all pair types and set non-bonded interactions.
     for type_1, type_2 in type_pairs:
         t1 = atomsym_atomtype[type_1]
         t2 = atomsym_atomtype[type_2]
@@ -521,7 +535,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
         sig, eps = -1, -1
         if param:
             func = param['func']
-            #print('Using defined non-bonded cross params {} {}'.format(func, param['params']))
+            print('Using defined non-bonded cross params {} {}'.format(func, param['params']))
             if func == 1:
                 if param['params']:
                     sig = float(param['params'][0])
@@ -542,7 +556,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 cr_min = float(param['params'][3])
                 cr_max = float(param['params'][4])
                 cr_default = bool(int(param['params'][5])) if len(param['params']) > 5 else False
-                if (cr_type, cr_total) not in cr_observs:
+                if (cr_type, cr_total, None) not in cr_observs:
                     cr_observs[(cr_type, cr_total, None)] = espressopp.analysis.ChemicalConversion(
                         system, cr_type, cr_total)
                 cr_multi[(t1, t2)].append([
@@ -558,7 +572,7 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 tab2 = param['params'][1]
                 cr_type = atomsym_atomtype[param['params'][2]]
                 cr_total = int(param['params'][3])
-                if (cr_type, cr_total) not in cr_observs:
+                if (cr_type, cr_total, None) not in cr_observs:
                     cr_observs[(cr_type, cr_total, None)] = espressopp.analysis.ChemicalConversion(
                         system, cr_type, cr_total
                     )
@@ -621,6 +635,37 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                     sig = float(param['params'][0])
                     eps = float(param['params'][1])
                     lj_cap = float(param['params'][2])
+            elif func == 17:  # MultpleMixedPotential
+                # Format t1 t2 cr_type cr_total start:stop:tab1:tab2 start:stop:tab2:tab3 ...
+                if len(param['params']) == 2:
+                    raise RuntimeError('Wrong number of parameters for non_bonded params, func=17')
+                cr_type = atomsym_atomtype[param['params'][0]]
+                cr_total = int(param['params'][1])
+                # Read the rest of parameters
+                mix_params = []
+                for p in param['params'][2:]:
+                    t = p.split(':')
+                    if len(t) != 4:
+                        raise RuntimeError('Wrong definition of the range for func=17, {}'.format(p))
+                    start_range = float(t[0])
+                    stop_range = float(t[1])
+                    tab1 = t[2]
+                    tab2 = t[3]
+                    mix_params.append((start_range, stop_range, tab1, tab2))
+                if (cr_type, cr_total, None) not in cr_observs:
+                    cr_observs[(cr_type, cr_total, None)] = espressopp.analysis.ChemicalConversion(
+                        system, cr_type, cr_total
+                    )
+                if (t1, t2) in cr_multi_mix:
+                    raise RuntimeError('Non-bonded interaction for types ({}) are already defined'.format((t1, t2)))
+                cr_multi_mix[(t1, t2)] = (cr_observs[(cr_type, cr_total, None)], mix_params)
+            elif func == 18:  # Scaled tabulated potential with the connectivity map.
+                if len(param['params']) != 3:
+                    raise RuntimeError('Wrong number of parameters')
+                tab1 = param['params'][0]
+                connection_map = param['params'][1]
+                scaling_factor = float(param['params'][2])
+                tab_connection_scaled[connection_map] = (tab1, connection_map, scaling_factor)
             else:
                 raise RuntimeError('Functional {} not found'.format(func))
 
@@ -656,15 +701,15 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 potential=espressopp.interaction.Tabulated(
                     itype=1, filename=espp_tab_name, cutoff=tab_cutoff))
             defined_types.add((t1, t2))
-        elif sig > 0.0  and lj_cap is not None:
-            print('Set LJ potential {}-{}, eps={}, sig={}, caprad={}'.format(type_1, type_2, eps, sig, lj_cap))
+        elif sig > 0.0 and lj_cap is not None:
+            print('Set LJ potential {}-{}, eps={}, sig={}, caprad={}, cutoff='.format(type_1, type_2, eps, sig, lj_cap, lj_cutoff))
             ljpot = espressopp.interaction.LennardJonesEnergyCapped(
                 epsilon=eps, sigma=sig, cutoff=lj_cutoff, caprad=lj_cap)
             lj_capped_interaction.setPotential(type1=t1, type2=t2, potential=ljpot)
             has_lj_capped_interaction = True
             defined_types.add((t1, t2))
         elif sig > 0.0:
-            print('Set LJ potential {}-{}, eps={}, sig={}'.format(type_1, type_2, eps, sig))
+            print('Set LJ potential {}-{}, eps={}, sig={}, cutoff={}'.format(type_1, type_2, eps, sig, lj_cutoff))
             ljpot = espressopp.interaction.LennardJones(
                 epsilon=eps, sigma=sig, cutoff=lj_cutoff)
             lj_interaction.setPotential(type1=t1, type2=t2, potential=ljpot)
@@ -688,6 +733,21 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                 type1=mt1, type2=mt2, potential=mp_tab)
             defined_types.add((mt1, mt2))
         system.addInteraction(multi_tab_interaction, 'lj-mtab')
+
+    if cr_multi_mix:
+        multi_mixed_tab_interaction = espressopp.interaction.VerletListMultiMixedTabulated(vl)
+        for (mt1, mt2), data in cr_multi_mix.items():
+            mp_tab = espressopp.interaction.MultiMixedTabulated(itype=1, cutoff=tab_cutoff)
+            chem_obs, mix_params = data
+            for start_range, stop_range, tab1, tab2 in mix_params:
+                espp_tab1 = convertTable(tab1)
+                espp_tab2 = convertTable(tab2)
+                mp_tab.register_table(espp_tab1, espp_tab2, chem_obs, start_range, stop_range)
+                print('Set mixed tabulated potential {}-{} with conversion observable (U=x*{} + (1-x)*{}) in range {}:{}'.format(
+                    mt1, mt2, espp_tab1, espp_tab2, start_range, stop_range))
+            multi_mixed_tab_interaction.setPotential(type1=mt1, type2=mt2, potential=mp_tab)
+            defined_types.add((mt1, mt2))
+        system.addInteraction(multi_mixed_tab_interaction, 'lj-mmtab')
 
     # Mixed Tabulated potentials.
     if cr_mix_tab:
@@ -790,14 +850,17 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                             type1=t1,
                             type2=t2,
                             potential=espressopp.interaction.LennardJones(epsilon=eps, sigma=sig, cutoff=lj_cutoff))
-                        print('Set dynamic resolution potential {}-{} (sig: {}, eps: {}, max_force: {})'.format(
-                            t1, t2, sig, eps, max_force))
+                        print('Set dynamic resolution potential {}-{} (sig: {}, eps: {}, max_force: {}, cutoff=)'.format(
+                            t1, t2, sig, eps, max_force, lj_cutoff))
                     if max_force != -1:
                         interDynamicLJ.setMaxForce(max_force)
                     system.addInteraction(interDynamicLJ, 'lj-dynamic_{}'.format(bn))
                     bn += 1
             else:
                 raise RuntimeError('Currently {} not supported'.format(func))
+
+    if tab_connection_scaled:
+        pass
 
     if has_lj_interaction:
         print('Adding lj interaction')
@@ -821,16 +884,16 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
 def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(), separate_fpls=set(), name='bonds'):
     """Set bonded interactions.
 
-        Args:
-            system: The espressopp.System object.
-            gt: The GromacsTopology object.
-            dynamic_type_ids: The set of particle types that can change during the simulation.
-            change_bond_types: The set of bond types that can be updated during the simulation.
-            separate_fpls: The set of bond types that should be put on separate FixedPairLists.
-            name: The prefix for the interaction. (default: 'bonds')
+    Args:
+        system: The espressopp.System object.
+        gt: The GromacsTopology object.
+        dynamic_type_ids: The set of particle types that can change during the simulation.
+        change_bond_types: The set of bond types that can be updated during the simulation.
+        separate_fpls: The set of bond types that should be put on separate FixedPairLists.
+        name: The prefix for the interaction. (default: 'bonds')
 
-        Return:
-            tuple with dictionary of dynamic bond fixed pair list and list of static fixed pair list.
+    Return:
+        tuple with dictionary of dynamic bond fixed pair list and list of static fixed pair list.
     """
     def convert_params(func, raw_data):
         if func == 1:
@@ -844,26 +907,40 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
             return {'itype': 1, 'filename': espp_tab_name}
         elif func == 7:
             try:
+                rMax = float(raw_data[0])
                 K = float(raw_data[1])
                 rMax = float(raw_data[0])
                 r0 = 0.0  # Following GROMACS convention.
                 return {'K': K, 'r0': r0, 'rMax': rMax}
             except:
                 raise RuntimeError(
-                    'Wrong FENE definition, (expect r0 K rMax) found ({})'.format(raw_data))
+                    'Wrong FENE definition, (expected rMax K) found ({})'.format(raw_data))
+        elif func == 9:
+            try:
+                rMax = float(raw_data[0])
+                K = float(raw_data[1])
+                sigma = float(raw_data[2])
+                epsilon = float(raw_data[3])
+                r0 = 0.0  # Following GROMACS convention.
+                return {'K': K, 'r0': r0, 'rMax': rMax, 'sigma': sigma, 'epsilon': epsilon}
+            except:
+                raise RuntimeError(
+                    'Wrong FENE definition, (expected rMax K sigma epsilon) found ({})'.format(raw_data))
         else:
             raise RuntimeError('Unknown func type {}'.format(func))
 
     func2interaction_dynamic = {
         1: (espressopp.interaction.FixedPairListTypesHarmonic, espressopp.interaction.Harmonic),
         7: (espressopp.interaction.FixedPairListTypesFENE, espressopp.interaction.FENE),
-        8: (espressopp.interaction.FixedPairListTypesTabulated, espressopp.interaction.Tabulated)
+        8: (espressopp.interaction.FixedPairListTypesTabulated, espressopp.interaction.Tabulated),
+        9: (espressopp.interaction.FixedPairListTypesFENELennardJones, espressopp.interaction.FENELennardJones),
     }
 
     func2interaction_static = {
         1: (espressopp.interaction.FixedPairListHarmonic, espressopp.interaction.Harmonic),
         7: (espressopp.interaction.FixedPairListFENE, espressopp.interaction.FENE),
-        8: (espressopp.interaction.FixedPairListTabulated, espressopp.interaction.Tabulated)
+        8: (espressopp.interaction.FixedPairListTabulated, espressopp.interaction.Tabulated),
+        9: (espressopp.interaction.FixedPairListFENELennardJones, espressopp.interaction.FENELennardJones),
     }
 
     dfpls = collections.namedtuple('dfpls', ['func', 'is_observe_list'])
@@ -877,12 +954,12 @@ def set_bonded_interactions(system, gt, dynamic_type_ids, change_bond_types=set(
         if set(pt) - dynamic_type_ids == set(pt) and tuple(pt) not in change_bond_types:
             continue
         params = p['params']
-        #if tuple(params) not in set(dynamic_ptypes.values()):
+        # if tuple(params) not in set(dynamic_ptypes.values()):
         dynamic_ptypes[tuple(sorted(pt))] = tuple(params)
         bondparams_func[p['func']].append((pt, p))
         if p['func'] not in dynamics_bonds_by_func:
             dynamics_bonds_by_func[p['func']] = []
-        #else:
+        # else:
         #    dynamic_ptypes = {k: v for k, v in dynamic_ptypes.items() if v != tuple(params)}
         #    bondparams_func[p['func']] = [x for x in bondparams_func[p['func']][:] if x != (pt, p)]
 
@@ -980,7 +1057,7 @@ def set_angle_interactions(system, gt, dynamic_type_ids, change_angle_types=set(
     """Set angle interactions."""
     def convert_params(func, raw_data):
         if func == 1:
-            return {'K': float(raw_data[1])/2.0, 'theta0': float(raw_data[0])*2*math.pi/360}
+            return {'K': float(raw_data[1]) / 2.0, 'theta0': float(raw_data[0]) * 2 * math.pi / 360}
         elif func == 8:
             espp_tab_name = 'table_a{}.pot'.format(int(raw_data[0]))
             tab_name = 'table_a{}.xvg'.format(int(raw_data[0]))
@@ -989,7 +1066,7 @@ def set_angle_interactions(system, gt, dynamic_type_ids, change_angle_types=set(
                 espressopp.tools.convert.gromacs.convertTable(tab_name, espp_tab_name)
             return {'itype': 1, 'filename': espp_tab_name}
         elif func == 11:
-            return {'K': float(raw_data[1]), 'theta0': float(raw_data[0])*2*math.pi/360.0}
+            return {'K': float(raw_data[1]), 'theta0': float(raw_data[0]) * 2 * math.pi / 360.0}
         else:
             raise RuntimeError('Unknown func type')
 
@@ -1012,9 +1089,9 @@ def set_angle_interactions(system, gt, dynamic_type_ids, change_angle_types=set(
     for pt, p in gt.angleparams.items():
         # Bond types are not in the list of dynamic angle types or in set of change
         if (set(pt) - dynamic_type_ids == set(pt) and ((pt[0], pt[1]) not in change_angle_types
-            or (pt[1], pt[2]) not in change_angle_types
-            or (pt[1], pt[0]) not in change_angle_types
-            or (pt[2], pt[1]) not in change_angle_types)):
+                                                       or (pt[1], pt[2]) not in change_angle_types
+                                                       or (pt[1], pt[0]) not in change_angle_types
+                                                       or (pt[2], pt[1]) not in change_angle_types)):
             continue
         params = p['params']
         if tuple(params) not in set(dynamic_ptypes.values()):
@@ -1038,7 +1115,7 @@ def set_angle_interactions(system, gt, dynamic_type_ids, change_angle_types=set(
             try:
                 params = gt.angleparams.get(ptypes)
                 if not params:
-                    params = gt.angles[tuple(reversed(ptypes))]
+                    params = gt.angleparams[tuple(reversed(ptypes))]
             except KeyError as ex:
                 print('Missing parameter for angles: {} (types:{}). Check your topology file'.format(
                     b, ptypes))
@@ -1059,7 +1136,8 @@ def set_angle_interactions(system, gt, dynamic_type_ids, change_angle_types=set(
     static_ftls = []
     for func, b_list in dynamics_angles_by_func.items():
         ftl = espressopp.FixedTripleList(system.storage)
-        ftl_params = lambda: collections.defaultdict(ftl_params)
+
+        def ftl_params(): return collections.defaultdict(ftl_params)
         ftl.params = ftl_params()
         ftl.addTriples(b_list)
         interaction_class, potential_class = func2interaction_dynamic.get(func)
@@ -1094,12 +1172,13 @@ def set_angle_interactions(system, gt, dynamic_type_ids, change_angle_types=set(
     print('Set up angle interactions')
     return dynamics_ftls, static_ftls
 
+
 def set_dihedral_interactions(system, gt, dynamic_type_ids, change_dihedral_types=set(), name='dihedrals'):
     """Set dihedral interactions."""
     def convert_params(func, raw_data):
         if func == 1:
             return {'K': float(raw_data[1]),
-                    'phi0': float(raw_data[0])*2*math.pi/360,
+                    'phi0': float(raw_data[0]) * 2 * math.pi / 360,
                     'multiplicity': int(raw_data[2])}
         elif func == 3:
             t = map(float, raw_data[1:])
@@ -1112,7 +1191,7 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, change_dihedral_type
                 espressopp.tools.convert.gromacs.convertTable(tab_name, espp_tab_name)
             return {'itype': 1, 'filename': espp_tab_name}
         elif func == 12:
-            phi0 = float(raw_data[0])*2*math.pi/360.0
+            phi0 = float(raw_data[0]) * 2 * math.pi / 360.0
             K = float(raw_data[1])
             return {'K': K, 'phi0': phi0}
         else:
@@ -1135,7 +1214,7 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, change_dihedral_type
         8: (espressopp.interaction.FixedQuadrupleListTabulatedDihedral,
             espressopp.interaction.TabulatedDihedral),
         12: (espressopp.interaction.FixedQuadrupleListDihedralHarmonic,
-            espressopp.interaction.DihedralHarmonic)
+             espressopp.interaction.DihedralHarmonic)
     }
 
     dynamics_dihedrals_by_func = collections.defaultdict(list)
@@ -1145,11 +1224,11 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, change_dihedral_type
     for pt, p in gt.dihedralparams.items():
         # Bond types are not in the list of dynamic dihedral types or in set of change
         if (set(pt) - dynamic_type_ids == set(pt) and ((pt[0], pt[1]) not in change_dihedral_types
-            or (pt[1], pt[2]) not in change_dihedral_types
-            or (pt[2], pt[3]) not in change_dihedral_types
-            or (pt[1], pt[0]) not in change_dihedral_types
-            or (pt[2], pt[1]) not in change_dihedral_types
-            or (pt[3], pt[2]) not in change_dihedral_types)):
+                                                       or (pt[1], pt[2]) not in change_dihedral_types
+                                                       or (pt[2], pt[3]) not in change_dihedral_types
+                                                       or (pt[1], pt[0]) not in change_dihedral_types
+                                                       or (pt[2], pt[1]) not in change_dihedral_types
+                                                       or (pt[3], pt[2]) not in change_dihedral_types)):
             continue
         params = p['params']
         if tuple(params) not in set(dynamic_ptypes.values()):
@@ -1194,7 +1273,8 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, change_dihedral_type
     static_fqls = []
     for func, b_list in dynamics_dihedrals_by_func.items():
         fql = espressopp.FixedQuadrupleList(system.storage)
-        fql_params = lambda: collections.defaultdict(fql_params)
+
+        def fql_params(): return collections.defaultdict(fql_params)
         fql.params = fql_params()
         fql.addQuadruples(b_list)
         interaction_class, potential_class = func2interaction_dynamic.get(func)
@@ -1235,6 +1315,8 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, change_dihedral_type
 
 
 def set_pair_interactions(system, gt, args, dynamic_type_ids):
+    """Sets 1-4 interactions"""
+
     fudgeLJ = gt.gt.defaults.get('fudgeLJ', 1.0)
     fudgeQQ = gt.gt.defaults.get('fudgeQQ', 1.0)
 
@@ -1262,7 +1344,7 @@ def set_pair_interactions(system, gt, args, dynamic_type_ids):
                         sig_1, eps_1 = atomparams[ptypes[0]]['sigma'], atomparams[ptypes[0]]['epsilon']
                         sig_2, eps_2 = atomparams[ptypes[0]]['sigma'], atomparams[ptypes[0]]['epsilon']
                         sig, eps = combination(sig_1, eps_1, sig_2, eps_2, combinationrule)
-                        params = [sig, fudgeLJ*eps]
+                        params = [sig, fudgeLJ * eps]
             static_pairs[params].append(b)
 
     # Set first static pairs, those one that has explicitly the parameters
@@ -1305,7 +1387,7 @@ def set_pair_interactions(system, gt, args, dynamic_type_ids):
             interaction.setPotential(
                 type1=t1, type2=t2,
                 potential=espressopp.interaction.LennardJones(
-                    sigma=sig, epsilon=fudgeLJ*eps, cutoff=args.lj_cutoff)
+                    sigma=sig, epsilon=fudgeLJ * eps, cutoff=args.lj_cutoff)
             )
         system.addInteraction(interaction, 'dyn_lj14_{}'.format(pair_count))
 

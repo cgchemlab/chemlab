@@ -1,5 +1,5 @@
-Functionals
-===========
+Topology file format
+====================
 
 Nonbonded potentials
 --------------------
@@ -57,7 +57,7 @@ Harmonic bond
 
 .. math::
 
-   U(r) = K(r-r0)^2
+   U(r) = \frac{1}{2}K(r-r_0)^2
 
 FENE bond
 ++++++++++++++++
@@ -68,6 +68,17 @@ FENE bond
 
    U(r) = -\frac{1}{2} K b^2 log \left( 1 - \frac{r^2}{b^2} \right)
 
+
+FENE bond with LJ interactions included
+++++++++++++++++++++++++++++++++++++++++++
+
+.. _eqFENELJ:
+
+.. math::
+
+   U(r) = -\frac{1}{2} K b^2 log \left( 1 - \frac{r^2}{b^2} \right) + 4\epsilon\left [ \left ( \frac{\sigma}{r_{ij}} \right)^{12} - \left ( \frac{\sigma}{r_{ij}} \right)^6 \right ]
+
+
 Harmonic angle
 ++++++++++++++
 
@@ -75,7 +86,7 @@ Harmonic angle
 
 .. math::
 
-   U(\theta) = K(\theta - \theta_0)^2
+   U(\theta) = \frac{1}{2} K(\theta - \theta_0)^2
 
 
 Cosine angle
@@ -85,7 +96,7 @@ Cosine angle
 
 .. math::
 
-   U(\theta) = K(1.0 + cos(\theta - \theta_0))
+   U(\theta) = \frac{1}{2} K(1.0 + cos(\theta - \theta_0))
 
 Harmonic n-cosine dihedral
 ++++++++++++++++++++++++++
@@ -122,6 +133,8 @@ Dihedral Harmonic
 Topology file
 -------------
 
+In principle, ChemLab uses GROMACS-like topology file format. However, some functional types are different.
+
 [ bondtypes ]
 +++++++++++++
 
@@ -129,8 +142,9 @@ Topology file
 Name of interaction       func   params
 ========================  =====  =======
 Harmonic eq1_             1      r0, K [1]_
-FENE eqFENE_              7      r0, K
-Tabulated                 8      table index
+FENE eqFENE_              7      b, K [1]_
+Tabulated                 8      table index [2]_
+FENE + LJ eqFENELJ_       9      b, K, sigma, epsilon
 ========================  =====  =======
 
 .. [1] Force constant internally divided by 2.0
@@ -164,19 +178,37 @@ Harmonic  eq7_            12     phi0 (deg), K
 [ nonbond_params ]
 ++++++++++++++++++
 
-==============================  ====  ======
-Name of interaction             func  params
-==============================  ====  ======
-Lennard-Jones       lj_         1     sigma*, epsilon*
-Tabulated                       8     filename*
-Tabulated (conversion) tc_      9     filename*, type, total number, p_min, p_max, is_default*
-Tabulated (mixed, conversion)   10    tab1, tab2, type, total_number
-Tabulated scaled by lambda      11    filename*, max_force*
-Tabulated (mixed, static)       12    tab1, tab2, mix value
-Tabulated (cap radius)          13    filename, cap radius
-Tabulated (scalled pairs)       14    filename, scale increment, max_force*
-Lennard-Jones scaled by lambda  15    sigma*, epsilon*, max_force*
-Lennard-Jones capped            16    sigma*, epsilon*, cap radius
-==============================  ====  ======
+Every line should follow the format
 
-Parameters with * are optional.
+.. code-block:: none
+
+   T1 T2 func <params>
+
+where `T1`, `T2` are atom types, `func` defines the type of non-bonded
+interaction and `params` is the set of parameters.
+We show the list of currently available non-bonded interactions with the corresponding
+parameters in the table below.
+
+=======================================   ====  ======
+Name of interaction                       func  params
+=======================================   ====  ======
+Lennard-Jones       lj_                   1     sigma [#f1]_, epsilon [#f1]_
+Tabulated                                 8     filename [#f2]_
+Tabulated (conversion) tc_                9     filename*, type, total number, p_min, p_max, is_default*
+Tabulated (mixed, conversion)             10    tab1, tab2, type, total_number
+Tabulated scaled by lambda                11    filename*, max_force*
+Tabulated (mixed, static)                 12    tab1, tab2, mix value
+Tabulated (cap radius)                    13    filename, cap radius
+Tabulated (scaled pairs)                  14    filename, scale increment, max_force*
+Lennard-Jones scaled by lambda            15    sigma*, epsilon*, max_force*
+Lennard-Jones capped                      16    sigma*, epsilon*, cap radius
+Tabulated (multi mixed)                   17    type, total number, p_min:p_max:table1:table2, p_min:p_max:table1:table2, p_min:p_max:table1:table2, ...
+Tabulated (scaled pairs from file) ts_    18    tab filename, pair list filename, scaling factor (default: 0.0)
+=======================================   ====  ======
+
+
+.. rubric:: Footnotes
+
+.. [#f1] If not set then the values are taken from the included force-field.
+.. [#f2] if the filename is not given then it will be constructed from atom type names: 'table_T1_T2.xvg' where T1, T2 are
+type names.

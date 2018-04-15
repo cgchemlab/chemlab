@@ -17,12 +17,8 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import argparse
-import ast
 import collections
-import logging
 import numpy as np
-import random
 import re
 import espressopp
 
@@ -30,7 +26,12 @@ __doc__ = "Tool functions."
 
 
 def save_forcefield(h5, gt):
-    """Saves force-field to H5MD file under the /parameters/forcefield group."""
+    """Saves force-field to H5MD file under the /parameters/forcefield group.
+
+    Args:
+        h5: The h5py.File object.
+        gt: GROMACSTopology object with the topology.
+    """
     if 'force_field' not in h5['/parameters']:
         h5['/parameters'].create_group('force_field')
     g_ff = h5['/parameters/force_field']
@@ -48,6 +49,15 @@ def save_forcefield(h5, gt):
 
 
 def get_integrator_timers(alltimers, system):
+    """Returns timers from MDIntegrator
+
+    Args:
+        alltimers: the dictionary with timers.
+        system: espressopp.System object
+
+    Returns:
+        dictionary with timers (key: name of timer, value: time in seconds)
+    """
     skip_timers = ['timeRun']
     nprocs = len(alltimers)
     timers = {k: 0.0 for k, _ in alltimers[0]}
@@ -70,6 +80,14 @@ def get_integrator_timers(alltimers, system):
 
 
 def average_timers(timer_list):
+    """Returns average value of time from timer list
+
+    Args:
+        timer_list: The list of timers (for every CPU)
+
+    Returns:
+        The averaged time (in seconds).
+    """
     avg_timers = collections.defaultdict(list)
     for cpu_list in timer_list:
         for k, v in cpu_list:
@@ -80,7 +98,21 @@ def average_timers(timer_list):
 
     return avg_timers
 
+
 def get_maximum_conversion(args, system, chem_fpls, gt, cr_observs=None):
+    """
+    Set the maximum conversion object. Parses input
+
+    Args:
+        args: appargs object.
+        system: espressopp.System object
+        chem_fpls: The list of FixedPairList objects.
+        gt: The GROMACSTopology object.
+        cr_observs: The chemical reaction observables.
+
+    Returns:
+        The list of tuples with NFixedPairListEntries objects and integer with max number.
+    """
     if cr_observs is None:
         cr_observs = {}
 
@@ -138,7 +170,8 @@ def get_maximum_conversion(args, system, chem_fpls, gt, cr_observs=None):
                 if type_state is None:
                     obs = espressopp.analysis.ChemicalConversion(system, type_id_symbol, tot_number)
                 else:
-                    obs = espressopp.analysis.ChemicalConversionTypeState(system, type_id_symbol, type_state, tot_number)
+                    obs = espressopp.analysis.ChemicalConversionTypeState(
+                        system, type_id_symbol, type_state, tot_number)
                 cr_observs[(type_id_symbol, tot_number, type_state)] = obs
             else:
                 obs = cr_observs[(type_id_symbol, tot_number, type_state)]

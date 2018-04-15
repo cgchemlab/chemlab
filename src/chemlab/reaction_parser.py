@@ -18,7 +18,6 @@
 
 
 import collections
-import espressopp
 import ConfigParser
 import random
 import re
@@ -30,7 +29,6 @@ __doc__ = """This is a reaction parser."""
 REACTION_NORMAL = 'normal'
 REACTION_DISSOCATION = 'diss'
 REACTION_EXCHANGE = 'exchange'
-REACTION_RESTRICT = 'restricted'
 EXT_POSTPROCESS = 'PP'
 EXT_INTEGRATOR = 'Integrator'
 
@@ -185,9 +183,6 @@ def process_reaction(reaction):
     else:
         data['active'] = True
 
-    if 'connectivity_map' in reaction:
-        data['reaction_type'] = REACTION_RESTRICT
-
     return (group, data)
 
 
@@ -238,6 +233,7 @@ def process_extension(cfg):
 
 
 def parse_config(input_file):
+    """Parse .cfg INI file."""
     parser = ConfigParser.SafeConfigParser()
     parser.read(input_file)
 

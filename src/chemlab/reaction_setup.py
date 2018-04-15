@@ -118,13 +118,13 @@ class SetupReactions:
             reaction.active = chem_reaction['active']
 
         if chem_reaction.get('connectivity_map'):
-            print('Reading connectivity map {}, reaction will be restricted'.format(
+            print('Reading connectivity map {}, reaction will be restricted to form connections only from the map'.format(
                 chem_reaction['connectivity_map']))
             connectivity_map = open(chem_reaction['connectivity_map'])
             ex_list = set()
             for l in connectivity_map.readlines():
                 b1, b2 = map(int, l.strip().split())
-                ex_list.add(tuple(sorted(b1, b2)))
+                ex_list.add(tuple(sorted((b1, b2))))
             for b1, b2 in ex_list:
                 reaction.define_connection(b1, b2)
             self.exclusions_list.extend(list(ex_list))
@@ -139,30 +139,34 @@ class SetupReactions:
         # Change type if necessary.
         if (rl['type_1']['name'] != rl['type_1']['new_type'] or
                     rl['type_2']['name'] != rl['type_2']['new_type']):
-            r_pp = espressopp.integrator.PostProcessChangeProperty()
             if t1_old != t1_new:
+                r_pp = espressopp.integrator.PostProcessChangeProperty()
                 self.dynamic_types.add(t1_old)
                 self.dynamic_types.add(t1_new)
-                print('Reaction: {}-{}, change type {}->{}'.format(rt1, rt2, t1_old, t1_new))
+                print('Reaction: {}-{}, change type {} ({}) -> {} ({})'.format(
+                    rt1, rt2, rl['type_1']['name'], t1_old, rl['type_1']['new_type'], t1_new))
                 new_property = self.topol.gt.atomtypes[rl['type_1']['new_type']]
                 r_pp.add_change_property(
                     t1_old,
                     espressopp.integrator.TopologyParticleProperties(
                         type=t1_new, mass=new_property['mass'],
                         q=new_property['charge']))
+                reaction.add_postprocess(r_pp, 'type_1')
+
             if t2_old != t2_new:
+                r_pp = espressopp.integrator.PostProcessChangeProperty()
                 self.dynamic_types.add(t2_old)
                 self.dynamic_types.add(t2_new)
-                print('Reaction: {}-{}, change type {}->{}'.format(rt1, rt2, t2_old, t2_new))
+                print('Reaction: {}-{}, change type {} ({}) -> {} ({})'.format(
+                    rt1, rt2, rl['type_2']['name'], t2_old, rl['type_2']['new_type'], t2_new))
                 new_property = self.topol.gt.atomtypes[rl['type_2']['new_type']]
                 r_pp.add_change_property(
                     t2_old,
                     espressopp.integrator.TopologyParticleProperties(
                         type=t2_new, mass=new_property['mass'],
                         q=new_property['charge']))
+                reaction.add_postprocess(r_pp, 'type_2')
 
-
-            reaction.add_postprocess(r_pp)
         return reaction, [(t1_old, t2_old), (t1_new, t2_new)]
 
     def _setup_reaction_exchange(self, chem_reaction, fpl):
@@ -511,7 +515,7 @@ class SetupReactions:
                         self.type2fpl[(t2, t1)] = fpl
 
             # Now process dissociation reactions.
-            # Pitfal, It can only sees fixed pair lists in given group
+            # Pitfall, It can only sees fixed pair lists in given group
             for chem_reaction in reaction_group['reaction_list']:
                 if chem_reaction['reaction_type'] != REACTION_DISSOCATION:  # only dissociation
                     continue

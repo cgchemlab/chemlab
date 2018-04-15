@@ -23,7 +23,7 @@ import logging
 import random
 import re
 
-__doc__ = "Tool functions."
+__doc__ = 'Tool functions.'
 
 
 class MyArgParser(argparse.ArgumentParser):
@@ -49,7 +49,7 @@ class MyArgParser(argparse.ArgumentParser):
             output_file: The string with the name of output file.
             namespace: The namespace with arguements.
         """
-        with open(output_file, "w") as of:
+        with open(output_file, 'w') as of:
             keys = sorted(namespace.__dict__.keys())
             for k in keys:
                 v = namespace.__dict__[k]
@@ -58,7 +58,7 @@ class MyArgParser(argparse.ArgumentParser):
 
 
 class RegexpFilter(logging.Filter):
-    """This filter allows only messages that matches regexp to pass to user."""
+    '''This filter allows only messages that matches regexp to pass to user.'''
 
     def __init__(self, regexp, name=''):
         self.regexp = re.compile(regexp)
@@ -66,7 +66,6 @@ class RegexpFilter(logging.Filter):
 
     def filter(self, record):
         return self.regexp.match(record.msg) or self.regexp.match(record.funcName)
-
 
 
 def _args():
@@ -111,6 +110,8 @@ def _args():
     general_options.add_argument('--benchmark_data', default=None, help='Store time measurement in the file')
     general_options.add_argument('--system_monitor_filter', default=None,
                                  help='Print all (empty) or only selected elements in SystemMonitor')
+    general_options.add_argument('--do_not_exclude_bonds', default=False, type=ast.literal_eval,
+                                 help='Do not exclude newly created bonds')
 
     args_simulation_options = parser.add_argument_group('Simulation parameters')
     args_simulation_options.add_argument('--kb', type=float, default=0.0083144621,
@@ -140,7 +141,7 @@ def _args():
     args_simulation_options.add_argument('--thermostat_gamma', type=float, default=5.0,
                                          help='Thermostat coupling constant')
     args_simulation_options.add_argument('--temperature', default=458.0, type=float, help='Temperature')
-    args_simulation_options.add_argument('--pressure', help='Pressure', type=float)
+    args_simulation_options.add_argument('--pressure', help='Pressure', type=float, default=None)
     args_simulation_options.add_argument('--dt', default=0.001, type=float,
                                          help='Integrator time step')
     args_simulation_options.add_argument('--lj_cutoff', default=1.2, type=float,
@@ -179,9 +180,10 @@ def _args():
                                       help='Write data in single precision format')
     args_storing_options.add_argument('--save_before_reaction', default=False, type=ast.literal_eval,
                                       help='If True then the trajectory and topology will be saved before reaction')
-    args_storing_options.add_argument('--trj_flush', default=None, type=int)
-    args_storing_options.add_argument('--gro_trj_collect', default=None, type=int)
-    args_storing_options.add_argument('--store_angdih', default=False, type=ast.literal_eval)
+    args_storing_options.add_argument('--trj_flush', default=None, type=int, help='Flush data to disk every n-steps')
+    args_storing_options.add_argument('--gro_trj_collect', default=None, type=int, help='Save trajectory in .gro file')
+    args_storing_options.add_argument('--store_angdih', default=False, type=ast.literal_eval,
+                                      help='Save angles and dihedrals in the topology')
 
     maximum_conversion_options = parser.add_argument_group('Maximum conversion')
     maximum_conversion_options.add_argument('--maximum_conversion',
@@ -198,11 +200,12 @@ def _args():
     args_counters.add_argument('--count_types', default=None, help='List of particle types to count; eq. A,B')
     args_counters.add_argument('--count_tuples', default=False, type=ast.literal_eval, help='Count tuples')
     args_counters.add_argument('--count_types_state', default=None, help='List of particle types, state; eq. A:3,B:4')
-    args_counters.add_argument('--count_fix_distances', default=False, type=ast.literal_eval, help='Count size of fix distances')
+    args_counters.add_argument('--count_fix_distances', default=False,
+                               type=ast.literal_eval, help='Count size of fix distances')
 
-    args_hybrid_bonds = parser.add_argument_group('Hybrid bonds')
-    args_hybrid_bonds.add_argument('--t_hybrid_bond', default=0, type=int)
-    args_hybrid_bonds.add_argument('--t_hybrid_angle', default=0, type=int)
-    args_hybrid_bonds.add_argument('--t_hybrid_dihedral', default=0, type=int)
+    args_hybrid_bonds = parser.add_argument_group('Hybrid bonded terms')
+    args_hybrid_bonds.add_argument('--t_hybrid_bond', default=0, type=int, help='Use hybrid bonds')
+    args_hybrid_bonds.add_argument('--t_hybrid_angle', default=0, type=int, help='Use hybrid angles')
+    args_hybrid_bonds.add_argument('--t_hybrid_dihedral', default=0, type=int, help='Use hybrid dihedrals')
 
     return parser

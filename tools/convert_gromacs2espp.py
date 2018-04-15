@@ -22,6 +22,7 @@
 
 import argparse
 import math
+import re
 
 
 def convertTable(gro_in_file, esp_out_file, sigma=1.0, epsilon=1.0, c6=1.0, c12=1.0):
@@ -41,17 +42,22 @@ def convertTable(gro_in_file, esp_out_file, sigma=1.0, epsilon=1.0, c6=1.0, c12=
     """
     # determine file type
     bonded, angle, dihedral = False, False, False
-    if gro_in_file[6] == "b":
+
+    re_bond = re.compile('.*_b[0-9]+.*')
+    re_angle = re.compile('.*_a[0-9]+.*')
+    re_dihedral = re.compile('.*_d[0-9]+.*')
+
+    if re.match(re_bond, gro_in_file):
         bonded = True
-    if gro_in_file[6] == "a":
+    elif re.match(re_angle, gro_in_file):
         angle  = True
         bonded = True
-    if gro_in_file[6] == "d":
+    elif re.match(re_dihedral, gro_in_file):
         dihedral = True
         bonded = True
 
     fin = open(gro_in_file, 'r')
-    fout= open(esp_out_file, 'w')
+    fout = open(esp_out_file, 'w')
 
     if bonded: # bonded has 3 columns
         for line in fin:
@@ -79,13 +85,11 @@ def convertTable(gro_in_file, esp_out_file, sigma=1.0, epsilon=1.0, c6=1.0, c12=
 
     else: # non-bonded has 7 columns
         for line in fin:
-            if line[0] == "#": # skip comment lines
+            if line.startswith('#'): # skip comment lines
                 continue
 
             columns = line.split()
             r = float(columns[0])
-            #f = float(columns[1]) # electrostatics not implemented yet
-            #fd= float(columns[2]) # electrostatics not implemented yet
             g = float(columns[3]) # dispersion
             gd= float(columns[4])
             h = float(columns[5]) # repulsion

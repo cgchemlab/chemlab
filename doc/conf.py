@@ -53,7 +53,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'ChemLab'
-copyright = u'2015-{}, Jakub Krajniak'.format(datetime.date.today().year)
+copyright = u'{}, Jakub Krajniak'.format(datetime.date.today())
 author = u'Jakub Krajniak'
 
 # The version info for the project you're documenting, acts as replacement for
