@@ -128,7 +128,7 @@ def _args():
                                          help='Generate velocity or not')
     args_simulation_options.add_argument('--thermostat',
                                          default='lv',
-                                         choices=('lv', 'vr', 'iso'),
+                                         choices=('lv', 'vr', 'iso', 'br'),
                                          help='Thermostat to use, lv: Langevine, vr: Stochastic velocity rescale')
     args_simulation_options.add_argument('--barostat', default='lv', choices=('lv', 'br'),
                                          help='Barostat to use, lv: Langevine, br: Berendsen')

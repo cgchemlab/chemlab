@@ -76,6 +76,7 @@ def main():  # NOQA
 
     lj_cutoff = args.lj_cutoff
     cg_cutoff = args.cg_cutoff
+    qq_cutoff = args.coulomb_cutoff
     max_cutoff = max([lj_cutoff, cg_cutoff])
     dt = args.dt
     print('LJ cutoff: {} Tabulated cutoff: {} time-step: {}'.format(
@@ -295,7 +296,7 @@ def main():  # NOQA
 
     # Set potentials.
     cr_observs, particle_pair_scales = chemlab.gromacs_topology.set_nonbonded_interactions(
-        system, gt, verletlist, lj_cutoff, cg_cutoff, tables=args.table_groups, cr_observs=cr_observs)
+        system, gt, verletlist, lj_cutoff, qq_cutoff, cg_cutoff, tables=args.table_groups, cr_observs=cr_observs)
     dynamic_fpls, static_fpls, registered_fpls = chemlab.gromacs_topology.set_bonded_interactions(
         system, gt, chem_dynamic_types, chem_dynamic_bond_types, separate_fpls)
     dynamic_ftls, static_ftls = chemlab.gromacs_topology.set_angle_interactions(
@@ -336,6 +337,10 @@ def main():  # NOQA
         thermostat = espressopp.integrator.StochasticVelocityRescaling(system)
         thermostat.temperature = temperature
         thermostat.coupling = args.thermostat_gamma
+    elif args.thermostat == 'br':
+        thermostat = espressopp.integrator.BerendsenThermostat(system)
+        thermostat.temperature = temperature
+        thermostat.tau = args.thermostat_gamma
     elif args.thermostat == 'iso':
         thermostat = espressopp.integrator.Isokinetic(system)
         thermostat.temperature = temperature

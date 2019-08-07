@@ -460,13 +460,14 @@ def combination(sig_1, eps_1, sig_2, eps_2, cr):
     return sig, eps
 
 
-def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, tables=None, cr_observs=None):  # NOQA
+def set_nonbonded_interactions(system, gt, vl, lj_cutoff, qq_cutoff=None, tab_cutoff=None, tables=None, cr_observs=None):  # NOQA
     """Sets the non-bonded interactions
     Args:
         system: The espressopp.System object.
         gt: The GromacsTopology object.
         vl: The VerletList object.
         lj_cutoff: The cutoff of LJ interaction.
+        qq_cutoff: The cutoff for Coulomb interaction.
         tab_cutoff: The cutoff of tabulated interactions.
         tables: The list of atom type names that should use tabulated potentials.
         cr_observs: The input list of ConversionObservables dictionary.
@@ -482,6 +483,9 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
 
     if tab_cutoff is None:
         tab_cutoff = lj_cutoff
+
+    if qq_cutoff is None:
+        qq_cutoff = lj_cutoff
 
     # The list of tabuleated types.
     if tables is None:
@@ -857,6 +861,20 @@ def set_nonbonded_interactions(system, gt, vl, lj_cutoff=None, tab_cutoff=None, 
                     bn += 1
             else:
                 raise RuntimeError('Currently {} not supported'.format(func))
+
+    fudgeQQ = gt.gt.defaults.get('fudgeQQ', 1.0)
+    prefQQ = 138.935485 * fudgeQQ
+    qq_count = 0
+    if qq_cutoff > 0.0 and prefQQ > 0.0:
+        potQQ = espressopp.interaction.CoulombTruncated(
+            prefactor=prefQQ, cutoff=qq_cutoff)
+        interaction = espressopp.interaction.VerletListCoulombTruncated(vl)
+        for type_1, type_2 in type_pairs:
+            t1 = atomsym_atomtype[type_1]
+            t2 = atomsym_atomtype[type_2]
+            print('Set coulomb interaction for pair types: {}-{}'.format(type_1, type_2))
+            interaction.setPotential(type1=t1, type2=t2, potential=potQQ)
+        system.addInteraction(interaction, 'coulomb')
 
     if tab_connection_scaled:
         pass
