@@ -43,12 +43,12 @@ class MyArgParser(argparse.ArgumentParser):
 
     @staticmethod
     def save_to_file(output_file, namespace):
-        '''Saves arguments to file so it can be read again.
+        """Saves arguments to file so it can be read again.
 
         Args:
             output_file: The string with the name of output file.
             namespace: The namespace with arguements.
-        '''
+        """
         with open(output_file, 'w') as of:
             keys = sorted(namespace.__dict__.keys())
             for k in keys:

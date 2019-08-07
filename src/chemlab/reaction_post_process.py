@@ -49,7 +49,15 @@ class PostProcessSetup(object):
         self.simulation_args = args
 
     def setup_post_process(self, post_process_type):
-        """Process post-processing options"""
+        """Process post-processing options.
+
+        Args:
+            post_process_type: The name of post process action.
+
+        Returns:
+            The callable object with a single argument being a dictionary with
+            configuration.
+        """
 
         # The entry points
         pp_type_to_cfg = {
@@ -207,7 +215,7 @@ class PostProcessSetup(object):
         if release_on not in ['bond', 'type']:
             raise RuntimeError('Wrong keyword release_on {}, only: bond or type'.format(release_on))
         release_count = int(cfg.get('release_count', 1))
-        release_host = cfg.get('release_host', 'both')
+        release_host = cfg.get('invoke_on', 'both')
         if release_host not in ['type_1', 'type_2', 'both']:
             raise RuntimeError('Wrong keyword release_host {}, only left, right, both'.format(release_host))
 
@@ -312,6 +320,7 @@ class PostProcessSetup(object):
         return output_triplet(reaction_post_process, release_host, EXT_POSTPROCESS)
 
     def _setup_post_process_join_molecule(self, cfg):
+        """Setup PostProcessJoinParticles method"""
         host_type = cfg['host_type']
         host_type_id = self.topol.atomsym_atomtype[host_type]
         target_type = cfg['target_type']
@@ -353,6 +362,7 @@ class PostProcessSetup(object):
             output_triplet(dummy_pp, 'type_2', EXT_POSTPROCESS)]
 
     def _setup_change_particle_type(self, cfg):
+        """Setup ChangeParticleType extension."""
         interval = int(cfg['interval'])
         old_type_id = int(cfg['type_id'])
         new_type_id = int(cfg['new_type_id'])
@@ -368,6 +378,7 @@ class PostProcessSetup(object):
         return output_triplet(change_type, None, EXT_INTEGRATOR)
 
     def _setup_atrp_activator(self, cfg):
+        """Setup ATRPActivator extension."""
         interval = int(cfg['interval'])
         num_particles = int(cfg['num_particles'])
         select_from_all = int(cfg.get('select_from_all', 1))

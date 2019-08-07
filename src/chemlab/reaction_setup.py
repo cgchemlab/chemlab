@@ -512,7 +512,7 @@ class SetupReactions:
                         type2fpl[(t2, t1)] = fpl
 
             # Now process dissociation reactions.
-            # Pitfal, It can only sees fixed pair lists in given group
+            # Pitfall, It can only sees fixed pair lists in given group
             for chem_reaction in reaction_group['reaction_list']:
                 if chem_reaction['reaction_type'] != REACTION_DISSOCATION:  # only dissociation
                     continue
@@ -543,8 +543,6 @@ class SetupReactions:
 
     def rebuild_fixed_pair_lists(self):
         """If the tuple for dissociation reaction is not found then the TopologyManager has to be used"""
-        print self.missing_fpls
-
         for r, (t1, t2) in self.missing_fpls:
             fpl = self.tm.get_fixed_pair_list(t1, t2)
             if fpl:
