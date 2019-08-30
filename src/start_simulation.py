@@ -299,6 +299,7 @@ def main():  # NOQA
         system, gt, verletlist, lj_cutoff, qq_cutoff, cg_cutoff, tables=args.table_groups, cr_observs=cr_observs)
     dynamic_fpls, static_fpls, registered_fpls = chemlab.gromacs_topology.set_bonded_interactions(
         system, gt, chem_dynamic_types, chem_dynamic_bond_types, separate_fpls)
+    print('==== angle potential ====')
     dynamic_ftls, static_ftls = chemlab.gromacs_topology.set_angle_interactions(
         system, gt, chem_dynamic_types, chem_dynamic_bond_types)
     dynamic_fqls, static_fqls = chemlab.gromacs_topology.set_dihedral_interactions(
@@ -954,11 +955,13 @@ def main():  # NOQA
                     out_topol.atoms[p[1]].atom_type,
                     out_topol.atoms[p[2]].atom_type)
                 ftl_params = ftl.params[t0][t1][t2]
+                if not ftl_params:
+                    ftl_params = ftl.params[t2][t1][t0]
                 if ftl_params:
                     angle_lists.append(list(p) + [ftl_params['func']] + list(ftl_params['params']) + ['; dynamic'])
                 else:
                     angle_lists.append(
-                        list(p) + ['; MISSING params type: {}-{}-{} dynamic'.format(namet0, namet1, namet2)])
+                        list(p) + ['; MISSING params type: {}-{}-{} dynamic ({})'.format(namet0, namet1, namet2, ftl_params)])
         for a in angle_lists:
             of.write('{}\n'.format(' '.join(map(str, a))))
             out_topol.new_data['angles'][tuple(a[:3])] = a[3:]

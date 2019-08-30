@@ -1107,14 +1107,11 @@ def set_angle_interactions(system, gt, dynamic_type_ids, change_angle_types=set(
                                                        or (pt[2], pt[1]) not in change_angle_types)):
             continue
         params = p['params']
-        if tuple(params) not in set(dynamic_ptypes.values()):
-            dynamic_ptypes[tuple((pt))] = tuple(params)
-            angleparams_func[p['func']].append((pt, p))
-            if p['func'] not in dynamics_angles_by_func:
-                dynamics_angles_by_func[p['func']] = []
-        else:
-            dynamic_ptypes = {k: v for k, v in dynamic_ptypes.items() if v != tuple(params)}
-            angleparams_func[p['func']] = [x for x in angleparams_func[p['func']][:] if x != (pt, p)]
+        
+        dynamic_ptypes[tuple((pt))] = tuple(params)
+        angleparams_func[p['func']].append((pt, p))
+        if p['func'] not in dynamics_angles_by_func:
+            dynamics_angles_by_func[p['func']] = []
 
     # Sort existing angle lists by functional type and select if it is dynamic angle or static.
     angles_by_func = collections.defaultdict(dict)
@@ -1160,6 +1157,7 @@ def set_angle_interactions(system, gt, dynamic_type_ids, change_angle_types=set(
                 potential=potential_class(**convert_params(func, params['params'])))
             ftl.params[t[0]][t[1]][t[2]] = params
             ftl.params[t[2]][t[1]][t[0]] = params
+            print('angle params {}: {}'.format(t, params))
         system.addInteraction(interaction, 'dyn_{}_{}'.format(name, angle_count))
         angle_count += 1
         dynamics_ftls[collections.namedtuple('dftls', ['func', 'is_observe_list'])(func, observe_list)] = ftl
@@ -1239,14 +1237,10 @@ def set_dihedral_interactions(system, gt, dynamic_type_ids, change_dihedral_type
                                                        or (pt[3], pt[2]) not in change_dihedral_types)):
             continue
         params = p['params']
-        if tuple(params) not in set(dynamic_ptypes.values()):
-            dynamic_ptypes[tuple((pt))] = tuple(params)
-            dihedralparams_func[p['func']].append((pt, p))
-            if p['func'] not in dynamics_dihedrals_by_func:
-                dynamics_dihedrals_by_func[p['func']] = []
-        else:
-            dynamic_ptypes = {k: v for k, v in dynamic_ptypes.items() if v != tuple(params)}
-            dihedralparams_func[p['func']] = [x for x in dihedralparams_func[p['func']][:] if x != (pt, p)]
+        dynamic_ptypes[tuple((pt))] = tuple(params)
+        dihedralparams_func[p['func']].append((pt, p))
+        if p['func'] not in dynamics_dihedrals_by_func:
+            dynamics_dihedrals_by_func[p['func']] = []
 
     # Sort existing dihedral lists by functional type and select if it is dynamic dihedral or static.
     dihedrals_by_func = collections.defaultdict(dict)
